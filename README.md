@@ -71,7 +71,7 @@ recovered plaintext is compared to the digest contained in the header.
 
 1. Veil messages can be read by all of the intended recipients. None of the recipients can modify
    the message or forge additional messages without being able to forge encrypted headers for the
-   other recipients (i.e., break X448) or find a message with the same SHA-512/256 digest (i.e. 
+   other recipients (i.e., break X25519) or find a message with the same SHA-512/256 digest (i.e. 
    break SHA2).
 2. Veil messages are tamper-proof. If a single bit of the entire message is changed, all of the
    recipients will know.
