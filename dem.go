@@ -1,8 +1,6 @@
 package veil
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha512"
@@ -11,41 +9,36 @@ import (
 	"errors"
 	"hash"
 	"io"
+
+	"golang.org/x/crypto/salsa20"
 )
 
 const (
-	demKeyLen   = 32
-	demNonceLen = 16
+	demKeyLen   = 64
+	demNonceLen = 24
 	demTagLen   = 32
 	demOverhead = demNonceLen + demTagLen
 )
 
 func demEncrypt(key, plaintext, data []byte) ([]byte, error) {
-	c, h, err := subkeys(key)
-	if err != nil {
-		return nil, err
-	}
-
+	k, h := subkeys(key)
 	ciphertext := make([]byte, len(plaintext)+demNonceLen)
 
 	// generate random nonce
-	_, err = io.ReadFull(rand.Reader, ciphertext[:demNonceLen])
+	_, err := io.ReadFull(rand.Reader, ciphertext[:demNonceLen])
 	if err != nil {
 		return nil, err
 	}
 
-	// encrypt plaintext with AES-128-CTR
-	cipher.NewCTR(c, ciphertext[:demNonceLen]).XORKeyStream(ciphertext[demNonceLen:], plaintext)
+	// encrypt plaintext with XSalsa20
+	salsa20.XORKeyStream(ciphertext[demNonceLen:], plaintext, ciphertext[:demNonceLen], &k)
 
 	// return nonce + ciphertext + tag
 	return appendTag(ciphertext, h, ciphertext, data), nil
 }
 
 func demDecrypt(key, ciphertext, data []byte) ([]byte, error) {
-	c, h, err := subkeys(key)
-	if err != nil {
-		return nil, err
-	}
+	k, h := subkeys(key)
 
 	// check tag
 	tagIdx := len(ciphertext) - demTagLen
@@ -54,10 +47,9 @@ func demDecrypt(key, ciphertext, data []byte) ([]byte, error) {
 		return nil, errors.New("invalid ciphertext")
 	}
 
-	// decrypt with AES-128-CTR
+	// decrypt with XSalsa20
 	plaintext := make([]byte, len(ciphertext)-demOverhead)
-	ctr := cipher.NewCTR(c, ciphertext[:demNonceLen])
-	ctr.XORKeyStream(plaintext, ciphertext[demNonceLen:tagIdx])
+	salsa20.XORKeyStream(plaintext, ciphertext[demNonceLen:tagIdx], ciphertext[:demNonceLen], &k)
 	return plaintext, nil
 }
 
@@ -65,13 +57,12 @@ func appendTag(dst []byte, h hash.Hash, ciphertext, data []byte) []byte {
 	h.Write(ciphertext)
 	h.Write(data)
 	_ = binary.Write(h, binary.BigEndian, uint64(len(data))*8)
+	_ = binary.Write(h, binary.BigEndian, uint64(len(ciphertext))*8)
 	return h.Sum(dst)
 }
 
-func subkeys(key []byte) (cipher.Block, hash.Hash, error) {
-	c, err := aes.NewCipher(key[0 : demKeyLen/2])
-	if err != nil {
-		return nil, nil, err
-	}
-	return c, hmac.New(sha512.New512_256, key[demKeyLen/2:demKeyLen]), nil
+func subkeys(key []byte) ([32]byte, hash.Hash) {
+	var salsaKey [32]byte
+	copy(salsaKey[:], key[:demKeyLen/2])
+	return salsaKey, hmac.New(sha512.New512_256, key[demKeyLen/2:])
 }

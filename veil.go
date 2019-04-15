@@ -49,7 +49,7 @@ func Encrypt(recipients []PublicKey, plaintext []byte, padding, fakes int) ([]by
 		return nil, err
 	}
 
-	// generate a session key
+	// generate a data encapsulation key
 	session := make([]byte, demKeyLen)
 	_, err = io.ReadFull(rand.Reader, session)
 	if err != nil {
@@ -104,7 +104,7 @@ func Decrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte, e
 
 	// look for decryptable header
 	encryptedHeader := make([]byte, encryptedHeaderLen)
-	session := make([]byte, demKeyLen)
+	dek := make([]byte, demKeyLen)
 	var offset, size uint64
 	digest := make([]byte, digestLen)
 	for {
@@ -119,9 +119,9 @@ func Decrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte, e
 		// try to decrypt it
 		header, err := kemDecrypt(private, public, encryptedHeader)
 		if err == nil {
-			// if we can decrypt it, read the session key, offset, size, and digest
+			// if we can decrypt it, read the data encapsulation key, offset, size, and digest
 			r := bytes.NewReader(header)
-			_, _ = io.ReadFull(r, session)
+			_, _ = io.ReadFull(r, dek)
 			_ = binary.Read(r, binary.BigEndian, &offset)
 			_ = binary.Read(r, binary.BigEndian, &size)
 			_, _ = io.ReadFull(r, digest)
@@ -130,7 +130,7 @@ func Decrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte, e
 	}
 
 	// decrypt padded plaintext
-	padded, err := demDecrypt(session, ciphertext[offset:], ciphertext[:offset])
+	padded, err := demDecrypt(dek, ciphertext[offset:], ciphertext[:offset])
 	if err != nil {
 		return nil, err
 	}
