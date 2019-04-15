@@ -13,7 +13,6 @@ import (
 	rand2 "math/rand"
 
 	"github.com/agl/ed25519/extra25519"
-	"golang.org/x/crypto/curve25519"
 )
 
 type PublicKey []byte
@@ -170,13 +169,4 @@ func addFakes(recipients []PublicKey, fakes int) ([]PublicKey, error) {
 		out[i], out[j] = out[j], out[i]
 	})
 	return out, nil
-}
-
-func sharedSecret(private PrivateKey, public PublicKey) []byte {
-	var dst, in, base, representative [32]byte
-	copy(in[:], private)
-	copy(representative[:], public)
-	extra25519.RepresentativeToPublicKey(&base, &representative)
-	curve25519.ScalarMult(&dst, &in, &base)
-	return dst[:]
 }

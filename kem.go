@@ -4,6 +4,8 @@ import (
 	"crypto/sha512"
 	"io"
 
+	"github.com/agl/ed25519/extra25519"
+	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
 )
 
@@ -48,4 +50,13 @@ func kdf(ikm []byte, ephemeral PublicKey, recipient PublicKey) []byte {
 	key := make([]byte, 32)
 	_, _ = io.ReadFull(h, key)
 	return key
+}
+
+func sharedSecret(private PrivateKey, public PublicKey) []byte {
+	var dst, in, base, representative [32]byte
+	copy(in[:], private)
+	copy(representative[:], public)
+	extra25519.RepresentativeToPublicKey(&base, &representative)
+	curve25519.ScalarMult(&dst, &in, &base)
+	return dst[:]
 }
