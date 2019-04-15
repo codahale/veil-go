@@ -1,4 +1,4 @@
-module github.com/codahale/veil-go
+module github.com/codahale/veil
 
 go 1.12
 
