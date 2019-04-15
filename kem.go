@@ -9,7 +9,10 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
-const kemOverhead = 32 + demOverhead
+const (
+	kemPubKeyLen = 32
+	kemOverhead  = kemPubKeyLen + demOverhead
+)
 
 func kemEncrypt(static PublicKey, plaintext []byte) ([]byte, error) {
 	// generate an ephemeral key pair
@@ -35,10 +38,10 @@ func kemEncrypt(static PublicKey, plaintext []byte) ([]byte, error) {
 }
 
 func kemDecrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte, error) {
-	ephemeral := ciphertext[:32]
+	ephemeral := ciphertext[:kemPubKeyLen]
 	secret := sharedSecret(private, ephemeral)
 	key := kdf(secret, ephemeral, public)
-	return demDecrypt(key, ciphertext[32:], nil)
+	return demDecrypt(key, ciphertext[kemPubKeyLen:], nil)
 }
 
 func kdf(ikm []byte, ephemeral PublicKey, recipient PublicKey) []byte {
@@ -47,7 +50,7 @@ func kdf(ikm []byte, ephemeral PublicKey, recipient PublicKey) []byte {
 	salt = append(salt, ephemeral...)
 	salt = append(salt, recipient...)
 	h := hkdf.New(sha512.New512_256, ikm, salt, []byte("veil"))
-	key := make([]byte, 32)
+	key := make([]byte, demKeyLen)
 	_, _ = io.ReadFull(h, key)
 	return key
 }

@@ -37,7 +37,8 @@ func GenerateKeys() (PublicKey, PrivateKey, error) {
 }
 
 const (
-	headerLen          = 32 + 8 + 8 + 32
+	digestLen          = 32
+	headerLen          = demKeyLen + 8 + 8 + digestLen
 	encryptedHeaderLen = headerLen + kemOverhead
 )
 
@@ -49,7 +50,7 @@ func Encrypt(recipients []PublicKey, plaintext []byte, padding, fakes int) ([]by
 	}
 
 	// generate a session key
-	session := make([]byte, 32)
+	session := make([]byte, demKeyLen)
 	_, err = io.ReadFull(rand.Reader, session)
 	if err != nil {
 		return nil, err
@@ -103,9 +104,9 @@ func Decrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte, e
 
 	// look for decryptable header
 	encryptedHeader := make([]byte, encryptedHeaderLen)
-	session := make([]byte, 32)
+	session := make([]byte, demKeyLen)
 	var offset, size uint64
-	digest := make([]byte, 32)
+	digest := make([]byte, digestLen)
 	for {
 		// read a header's worth of data
 		_, err := io.ReadFull(r, encryptedHeader)
