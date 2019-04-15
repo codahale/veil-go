@@ -57,11 +57,7 @@ func Encrypt(recipients []PublicKey, plaintext []byte, padding, fakes int) ([]by
 	}
 
 	// encode session key, offset, size, and digest into a header
-	header := bytes.NewBuffer(nil)
-	header.Write(session)
-	_ = binary.Write(header, binary.BigEndian, uint64(encryptedHeaderLen*len(recipients)))
-	_ = binary.Write(header, binary.BigEndian, uint64(len(plaintext)))
-	header.Write(sha512t256(plaintext))
+	header := encodeHeader(session, len(recipients), plaintext)
 
 	// write KEM-encrypted copies of the header
 	buf := bytes.NewBuffer(nil)
@@ -76,7 +72,7 @@ func Encrypt(recipients []PublicKey, plaintext []byte, padding, fakes int) ([]by
 			buf.Write(fake)
 		} else {
 			// write an actual header
-			b, err := kemEncrypt(public, header.Bytes())
+			b, err := kemEncrypt(public, header)
 			if err != nil {
 				return nil, err
 			}
@@ -145,6 +141,15 @@ func Decrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte, e
 		return nil, errors.New("invalid ciphertext")
 	}
 	return plaintext, nil
+}
+
+func encodeHeader(session []byte, recipients int, plaintext []byte) []byte {
+	header := bytes.NewBuffer(nil)
+	header.Write(session)
+	_ = binary.Write(header, binary.BigEndian, uint64(encryptedHeaderLen*recipients))
+	_ = binary.Write(header, binary.BigEndian, uint64(len(plaintext)))
+	header.Write(sha512t256(plaintext))
+	return header.Bytes()
 }
 
 func sha512t256(plaintext []byte) []byte {

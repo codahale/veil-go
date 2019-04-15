@@ -1,7 +1,6 @@
 package veil
 
 import (
-	"bytes"
 	"crypto/sha512"
 	"io"
 
@@ -27,10 +26,10 @@ func kemEncrypt(static PublicKey, plaintext []byte) ([]byte, error) {
 	}
 
 	// return the ephemeral public key and the ciphertext
-	out := bytes.NewBuffer(nil)
-	out.Write(public)
-	out.Write(ciphertext)
-	return out.Bytes(), nil
+	out := make([]byte, 0, len(public)+len(ciphertext))
+	out = append(out, public...)
+	out = append(out, ciphertext...)
+	return out, nil
 }
 
 func kemDecrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte, error) {
@@ -42,10 +41,10 @@ func kemDecrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte
 
 func kdf(ikm []byte, ephemeral PublicKey, recipient PublicKey) []byte {
 	// use the ephemeral public key and the recipient public key as the HKDF salt
-	salt := bytes.NewBuffer(nil)
-	salt.Write(ephemeral)
-	salt.Write(recipient)
-	h := hkdf.New(sha512.New512_256, ikm, salt.Bytes(), []byte("veil"))
+	salt := make([]byte, 0, len(ephemeral)+len(recipient))
+	salt = append(salt, ephemeral...)
+	salt = append(salt, recipient...)
+	h := hkdf.New(sha512.New512_256, ikm, salt, []byte("veil"))
 	key := make([]byte, 32)
 	_, _ = io.ReadFull(h, key)
 	return key
