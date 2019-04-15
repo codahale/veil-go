@@ -1,3 +1,4 @@
+// Package veil provides an implementation of the Veil hybrid cryptosystem.
 package veil
 
 import (
@@ -15,10 +16,16 @@ import (
 	"github.com/agl/ed25519/extra25519"
 )
 
+// PublicKey is an Elligator2 representative of an X25519 public key. It is indistinguishable from
+// random noise.
 type PublicKey []byte
 
+// PrivateKey is an X25519 private key. It is also indistinguishable from random noise, but it
+// should not be shared.
 type PrivateKey []byte
 
+// GenerateKeys generates an X25519 key pair and returns the Elligator2 representative of the public
+// key and the private key.
 func GenerateKeys() (PublicKey, PrivateKey, error) {
 	var privateKey, representative, publicKey [32]byte
 	for {
@@ -42,6 +49,8 @@ const (
 	encryptedHeaderLen = headerLen + kemOverhead
 )
 
+// Encrypt returns a Veil ciphertext containing the given plaintext, decryptable by the given
+// recipients, with the given number of random padding bytes and fake recipients.
 func Encrypt(recipients []PublicKey, plaintext []byte, padding, fakes int) ([]byte, error) {
 	// add fake recipients
 	recipients, err := addFakes(recipients, fakes)
@@ -95,10 +104,13 @@ func Encrypt(recipients []PublicKey, plaintext []byte, padding, fakes int) ([]by
 	}
 	buf.Write(ciphertext)
 
-	// return encrypted headers + encrypted padded plaintext
+	// return KEM encrypted headers + DEM encrypted padded plaintext
 	return buf.Bytes(), nil
 }
 
+// Decrypt returns the plaintext of the given Veil ciphertext iff it is decryptable by the given
+// private/public key pair and it has not been altered in any way. If the ciphertext was not
+// encrypted with the given key pair or if the ciphertext was altered, an error is returned.
 func Decrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte, error) {
 	r := bytes.NewReader(ciphertext)
 
