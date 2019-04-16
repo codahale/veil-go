@@ -33,6 +33,16 @@ func TestRoundTrip(t *testing.T) {
 	if !bytes.Equal(message, plaintext) {
 		t.Errorf("Plaintext wss %v, expected %v", plaintext, message)
 	}
+
+	for i := 0; i < 1000; i++ {
+		corruptCiphertext := corrupt(ciphertext)
+
+		_, err = Decrypt(privateC, publicB, corruptCiphertext)
+		if err == nil {
+			t.Fatalf("Was able to decrypt %v/%v/%v", privateC, publicB, corruptCiphertext)
+		}
+
+	}
 }
 
 func TestXDH(t *testing.T) {

@@ -31,4 +31,12 @@ func TestKEM(t *testing.T) {
 	if expected, actual := []byte("a secret"), plaintext; !bytes.Equal(expected, actual) {
 		t.Errorf("Expected %v, but was %v", expected, actual)
 	}
+
+	for i := 0; i < 1000; i++ {
+		corruptCiphertext := corrupt(ciphertext)
+		_, err = kemDecrypt(private, corruptCiphertext)
+		if err == nil {
+			t.Fatalf("Was able to decrypt %v with %v", corruptCiphertext, private)
+		}
+	}
 }
