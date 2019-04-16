@@ -30,7 +30,7 @@ func demEncrypt(key, plaintext, data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// encrypt plaintext with XSalsa20
+	// encrypt with XSalsa20
 	salsa20.XORKeyStream(ciphertext[demNonceLen:], plaintext, ciphertext[:demNonceLen], &k)
 
 	// return nonce + ciphertext + tag
