@@ -2,13 +2,12 @@ package veil
 
 import (
 	"crypto/rand"
-	"crypto/sha512"
 	"io"
 
 	"github.com/agl/ed25519/extra25519"
+	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/ed25519"
-	"golang.org/x/crypto/hkdf"
 )
 
 const (
@@ -24,10 +23,10 @@ func kemEncrypt(static ed25519.PublicKey, plaintext []byte) ([]byte, error) {
 	}
 
 	// derive a key from the ephemeral/recipient shared secret
-	key := kdf(xdhSend(private, static), public)
+	key := blake2b.Sum256(xdhSend(private, static))
 
 	// encrypt the plaintext w/ DEM
-	ciphertext, err := demEncrypt(key, plaintext, nil)
+	ciphertext, err := demEncrypt(key[:], plaintext, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -42,16 +41,8 @@ func kemEncrypt(static ed25519.PublicKey, plaintext []byte) ([]byte, error) {
 func kemDecrypt(private ed25519.PrivateKey, ciphertext []byte) ([]byte, error) {
 	ephemeral := ciphertext[:kemPubKeyLen]
 	secret := xdhReceive(private, ephemeral)
-	key := kdf(secret, ephemeral)
-	return demDecrypt(key, ciphertext[kemPubKeyLen:], nil)
-}
-
-func kdf(ikm []byte, ephemeral []byte) []byte {
-	// use the ephemeral public key as the HKDF salt
-	h := hkdf.New(sha512.New512_256, ikm, ephemeral, []byte("veil"))
-	key := make([]byte, demKeyLen)
-	_, _ = io.ReadFull(h, key)
-	return key
+	key := blake2b.Sum256(secret)
+	return demDecrypt(key[:], ciphertext[kemPubKeyLen:], nil)
 }
 
 func ephemeralKeys() ([]byte, []byte, error) {

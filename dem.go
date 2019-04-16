@@ -1,68 +1,79 @@
 package veil
 
 import (
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha512"
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
-	"hash"
 	"io"
 
-	"golang.org/x/crypto/salsa20"
+	"golang.org/x/crypto/blake2b"
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
 const (
-	demKeyLen   = 64
+	demKeyLen   = 32
 	demNonceLen = 24
 	demTagLen   = 32
 	demOverhead = demNonceLen + demTagLen
 )
 
 func demEncrypt(key, plaintext, data []byte) ([]byte, error) {
-	k, h := subkeys(key)
-	ciphertext := make([]byte, len(plaintext)+demNonceLen)
-
-	// generate random nonce
-	_, err := io.ReadFull(rand.Reader, ciphertext[:demNonceLen])
+	aead, err := chacha20poly1305.NewX(key)
 	if err != nil {
 		return nil, err
 	}
 
-	// encrypt with XSalsa20
-	salsa20.XORKeyStream(ciphertext[demNonceLen:], plaintext, ciphertext[:demNonceLen], &k)
+	// Generate a random nonce.
+	nonce := make([]byte, demNonceLen)
+	_, err = io.ReadFull(rand.Reader, nonce)
+	if err != nil {
+		return nil, err
+	}
 
-	// return nonce + ciphertext + tag
-	return appendTag(ciphertext, h, ciphertext, data), nil
+	// Seal with XChaCha20Poly1305, which appends 16-byte Poly1305 tag, and prepend the nonce.
+	ciphertext := aead.Seal(nonce, nonce, plaintext, data)
+
+	// Hash the Poly1305 tag with BLAKE2b.
+	poly1305 := ciphertext[demNonceLen+len(plaintext):]
+	tag := blake2b.Sum256(poly1305)
+
+	// Return the nonce, the XChaCha20 ciphertext, and the hashed Poly1305 tag.
+	return append(ciphertext[:demNonceLen+len(plaintext)], tag[:]...), nil
 }
 
 func demDecrypt(key, ciphertext, data []byte) ([]byte, error) {
-	k, h := subkeys(key)
-
-	// check tag
-	tagIdx := len(ciphertext) - demTagLen
-	tag := appendTag(nil, h, ciphertext[:tagIdx], data)
-	if subtle.ConstantTimeCompare(tag, ciphertext[tagIdx:]) == 0 {
-		return nil, errors.New("invalid ciphertext")
+	aead, err := chacha20poly1305.NewX(key)
+	if err != nil {
+		return nil, err
 	}
 
-	// decrypt with XSalsa20
-	plaintext := make([]byte, len(ciphertext)-demOverhead)
-	salsa20.XORKeyStream(plaintext, ciphertext[demNonceLen:tagIdx], ciphertext[:demNonceLen], &k)
+	nonce := ciphertext[:demNonceLen]
+	tag := ciphertext[len(ciphertext)-demTagLen:]
+	ciphertext = ciphertext[demNonceLen : len(ciphertext)-demTagLen]
+
+	// This is some of the dumbest code I've written, but necessary b/c the Go crypto libs don't
+	// expose either the underlying ChaCha20 primitives or the subkey generation code. Rather than
+	// re-implement all of that myself, I'm cheating and using two AEAD#seal operations to a)
+	// recover the XChaCha20 keystream and b) the expected Poly1305 hash.
+
+	// First, recover the XChaCha20 keystream by encrypting a block of all zeros.
+	stream := aead.Seal(nil, nonce, make([]byte, len(ciphertext)), data)
+
+	// Second, recover the plaintext by XORing the ciphertext with the recovered keystream.
+	plaintext := make([]byte, len(ciphertext))
+	for i, v := range stream[:len(plaintext)] {
+		plaintext[i] = ciphertext[i] ^ v
+	}
+
+	// Third, seal the recovered plaintext to produce the expected Poly1305 tag.
+	poly1305 := aead.Seal(nil, nonce, plaintext, data)[len(plaintext):]
+
+	// Fourth, hash the candidate with BLAKE2b.
+	candidate := blake2b.Sum256(poly1305)
+
+	// Finally, compare the recovered tag with the found tag.
+	if subtle.ConstantTimeCompare(candidate[:], tag) == 0 {
+		return nil, errors.New("invalid ciphertext")
+	}
 	return plaintext, nil
-}
-
-func appendTag(dst []byte, h hash.Hash, ciphertext, data []byte) []byte {
-	_, _ = h.Write(ciphertext)
-	_, _ = h.Write(data)
-	_ = binary.Write(h, binary.BigEndian, uint64(len(data))*8)
-	_ = binary.Write(h, binary.BigEndian, uint64(len(ciphertext))*8)
-	return h.Sum(dst)
-}
-
-func subkeys(key []byte) ([32]byte, hash.Hash) {
-	var salsaKey [32]byte
-	copy(salsaKey[:], key[:demKeyLen/2])
-	return salsaKey, hmac.New(sha512.New512_256, key[demKeyLen/2:])
 }
