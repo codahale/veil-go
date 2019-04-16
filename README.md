@@ -16,19 +16,19 @@ true length, and fake recipients can be added to disguise their true number from
 ## Algorithms & Constructions
 
 Veil uses XChaCha20Poly1305+BLAKE2b for authenticated encryption, Ed25519 for authenticity, and
-X25519/BLAKE2b for key agreement.
+X25519+BLAKE2b for key agreement.
 
 * XChaCha20Poly1305 is fast, well-studied, and requires no padding. It uses 24-byte nonces, which is
   a suitable size for randomly generated nonces. It is vulnerable to nonce misuse, but a reliable 
   source of random data is already a design requirement for Veil. Constant-time implementations are
   easy to implement without hardware support.
 * BLAKE2b is fast, well-studied, and constant-time, has unbiased output, and depends on the same
-  transformation as ChaCha20. 
+  transformation as ChaCha20. It's also not vulnerable to length extension attacks.
 * Ed25519 uses a [safe curve](https://safecurves.cr.yp.to). Constant-time implementations are 
-  possible and certainly easier to make than other EC curves.
+  common and certainly easier to make than other EC curves.
 * X25519 uses a [safe curve](https://safecurves.cr.yp.to) and provides ~128-bit security, which
   roughly maps to the security levels of the other algorithms and constructions. Constant-time 
-  implementations are possible and certainly easier to make than other EC curves.
+  implementations are common and certainly easier to make than other EC curves.
 * Elligator2 allows us to map X25519 public keys to random strings, making ephemeral Diffie-Hellman
   indistinguishable from random noise. All Veil public keys are Elligator2 representations.
   Elligator2 is constant-time.
@@ -41,9 +41,9 @@ representative.
 
 ### Key Encapsulation
 
-The recipient's Ed25519 public key is converted to an X25519 public key. An ephemeral X25519 key 
-pair is generated, and an X25519 shared secret is calculated for the ephemeral private key and the
-recipient's X25519 public key. BLAKE2b is then used to derive a 32-byte key.
+The recipient's Ed25519 public key is converted to an X25519 public key. An ephemeral X25519 key
+pair is generated, and used with the recipient's converted X25519 public key to generate a shared
+secret. The shared secret is hashed with BLAKE2b to derive a 32-byte data encapsulation key.
 
 The plaintext is encrypted using the derived key and the following data encapsulation mechanism, and
 the ephemeral public key's Elligator2 representative and the ciphertext are returned.
