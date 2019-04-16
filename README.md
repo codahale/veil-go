@@ -35,15 +35,14 @@ X25519+BLAKE2b for key agreement.
 
 ### Key Generation
 
-Veil static keys are Ed25519 keys where the public key can be encoded as an Elligator2
-representative. Ephemeral keys are X25519 keys where the public key can be encoded as an Elligator2
-representative.
+Veil static keys are Ed25519 keys.
 
 ### Key Encapsulation
 
 The recipient's Ed25519 public key is converted to an X25519 public key. An ephemeral X25519 key
-pair is generated, and used with the recipient's converted X25519 public key to generate a shared
-secret. The shared secret is hashed with BLAKE2b to derive a 32-byte data encapsulation key.
+pair compatible with Elligator2 representation is generated, and used with the recipient's converted
+X25519 public key to generate a shared secret. The shared secret is hashed with BLAKE2b to derive a
+32-byte data encapsulation key.
 
 The plaintext is encrypted using the derived key and the following data encapsulation mechanism, and
 the ephemeral public key's Elligator2 representative and the ciphertext are returned.

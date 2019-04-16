@@ -11,33 +11,8 @@ import (
 	"math/big"
 	rand2 "math/rand"
 
-	"github.com/agl/ed25519/extra25519"
 	"golang.org/x/crypto/ed25519"
 )
-
-// GenerateKeys generates an X25519 key pair and returns the Elligator2 representative of the public
-// key and the private key.
-func GenerateKeys() (ed25519.PublicKey, ed25519.PrivateKey, error) {
-	for {
-		// generate an Ed25519 key pair
-		public, private, err := ed25519.GenerateKey(rand.Reader)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// convert the private key to X25519
-		var edPrivate [64]byte
-		copy(edPrivate[:], private)
-		var xPrivate [32]byte
-		extra25519.PrivateKeyToCurve25519(&xPrivate, &edPrivate)
-
-		// check if it maps to a valid Elligator2 representative
-		var representative, publicKey [32]byte
-		if extra25519.ScalarBaseMult(&publicKey, &representative, &xPrivate) {
-			return public, private, nil
-		}
-	}
-}
 
 const (
 	headerLen          = demKeyLen + 8 + 8

@@ -2,11 +2,14 @@ package veil
 
 import (
 	"bytes"
+	"crypto/rand"
 	"testing"
+
+	"golang.org/x/crypto/ed25519"
 )
 
 func TestKEM(t *testing.T) {
-	public, private, err := GenerateKeys()
+	public, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}

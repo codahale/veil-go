@@ -2,18 +2,19 @@ package veil
 
 import (
 	"bytes"
+	"crypto/rand"
 	"testing"
 
 	"golang.org/x/crypto/ed25519"
 )
 
 func TestRoundTrip(t *testing.T) {
-	publicB, privateB, err := GenerateKeys()
+	publicB, privateB, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	publicC, privateC, err := GenerateKeys()
+	publicC, privateC, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +41,7 @@ func TestXDH(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	staticPublic, staticPrivate, err := GenerateKeys()
+	staticPublic, staticPrivate, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
