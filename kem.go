@@ -16,7 +16,7 @@ const (
 
 func kemEncrypt(static ed25519.PublicKey, plaintext []byte) ([]byte, error) {
 	// generate an ephemeral key pair
-	public, private, err := ephemeralKeys()
+	representative, private, err := ephemeralKeys()
 	if err != nil {
 		return nil, err
 	}
@@ -25,22 +25,22 @@ func kemEncrypt(static ed25519.PublicKey, plaintext []byte) ([]byte, error) {
 	key := xdhSend(private, static)
 
 	// encrypt the plaintext w/ DEM
-	ciphertext, err := demEncrypt(key[:], plaintext, public)
+	ciphertext, err := demEncrypt(key[:], plaintext, representative)
 	if err != nil {
 		return nil, err
 	}
 
-	// return the ephemeral public key and the ciphertext
-	out := make([]byte, 0, len(public)+len(ciphertext))
-	out = append(out, public...)
+	// return the ephemeral public key representative and the ciphertext
+	out := make([]byte, 0, len(representative)+len(ciphertext))
+	out = append(out, representative...)
 	out = append(out, ciphertext...)
 	return out, nil
 }
 
 func kemDecrypt(private ed25519.PrivateKey, ciphertext []byte) ([]byte, error) {
-	ephemeral := ciphertext[:kemPubKeyLen]
-	key := xdhReceive(private, ephemeral)
-	return demDecrypt(key[:], ciphertext[kemPubKeyLen:], ephemeral)
+	representative := ciphertext[:kemPubKeyLen]
+	key := xdhReceive(private, representative)
+	return demDecrypt(key, ciphertext[kemPubKeyLen:], representative)
 }
 
 func ephemeralKeys() ([]byte, []byte, error) {
@@ -60,7 +60,7 @@ func ephemeralKeys() ([]byte, []byte, error) {
 	}
 }
 
-func xdhReceive(private ed25519.PrivateKey, public []byte) []byte {
+func xdhReceive(private ed25519.PrivateKey, representative []byte) []byte {
 	// convert Ed25519 private key to X25519 private key
 	var edPrivate [64]byte
 	copy(edPrivate[:], private)
@@ -68,10 +68,10 @@ func xdhReceive(private ed25519.PrivateKey, public []byte) []byte {
 	extra25519.PrivateKeyToCurve25519(&xPrivate, &edPrivate)
 
 	// convert X25519 representative to X25519 public key
-	var representative [32]byte
-	copy(representative[:], public)
+	var buf [32]byte
+	copy(buf[:], representative)
 	var xPublic [32]byte
-	extra25519.RepresentativeToPublicKey(&xPublic, &representative)
+	extra25519.RepresentativeToPublicKey(&xPublic, &buf)
 
 	// calculate shared secret
 	var dst [32]byte
