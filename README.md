@@ -44,8 +44,9 @@ pair compatible with Elligator2 representation is generated, and used with the r
 X25519 public key to generate a shared secret. The shared secret is hashed with BLAKE2b to derive a
 32-byte data encapsulation key.
 
-The plaintext is encrypted using the derived key and the following data encapsulation mechanism, and
-the ephemeral public key's Elligator2 representative and the ciphertext are returned.
+The plaintext is encrypted using the derived key and the following data encapsulation mechanism
+using the ephemeral public key's Elligator 2 representative as authenticated data, and the ephemeral
+public key's Elligator2 representative and the ciphertext are returned.
 
 ### Data Encapsulation
 

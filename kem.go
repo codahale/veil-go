@@ -26,7 +26,7 @@ func kemEncrypt(static ed25519.PublicKey, plaintext []byte) ([]byte, error) {
 	key := blake2b.Sum256(xdhSend(private, static))
 
 	// encrypt the plaintext w/ DEM
-	ciphertext, err := demEncrypt(key[:], plaintext, nil)
+	ciphertext, err := demEncrypt(key[:], plaintext, public)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func kemDecrypt(private ed25519.PrivateKey, ciphertext []byte) ([]byte, error) {
 	ephemeral := ciphertext[:kemPubKeyLen]
 	secret := xdhReceive(private, ephemeral)
 	key := blake2b.Sum256(secret)
-	return demDecrypt(key[:], ciphertext[kemPubKeyLen:], nil)
+	return demDecrypt(key[:], ciphertext[kemPubKeyLen:], ephemeral)
 }
 
 func ephemeralKeys() ([]byte, []byte, error) {
