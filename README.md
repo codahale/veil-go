@@ -37,6 +37,12 @@ X25519+BLAKE2b for key agreement.
 
 Veil static keys are Ed25519 keys.
 
+### Data Encapsulation
+
+Data is encapsulated via a variant of XChaCha20Poly1305, where the Poly1305 authenticator is hashed
+via BLAKE2b to produce an unbiased, 32-byte authenticator. The 24-byte random nonce is prepended to
+the ciphertext.
+
 ### Key Encapsulation
 
 The recipient's Ed25519 public key is converted to an X25519 public key. An ephemeral X25519 key
@@ -44,14 +50,9 @@ pair compatible with Elligator2 representation is generated, and used with the r
 X25519 public key to generate a shared secret. The shared secret is hashed with BLAKE2b to derive a
 32-byte data encapsulation key.
 
-The plaintext is encrypted using the derived key and the following data encapsulation mechanism
-using the ephemeral public key's Elligator 2 representative as authenticated data, and the ephemeral
-public key's Elligator2 representative and the ciphertext are returned.
-
-### Data Encapsulation
-
-Data is encapsulated via a variant of XChaCha20Poly1305, where the Poly1305 authenticator is hashed
-via BLAKE2b to produce an unbiased, 32-byte authenticator.
+The plaintext is encrypted using the derived key and the data encapsulation mechanism with the
+ephemeral public key's Elligator 2 representative as authenticated data, and the ephemeral public
+key's Elligator2 representative and the ciphertext are returned.
 
 ### Messages
 
