@@ -34,11 +34,11 @@ func demEncrypt(key, plaintext, data []byte) ([]byte, error) {
 	ciphertext := aead.Seal(nonce, nonce, plaintext, data)
 
 	// Hash the Poly1305 tag with BLAKE2b.
-	poly1305 := ciphertext[demNonceLen+len(plaintext):]
+	poly1305 := ciphertext[len(ciphertext)-aead.Overhead():]
 	tag := blake2b.Sum256(poly1305)
 
 	// Return the nonce, the XChaCha20 ciphertext, and the hashed Poly1305 tag.
-	return append(ciphertext[:demNonceLen+len(plaintext)], tag[:]...), nil
+	return append(ciphertext[:len(ciphertext)-aead.Overhead()], tag[:]...), nil
 }
 
 func demDecrypt(key, ciphertext, data []byte) ([]byte, error) {
