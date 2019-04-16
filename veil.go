@@ -120,7 +120,7 @@ func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext 
 	for {
 		// read a header's worth of data
 		_, err := io.ReadFull(r, encryptedHeader)
-		if err == io.EOF {
+		if err == io.ErrUnexpectedEOF {
 			return nil, errors.New("invalid ciphertext")
 		} else if err != nil {
 			return nil, err
