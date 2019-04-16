@@ -4,8 +4,6 @@ package veil
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/sha512"
-	"crypto/subtle"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -44,8 +42,7 @@ func GenerateKeys() (PublicKey, PrivateKey, error) {
 }
 
 const (
-	digestLen          = 32
-	headerLen          = demKeyLen + 8 + 8 + digestLen
+	headerLen          = demKeyLen + 8 + 8
 	encryptedHeaderLen = headerLen + kemOverhead
 )
 
@@ -118,7 +115,6 @@ func Decrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte, e
 	encryptedHeader := make([]byte, encryptedHeaderLen)
 	dek := make([]byte, demKeyLen)
 	var offset, size uint64
-	digest := make([]byte, digestLen)
 	for {
 		// read a header's worth of data
 		_, err := io.ReadFull(r, encryptedHeader)
@@ -136,7 +132,6 @@ func Decrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte, e
 			_, _ = io.ReadFull(r, dek)
 			_ = binary.Read(r, binary.BigEndian, &offset)
 			_ = binary.Read(r, binary.BigEndian, &size)
-			_, _ = io.ReadFull(r, digest)
 			break
 		}
 	}
@@ -147,12 +142,8 @@ func Decrypt(private PrivateKey, public PublicKey, ciphertext []byte) ([]byte, e
 		return nil, err
 	}
 
-	// strip padding and verify plaintext
-	plaintext := padded[:size]
-	if subtle.ConstantTimeCompare(digest, sha512t256(plaintext)) == 0 {
-		return nil, errors.New("invalid ciphertext")
-	}
-	return plaintext, nil
+	// strip padding and return plaintext
+	return padded[:size], nil
 }
 
 func encodeHeader(session []byte, recipients int, plaintext []byte) []byte {
@@ -160,14 +151,7 @@ func encodeHeader(session []byte, recipients int, plaintext []byte) []byte {
 	header.Write(session)
 	_ = binary.Write(header, binary.BigEndian, uint64(encryptedHeaderLen*recipients))
 	_ = binary.Write(header, binary.BigEndian, uint64(len(plaintext)))
-	header.Write(sha512t256(plaintext))
 	return header.Bytes()
-}
-
-func sha512t256(plaintext []byte) []byte {
-	h := sha512.New512_256()
-	h.Write(plaintext)
-	return h.Sum(nil)
 }
 
 func addFakes(recipients []PublicKey, fakes int) ([]PublicKey, error) {
