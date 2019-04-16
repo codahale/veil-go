@@ -70,13 +70,14 @@ is verified, and the padding is removed.
 
 ## What's the point
 
-1. Veil messages can be read by all of the intended recipients, but no recipient can modify the 
-   message's content or metadata.
-2. Veil messages are tamper-proof. If a single bit of the entire message is changed, all of the
+1. Veil messages are confidential: no one can read the message without being a recipient.
+2. Veil messages can be read by all of the intended recipients, but no recipient can modify the 
+   message's content or metadata without possessing the sender's private key.
+3. Veil messages are tamper-proof. If a single bit of the entire message is changed, all of the
    recipients will know.
-3. Veil messages are indistinguishable from random noise, revealing no metadata about recipients'
+4. Veil messages are indistinguishable from random noise, revealing no metadata about recipients'
    identities, number of recipients, etc.
-4. Veil messages can be padded, obscuring a message's actual length.
-5. The number of recipients in a Veil message can be obscured from recipients by adding blocks of 
+5. Veil messages can be padded, obscuring a message's actual length.
+6. The number of recipients in a Veil message can be obscured from recipients by adding blocks of 
    random noise instead of encrypted headers.
-6. Veil messages are non-repudiable.
+7. Veil messages are non-repudiable.
