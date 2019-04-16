@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/agl/ed25519/extra25519"
-	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/ed25519"
 )
@@ -23,7 +22,7 @@ func kemEncrypt(static ed25519.PublicKey, plaintext []byte) ([]byte, error) {
 	}
 
 	// derive a key from the ephemeral/recipient shared secret
-	key := blake2b.Sum256(xdhSend(private, static))
+	key := xdhSend(private, static)
 
 	// encrypt the plaintext w/ DEM
 	ciphertext, err := demEncrypt(key[:], plaintext, public)
@@ -40,8 +39,7 @@ func kemEncrypt(static ed25519.PublicKey, plaintext []byte) ([]byte, error) {
 
 func kemDecrypt(private ed25519.PrivateKey, ciphertext []byte) ([]byte, error) {
 	ephemeral := ciphertext[:kemPubKeyLen]
-	secret := xdhReceive(private, ephemeral)
-	key := blake2b.Sum256(secret)
+	key := xdhReceive(private, ephemeral)
 	return demDecrypt(key[:], ciphertext[kemPubKeyLen:], ephemeral)
 }
 

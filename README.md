@@ -15,15 +15,13 @@ true length, and fake recipients can be added to disguise their true number from
 
 ## Algorithms & Constructions
 
-Veil uses XChaCha20Poly1305+BLAKE2b for authenticated encryption, Ed25519 for authenticity, and
-X25519+BLAKE2b for key agreement.
+Veil uses XChaCha20Poly1305 for authenticated encryption, Ed25519 for authenticity, and
+X25519 for key agreement.
 
 * XChaCha20Poly1305 is fast, well-studied, and requires no padding. It uses 24-byte nonces, which is
   a suitable size for randomly generated nonces. It is vulnerable to nonce misuse, but a reliable 
   source of random data is already a design requirement for Veil. Constant-time implementations are
   easy to implement without hardware support.
-* BLAKE2b is fast, well-studied, and constant-time, has unbiased output, and depends on the same
-  transformation as ChaCha20. It's also not vulnerable to length extension attacks.
 * Ed25519 uses a [safe curve](https://safecurves.cr.yp.to). Constant-time implementations are 
   common and certainly easier to make than other EC curves.
 * X25519 uses a [safe curve](https://safecurves.cr.yp.to) and provides ~128-bit security, which
@@ -39,26 +37,23 @@ Veil static keys are Ed25519 keys.
 
 ### Data Encapsulation
 
-Data is encapsulated via a variant of XChaCha20Poly1305, where the Poly1305 authenticator is hashed
-via BLAKE2b to produce an unbiased, 32-byte authenticator. The 24-byte random nonce is prepended to
-the ciphertext.
+Data is encapsulated using XChaCha20Poly1305, with the 24-byte random nonce prepended to the
+ciphertext.
 
 ### Key Encapsulation
 
 The recipient's Ed25519 public key is converted to an X25519 public key. An ephemeral X25519 key
 pair compatible with Elligator2 representation is generated, and used with the recipient's converted
-X25519 public key to generate a shared secret. The shared secret is hashed with BLAKE2b to derive a
-32-byte data encapsulation key.
-
-The plaintext is encrypted using the derived key and the data encapsulation mechanism with the
-ephemeral public key's Elligator 2 representative as authenticated data, and the ephemeral public
-key's Elligator2 representative and the ciphertext are returned.
+X25519 public key to generate a shared secret. The shared secret is used directly as the key for the
+data encapsulation mechanism with the ephemeral public key's Elligator 2 representative as
+authenticated data. The ephemeral public key's Elligator2 representative and the ciphertext are
+returned.
 
 ### Messages
 
 A Veil message begins with a series of fixed-length encrypted headers, each of which contains a copy
-of the 32-byte data encapsulation key, the offset in bytes where the message begins, and the length
-of the plaintext message in bytes. 
+of the random 32-byte data encapsulation key, the offset in bytes where the message begins, and the
+length of the plaintext message in bytes.
 
 Following the headers is the plaintext, appended with random padding bytes, and prepended with an
 Ed25519 signature of the encrypted headers, the plaintext, and the padding, all encrypted using the
