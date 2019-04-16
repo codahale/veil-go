@@ -16,7 +16,7 @@ func TestKEM(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	plaintext, err := kemDecrypt(private, public, ciphertext)
+	plaintext, err := kemDecrypt(private, ciphertext)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -54,8 +54,8 @@ func demDecrypt(key, ciphertext, data []byte) ([]byte, error) {
 }
 
 func appendTag(dst []byte, h hash.Hash, ciphertext, data []byte) []byte {
-	h.Write(ciphertext)
-	h.Write(data)
+	_, _ = h.Write(ciphertext)
+	_, _ = h.Write(data)
 	_ = binary.Write(h, binary.BigEndian, uint64(len(data))*8)
 	_ = binary.Write(h, binary.BigEndian, uint64(len(ciphertext))*8)
 	return h.Sum(dst)
