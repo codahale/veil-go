@@ -37,26 +37,29 @@ func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintex
 	// Encode the data encapsulation key, offset, and size into a header.
 	header := make([]byte, headerLen)
 	copy(header, dek)
-	binary.BigEndian.PutUint64(header[demKeyLen:], uint64(encryptedHeaderLen*len(recipients)))
+	offset := encryptedHeaderLen * len(recipients)
+	binary.BigEndian.PutUint64(header[demKeyLen:], uint64(offset))
 	binary.BigEndian.PutUint64(header[demKeyLen+8:], uint64(len(plaintext)))
 
 	// Write KEM-encrypted copies of the header.
+	out := make([]byte, offset+len(plaintext)+demOverhead+sigLen+padding)
 	buf := bytes.NewBuffer(nil)
-	fake := make([]byte, encryptedHeaderLen)
-	for _, public := range recipients {
+	for i, public := range recipients {
+		o := i * encryptedHeaderLen
 		if public == nil {
 			// To fake a recipient, write a header-sized block of random data.
-			_, err = io.ReadFull(rand.Reader, fake)
+			_, err = io.ReadFull(rand.Reader, out[o:(o+encryptedHeaderLen)])
 			if err != nil {
 				return nil, err
 			}
-			buf.Write(fake)
+			buf.Write(out[o:(o + encryptedHeaderLen)])
 		} else {
 			// To include a real recipient, encrypt the header via KEM.
 			b, err := kemEncrypt(public, header)
 			if err != nil {
 				return nil, err
 			}
+			copy(out[o:], b)
 			buf.Write(b)
 		}
 	}
@@ -71,42 +74,31 @@ func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintex
 
 	// Generate an Ed25519 signature of the encrypted headers and the padded plaintext and prepend
 	// it to the padded plaintext.
-	signed := append(ed25519.Sign(sender, signatureInput(buf.Bytes(), padded)), padded...)
+	signed := append(ed25519.Sign(sender, signatureInput(out[:offset], padded)), padded...)
 
 	// Encrypt the signed, padded plaintext with the data encapsulation key, using the encrypted
 	// headers as authenticated data.
-	ciphertext, err := demEncrypt(dek, signed, buf.Bytes())
+	ciphertext, err := demEncrypt(dek, signed, out[:offset])
 	if err != nil {
 		return nil, err
 	}
-	buf.Write(ciphertext)
+	copy(out[offset:], ciphertext)
 
 	// Return the KEM-encrypted headers and the DEM-encrypted, signed, padded plaintext.
-	return buf.Bytes(), nil
+	return out, nil
 }
 
 // Decrypt returns the plaintext of the given Veil ciphertext iff it is decryptable by the given
 // private/public key pair and it has not been altered in any way. If the ciphertext was not
 // encrypted with the given key pair or if the ciphertext was altered, an error is returned.
 func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext []byte) ([]byte, error) {
-	r := bytes.NewReader(ciphertext)
-
-	// Scan through the ciphertext, one header-sized block at a time.
-	encryptedHeader := make([]byte, encryptedHeaderLen)
 	dek := make([]byte, demKeyLen)
 	var offset, size uint64
-	for {
-		// Read an encrypted header's worth of data.
-		_, err := io.ReadFull(r, encryptedHeader)
-		if err == io.ErrUnexpectedEOF {
-			// If we reach the end of the ciphertext, we cannot decrypt it.
-			return nil, errors.New("invalid ciphertext")
-		} else if err != nil {
-			return nil, err
-		}
 
+	// Scan through the ciphertext, one header-sized block at a time.
+	for i := 0; i < len(ciphertext)-encryptedHeaderLen; i += encryptedHeaderLen {
 		// Try to encrypt the possible header.
-		header, err := kemDecrypt(recipient, encryptedHeader)
+		header, err := kemDecrypt(recipient, ciphertext[i:(i+encryptedHeaderLen)])
 		if err == nil {
 			// If we can decrypt it, read the data encapsulation key, offset, and size.
 			copy(dek, header[:demKeyLen])
@@ -114,6 +106,11 @@ func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext 
 			size = binary.BigEndian.Uint64(header[demKeyLen+8:])
 			break
 		}
+	}
+
+	if size == 0 {
+		// If we reach the end of the ciphertext, we cannot decrypt it.
+		return nil, errors.New("invalid ciphertext")
 	}
 
 	// Decrypt the DEM-encrypted, signed, padded plaintext.
