@@ -122,11 +122,12 @@ func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext 
 	// Remove and verify the Ed25519 signature.
 	sig := signed[:sigLen]
 	padded := signed[sigLen:]
-	if ed25519.Verify(sender, signatureInput(ciphertext[:offset], padded), sig) {
-		// Strip the random padding and return the original plaintext.
-		return padded[:size], nil
+	if !ed25519.Verify(sender, signatureInput(ciphertext[:offset], padded), sig) {
+		return nil, errors.New("invalid ciphertext")
 	}
-	return nil, errors.New("invalid ciphertext")
+
+	// Strip the random padding and return the original plaintext.
+	return padded[:size], nil
 }
 
 // signatureInput returns the Ed25519 signature input given a set of encrypted headers and a padded
