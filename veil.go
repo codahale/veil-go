@@ -108,8 +108,8 @@ func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext 
 		}
 	}
 
+	// If we reach the end of the ciphertext without finding our header, we cannot decrypt it.
 	if size == 0 {
-		// If we reach the end of the ciphertext, we cannot decrypt it.
 		return nil, errors.New("invalid ciphertext")
 	}
 
