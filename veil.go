@@ -42,7 +42,7 @@ func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintex
 
 	// Write KEM-encrypted copies of the header.
 	buf := bytes.NewBuffer(nil)
-	fake := make([]byte, headerLen+kemOverhead)
+	fake := make([]byte, encryptedHeaderLen)
 	for _, public := range recipients {
 		if public == nil {
 			// To fake a recipient, write a header-sized block of random data.
