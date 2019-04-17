@@ -7,9 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"math"
 	"math/big"
-	rand2 "math/rand"
 
 	"golang.org/x/crypto/ed25519"
 )
@@ -37,7 +35,10 @@ func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintex
 	}
 
 	// Encode the data encapsulation key, offset, and size into a header.
-	header := encodeHeader(dek, len(recipients), plaintext)
+	header := make([]byte, headerLen)
+	copy(header, dek)
+	binary.BigEndian.PutUint64(header[demKeyLen:], uint64(encryptedHeaderLen*len(recipients)))
+	binary.BigEndian.PutUint64(header[demKeyLen+8:], uint64(len(plaintext)))
 
 	// Write KEM-encrypted copies of the header.
 	buf := bytes.NewBuffer(nil)
@@ -70,7 +71,7 @@ func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintex
 
 	// Generate an Ed25519 signature of the encrypted headers and the padded plaintext and prepend
 	// it to the padded plaintext.
-	signed := sign(sender, buf.Bytes(), padded)
+	signed := append(ed25519.Sign(sender, signatureInput(buf.Bytes(), padded)), padded...)
 
 	// Encrypt the signed, padded plaintext with the data encapsulation key, using the encrypted
 	// headers as authenticated data.
@@ -108,10 +109,9 @@ func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext 
 		header, err := kemDecrypt(recipient, encryptedHeader)
 		if err == nil {
 			// If we can decrypt it, read the data encapsulation key, offset, and size.
-			r := bytes.NewReader(header)
-			_, _ = io.ReadFull(r, dek)
-			_ = binary.Read(r, binary.BigEndian, &offset)
-			_ = binary.Read(r, binary.BigEndian, &size)
+			copy(dek, header[:demKeyLen])
+			offset = binary.BigEndian.Uint64(header[demKeyLen:])
+			size = binary.BigEndian.Uint64(header[demKeyLen+8:])
 			break
 		}
 	}
@@ -123,59 +123,47 @@ func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext 
 	}
 
 	// Remove and verify the Ed25519 signature.
-	padded := verify(sender, ciphertext[:offset], signed)
-	if padded == nil {
-		return nil, errors.New("invalid ciphertext")
+	sig := signed[:sigLen]
+	padded := signed[sigLen:]
+	if ed25519.Verify(sender, signatureInput(ciphertext[:offset], padded), sig) {
+		// Strip the random padding and return the original plaintext.
+		return padded[:size], nil
 	}
-
-	// Strip the random padding and return the original plaintext.
-	return padded[:size], nil
+	return nil, errors.New("invalid ciphertext")
 }
 
-func sign(private ed25519.PrivateKey, headers, padded []byte) []byte {
-	input := make([]byte, len(headers)+len(padded))
+// signatureInput returns the Ed25519 signature input given a set of encrypted headers and a padded
+// plaintext.
+func signatureInput(headers []byte, padded []byte) []byte {
+	input := make([]byte, len(headers)+8+len(padded)+8)
+	// Write the headers and their length.
 	copy(input, headers)
-	copy(input[len(headers):], padded)
-	sig := ed25519.Sign(private, input)
-
-	output := make([]byte, len(padded)+sigLen)
-	copy(output, sig)
-	copy(output[sigLen:], padded)
-	return output
+	binary.BigEndian.PutUint64(input[len(headers):], uint64(len(headers)))
+	// Write the padded plaintext and its length.
+	copy(input[len(headers)+8:], padded)
+	binary.BigEndian.PutUint64(input[len(input)-8:], uint64(len(padded)))
+	return input
 }
 
-func verify(public ed25519.PublicKey, headers, padded []byte) []byte {
-	sig := padded[:sigLen]
-	plaintext := padded[sigLen:]
-
-	input := make([]byte, len(headers)+len(plaintext))
-	copy(input, headers)
-	copy(input[len(headers):], plaintext)
-
-	if ed25519.Verify(public, input, sig) {
-		return plaintext
-	}
-	return nil
-}
-
-func encodeHeader(session []byte, recipients int, plaintext []byte) []byte {
-	header := bytes.NewBuffer(nil)
-	header.Write(session)
-	_ = binary.Write(header, binary.BigEndian, uint64(encryptedHeaderLen*recipients))
-	_ = binary.Write(header, binary.BigEndian, uint64(len(plaintext)))
-	return header.Bytes()
-}
-
-func addFakes(recipients []ed25519.PublicKey, fakes int) ([]ed25519.PublicKey, error) {
-	out := make([]ed25519.PublicKey, len(recipients)+fakes)
+// addFakes returns a copy of the given slice of recipients with the given number of nils inserted
+// randomly.
+func addFakes(recipients []ed25519.PublicKey, n int) ([]ed25519.PublicKey, error) {
+	// Make a copy of the recipients with N nils at the end.
+	out := make([]ed25519.PublicKey, len(recipients)+n)
 	copy(out, recipients)
-	seed, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
-	if err != nil {
-		return nil, err
-	}
-	r := rand2.New(rand2.NewSource(seed.Int64()))
-	r.Shuffle(len(out), func(i, j int) {
+
+	// Perform a Fisher-Yates shuffle, using crypto/rand to pick indexes. This will randomly
+	// distribute the N fake recipients throughout the slice.
+	for i := len(out) - 1; i > 0; i-- {
+		// Randomly pick a card from the unshuffled deck.
+		b, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		if err != nil {
+			return nil, err
+		}
+		j := int(b.Int64())
+
+		// Swap it with the current card.
 		out[i], out[j] = out[j], out[i]
-	})
+	}
 	return out, nil
 }
