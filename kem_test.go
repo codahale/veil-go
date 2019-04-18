@@ -40,3 +40,89 @@ func TestKEM(t *testing.T) {
 		}
 	}
 }
+
+func TestXDH(t *testing.T) {
+	ephemeralPublic, ephemeralPrivate, err := ephemeralKeys(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	staticPublic, staticPrivate, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sent := xdhSend(ephemeralPrivate, staticPublic)
+	received := xdhReceive(staticPrivate, ephemeralPublic)
+
+	if !bytes.Equal(sent, received) {
+		t.Errorf("XDH mismatch: %v/%v", sent, received)
+	}
+}
+
+func BenchmarkEphemeralKeys(b *testing.B) {
+	r := fakeRand{}
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ephemeralKeys(r)
+	}
+}
+
+func BenchmarkXDHSend(b *testing.B) {
+	_, ephemeralPrivate, err := ephemeralKeys(rand.Reader)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	staticPublic, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		_ = xdhSend(ephemeralPrivate, staticPublic)
+	}
+}
+
+func BenchmarkXDHReceive(b *testing.B) {
+	ephemeralPublic, _, err := ephemeralKeys(rand.Reader)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	_, staticPrivate, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		_ = xdhReceive(staticPrivate, ephemeralPublic)
+	}
+}
+
+func BenchmarkKEMEncrypt(b *testing.B) {
+	r := fakeRand{}
+	public, _, err := ed25519.GenerateKey(r)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for i := 0; i < b.N; i++ {
+		_, _ = kemEncrypt(r, public, []byte("a secret"))
+	}
+}
+
+func BenchmarkKEMDecrypt(b *testing.B) {
+	r := fakeRand{}
+	public, private, err := ed25519.GenerateKey(r)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	ciphertext, err := kemEncrypt(r, public, []byte("a secret"))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, _ = kemDecrypt(private, ciphertext)
+	}
+}

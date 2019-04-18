@@ -45,21 +45,46 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
-func TestXDH(t *testing.T) {
-	ephemeralPublic, ephemeralPrivate, err := ephemeralKeys(rand.Reader)
+func BenchmarkVeilEncrypt(b *testing.B) {
+	r := fakeRand{}
+
+	publicB, privateB, err := ed25519.GenerateKey(r)
 	if err != nil {
-		t.Fatal(err)
+		b.Fatal(err)
 	}
 
-	staticPublic, staticPrivate, err := ed25519.GenerateKey(rand.Reader)
+	publicC, _, err := ed25519.GenerateKey(r)
 	if err != nil {
-		t.Fatal(err)
+		b.Fatal(err)
 	}
 
-	sent := xdhSend(ephemeralPrivate, staticPublic)
-	received := xdhReceive(staticPrivate, ephemeralPublic)
+	message := []byte("one two three four I declare a thumb war")
 
-	if !bytes.Equal(sent, received) {
-		t.Errorf("XDH mismatch: %v/%v", sent, received)
+	for i := 0; i < b.N; i++ {
+		_, _ = Encrypt(r, privateB, []ed25519.PublicKey{publicB, publicC}, message, 1024, 40)
+	}
+}
+
+func BenchmarkVeilDecrypt(b *testing.B) {
+	r := fakeRand{}
+
+	publicB, privateB, err := ed25519.GenerateKey(r)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	publicC, privateC, err := ed25519.GenerateKey(r)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	message := []byte("one two three four I declare a thumb war")
+	ciphertext, err := Encrypt(r, privateB, []ed25519.PublicKey{publicB, publicC}, message, 1024, 40)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, _ = Decrypt(privateC, publicB, ciphertext)
 	}
 }

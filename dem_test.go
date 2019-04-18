@@ -52,6 +52,46 @@ func TestDEM(t *testing.T) {
 	}
 }
 
+func BenchmarkDEMEncrypt(b *testing.B) {
+	key := []byte("ayellowsubmarineayellowsubmarine")
+	plaintext := []byte("ok this is swell")
+	data := []byte("yes, this is great")
+	r := fakeRand{}
+	for i := 0; i < b.N; i++ {
+		_, _ = demEncrypt(r, key, plaintext, data)
+	}
+}
+
+func BenchmarkDEMDecrypt(b *testing.B) {
+	key := []byte("ayellowsubmarineayellowsubmarine")
+	plaintext := []byte("ok this is swell")
+	data := []byte("yes, this is great")
+	r := fakeRand{}
+	ciphertext, _ := demEncrypt(r, key, plaintext, data)
+	for i := 0; i < b.N; i++ {
+		_, _ = demDecrypt(key, ciphertext, data)
+	}
+}
+
+func BenchmarkDEMDecryptBad(b *testing.B) {
+	key := []byte("ayellowsubmarineayellowsubmarine")
+	plaintext := []byte("ok this is swell")
+	data := []byte("yes, this is great")
+	r := fakeRand{}
+	ciphertext, _ := demEncrypt(r, key, plaintext, data)
+	ciphertext[0] ^= 1
+	for i := 0; i < b.N; i++ {
+		_, _ = demDecrypt(key, ciphertext, data)
+	}
+}
+
+type fakeRand struct {
+}
+
+func (fakeRand) Read(p []byte) (n int, err error) {
+	return len(p), nil
+}
+
 func corrupt(b []byte) []byte {
 	c := make([]byte, len(b))
 	copy(c, b)
