@@ -1,7 +1,6 @@
 package veil
 
 import (
-	"crypto/rand"
 	"io"
 
 	"github.com/agl/ed25519/extra25519"
@@ -15,9 +14,9 @@ const (
 )
 
 // kemEncrypt encrypts the given plaintext with the given Ed25519 public key.
-func kemEncrypt(public ed25519.PublicKey, plaintext []byte) ([]byte, error) {
+func kemEncrypt(rand io.Reader, public ed25519.PublicKey, plaintext []byte) ([]byte, error) {
 	// Generate an ephemeral X25519 private key and the Elligator2 representative of its public key.
-	representative, private, err := ephemeralKeys()
+	representative, private, err := ephemeralKeys(rand)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +27,7 @@ func kemEncrypt(public ed25519.PublicKey, plaintext []byte) ([]byte, error) {
 
 	// Encrypt the plaintext with the DEM using the shared secret as the key and the ephemeral
 	// public key representative as the authenticated data.
-	ciphertext, err := demEncrypt(key[:], plaintext, representative)
+	ciphertext, err := demEncrypt(rand, key[:], plaintext, representative)
 	if err != nil {
 		return nil, err
 	}
@@ -46,12 +45,12 @@ func kemDecrypt(private ed25519.PrivateKey, ciphertext []byte) ([]byte, error) {
 
 // ephemeralKeys returns an X25519 in the form of the Elligator2 representative of the public key
 // and its corresponding private key.
-func ephemeralKeys() ([]byte, []byte, error) {
+func ephemeralKeys(rand io.Reader) ([]byte, []byte, error) {
 	var privateKey, representative, publicKey [32]byte
 	// Not all key pairs can be represented by Elligator2, so try until we find one.
 	for {
 		// Generate a random X25519 private key.
-		_, err := io.ReadFull(rand.Reader, privateKey[:])
+		_, err := io.ReadFull(rand, privateKey[:])
 		if err != nil {
 			return nil, nil, err
 		}

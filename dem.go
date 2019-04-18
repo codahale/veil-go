@@ -1,7 +1,6 @@
 package veil
 
 import (
-	"crypto/rand"
 	"io"
 
 	"golang.org/x/crypto/chacha20poly1305"
@@ -16,7 +15,7 @@ const (
 
 // demEncrypt generates a random nonce, encrypts the plaintext with XChaCha20Poly1305 using the
 // given authenticated data, and returns the nonce and ciphertext.
-func demEncrypt(key, plaintext, data []byte) ([]byte, error) {
+func demEncrypt(rand io.Reader, key, plaintext, data []byte) ([]byte, error) {
 	aead, err := chacha20poly1305.NewX(key)
 	if err != nil {
 		return nil, err
@@ -24,7 +23,7 @@ func demEncrypt(key, plaintext, data []byte) ([]byte, error) {
 
 	// Generate a random nonce.
 	nonce := make([]byte, demNonceLen)
-	_, err = io.ReadFull(rand.Reader, nonce)
+	_, err = io.ReadFull(rand, nonce)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package veil
 
 import (
 	"bytes"
+	"crypto/rand"
 	rand2 "math/rand"
 	"testing"
 )
@@ -11,7 +12,7 @@ func TestDEM(t *testing.T) {
 	plaintext := []byte("ok this is swell")
 	data := []byte("yes, this is great")
 
-	ciphertext, err := demEncrypt(key, plaintext, data)
+	ciphertext, err := demEncrypt(rand.Reader, key, plaintext, data)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -19,16 +19,16 @@ const (
 
 // Encrypt returns a Veil ciphertext containing the given plaintext, decryptable by the given
 // recipients, with the given number of random padding bytes and fake recipients.
-func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintext []byte, padding, fakes int) ([]byte, error) {
+func Encrypt(rand io.Reader, sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintext []byte, padding, fakes int) ([]byte, error) {
 	// Add fake recipients.
-	recipients, err := addFakes(recipients, fakes)
+	recipients, err := addFakes(rand, recipients, fakes)
 	if err != nil {
 		return nil, err
 	}
 
 	// Generate a random data encapsulation key.
 	dek := make([]byte, demKeyLen)
-	_, err = io.ReadFull(rand.Reader, dek)
+	_, err = io.ReadFull(rand, dek)
 	if err != nil {
 		return nil, err
 	}
@@ -46,13 +46,13 @@ func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintex
 		o := i * encryptedHeaderLen
 		if public == nil {
 			// To fake a recipient, write a header-sized block of random data.
-			_, err = io.ReadFull(rand.Reader, out[o:(o+encryptedHeaderLen)])
+			_, err = io.ReadFull(rand, out[o:(o+encryptedHeaderLen)])
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			// To include a real recipient, encrypt the header via KEM.
-			b, err := kemEncrypt(public, header)
+			b, err := kemEncrypt(rand, public, header)
 			if err != nil {
 				return nil, err
 			}
@@ -63,7 +63,7 @@ func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintex
 	// Pad the plaintext with random data.
 	padded := make([]byte, len(plaintext)+padding)
 	copy(padded[:len(plaintext)], plaintext)
-	_, err = io.ReadFull(rand.Reader, padded[len(plaintext):])
+	_, err = io.ReadFull(rand, padded[len(plaintext):])
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintex
 
 	// Encrypt the signed, padded plaintext with the data encapsulation key, using the encrypted
 	// headers as authenticated data.
-	ciphertext, err := demEncrypt(dek, signed, out[:offset])
+	ciphertext, err := demEncrypt(rand, dek, signed, out[:offset])
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func signatureInput(headers []byte, padded []byte) []byte {
 
 // addFakes returns a copy of the given slice of recipients with the given number of nils inserted
 // randomly.
-func addFakes(recipients []ed25519.PublicKey, n int) ([]ed25519.PublicKey, error) {
+func addFakes(r io.Reader, recipients []ed25519.PublicKey, n int) ([]ed25519.PublicKey, error) {
 	// Make a copy of the recipients with N nils at the end.
 	out := make([]ed25519.PublicKey, len(recipients)+n)
 	copy(out, recipients)
@@ -150,7 +150,7 @@ func addFakes(recipients []ed25519.PublicKey, n int) ([]ed25519.PublicKey, error
 	// distribute the N fake recipients throughout the slice.
 	for i := len(out) - 1; i > 0; i-- {
 		// Randomly pick a card from the unshuffled deck.
-		b, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		b, err := rand.Int(r, big.NewInt(int64(i+1)))
 		if err != nil {
 			return nil, err
 		}

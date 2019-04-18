@@ -20,7 +20,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	message := []byte("one two three four I declare a thumb war")
-	ciphertext, err := Encrypt(privateB, []ed25519.PublicKey{publicB, publicC}, message, 1024, 40)
+	ciphertext, err := Encrypt(rand.Reader, privateB, []ed25519.PublicKey{publicB, publicC}, message, 1024, 40)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestXDH(t *testing.T) {
-	ephemeralPublic, ephemeralPrivate, err := ephemeralKeys()
+	ephemeralPublic, ephemeralPrivate, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
