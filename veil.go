@@ -88,7 +88,7 @@ func Encrypt(rand io.Reader, sender ed25519.PrivateKey, recipients []ed25519.Pub
 // private/public key pair and it has not been altered in any way. If the ciphertext was not
 // encrypted with the given key pair or if the ciphertext was altered, an error is returned.
 func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext []byte) ([]byte, error) {
-	dek := make([]byte, demKeyLen)
+	var dek []byte
 	var offset, size uint64
 
 	// Scan through the ciphertext, one header-sized block at a time.
@@ -97,7 +97,7 @@ func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext 
 		header, err := kemDecrypt(recipient, ciphertext[i:(i+encryptedHeaderLen)])
 		if err == nil {
 			// If we can decrypt it, read the data encapsulation key, offset, and size.
-			copy(dek, header[:demKeyLen])
+			dek = header[:demKeyLen]
 			offset = binary.BigEndian.Uint64(header[demKeyLen:])
 			size = binary.BigEndian.Uint64(header[demKeyLen+8:])
 			break
@@ -105,7 +105,7 @@ func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext 
 	}
 
 	// If we reach the end of the ciphertext without finding our header, we cannot decrypt it.
-	if size == 0 {
+	if dek == nil {
 		return nil, errors.New("invalid ciphertext")
 	}
 
@@ -116,8 +116,7 @@ func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext 
 	}
 
 	// Remove and verify the Ed25519 signature.
-	sig := signed[:sigLen]
-	padded := signed[sigLen:]
+	sig, padded := signed[:sigLen], signed[sigLen:]
 	if !ed25519.Verify(sender, signatureInput(ciphertext[:offset], padded), sig) {
 		return nil, errors.New("invalid ciphertext")
 	}

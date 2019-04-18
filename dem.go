@@ -37,7 +37,5 @@ func demDecrypt(key, ciphertext, data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	nonce := ciphertext[:demNonceLen]
-	ciphertext = ciphertext[demNonceLen:]
-	return aead.Open(nil, nonce, ciphertext, data)
+	return aead.Open(nil, ciphertext[:demNonceLen], ciphertext[demNonceLen:], data)
 }
