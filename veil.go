@@ -2,7 +2,6 @@
 package veil
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -43,7 +42,6 @@ func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintex
 
 	// Write KEM-encrypted copies of the header.
 	out := make([]byte, offset+len(plaintext)+demOverhead+sigLen+padding)
-	buf := bytes.NewBuffer(nil)
 	for i, public := range recipients {
 		o := i * encryptedHeaderLen
 		if public == nil {
@@ -52,7 +50,6 @@ func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintex
 			if err != nil {
 				return nil, err
 			}
-			buf.Write(out[o:(o + encryptedHeaderLen)])
 		} else {
 			// To include a real recipient, encrypt the header via KEM.
 			b, err := kemEncrypt(public, header)
@@ -60,7 +57,6 @@ func Encrypt(sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintex
 				return nil, err
 			}
 			copy(out[o:], b)
-			buf.Write(b)
 		}
 	}
 
