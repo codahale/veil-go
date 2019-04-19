@@ -29,7 +29,10 @@ const (
 
 // Encrypt returns a Veil ciphertext containing the given plaintext, decryptable by the given
 // recipients, with the given number of random padding bytes and fake recipients.
-func Encrypt(rand io.Reader, sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintext []byte, padding, fakes int) ([]byte, error) {
+func Encrypt(
+	rand io.Reader, sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintext []byte,
+	padding, fakes int,
+) ([]byte, error) {
 	// Add fake recipients.
 	recipients, err := addFakes(rand, recipients, fakes)
 	if err != nil {
@@ -97,7 +100,9 @@ func Encrypt(rand io.Reader, sender ed25519.PrivateKey, recipients []ed25519.Pub
 // Decrypt returns the plaintext of the given Veil ciphertext iff it is decryptable by the given
 // private/public key pair and it has not been altered in any way. If the ciphertext was not
 // encrypted with the given key pair or if the ciphertext was altered, an error is returned.
-func Decrypt(recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext []byte) ([]byte, error) {
+func Decrypt(
+	recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext []byte,
+) ([]byte, error) {
 	var dek []byte
 	var offset, size uint64
 
