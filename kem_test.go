@@ -9,7 +9,7 @@ import (
 )
 
 func TestKEM(t *testing.T) {
-	public, private, err := ed25519.GenerateKey(rand.Reader)
+	public, _, private, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,18 +42,18 @@ func TestKEM(t *testing.T) {
 }
 
 func TestXDH(t *testing.T) {
-	ephemeralPublic, ephemeralPrivate, err := ephemeralKeys(rand.Reader)
+	publicA, _, privateA, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	staticPublic, staticPrivate, err := ed25519.GenerateKey(rand.Reader)
+	publicB, _, privateB, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sent := xdhSend(ephemeralPrivate, staticPublic)
-	received := xdhReceive(staticPrivate, ephemeralPublic)
+	sent := x25519(privateA, publicB)
+	received := x25519(privateB, publicA)
 
 	if !bytes.Equal(sent, received) {
 		t.Errorf("XDH mismatch: %v/%v", sent, received)
@@ -63,39 +63,23 @@ func TestXDH(t *testing.T) {
 func BenchmarkEphemeralKeys(b *testing.B) {
 	r := fakeRand{}
 	for i := 0; i < b.N; i++ {
-		_, _, _ = ephemeralKeys(r)
+		_, _, _, _ = ephemeralKeys(r)
 	}
 }
 
-func BenchmarkXDHSend(b *testing.B) {
-	_, ephemeralPrivate, err := ephemeralKeys(rand.Reader)
+func BenchmarkXDH(b *testing.B) {
+	publicA, _, _, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	staticPublic, _, err := ed25519.GenerateKey(rand.Reader)
+	_, _, privateB, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	for i := 0; i < b.N; i++ {
-		_ = xdhSend(ephemeralPrivate, staticPublic)
-	}
-}
-
-func BenchmarkXDHReceive(b *testing.B) {
-	ephemeralPublic, _, err := ephemeralKeys(rand.Reader)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	_, staticPrivate, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	for i := 0; i < b.N; i++ {
-		_ = xdhReceive(staticPrivate, ephemeralPublic)
+		_ = x25519(privateB, publicA)
 	}
 }
 

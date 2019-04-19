@@ -18,8 +18,50 @@ import (
 	"io"
 	"math/big"
 
+	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/ed25519"
 )
+
+// PublicKey consists of the Elligator2 representation of an X25519 public key for encrypting and an
+// Ed25519 public key for verifying.
+type PublicKey struct {
+	// EncryptingKey is an Elligator2 representation of an X25519 public key.
+	EncryptingKey []byte
+	// VerifyingKey is an Ed25519 public key.
+	VerifyingKey []byte
+}
+
+// PrivateKey consists of an X25519 private key for decrypting and an Ed25519 private key for
+// signing.
+type PrivateKey struct {
+	// DecryptingKey is an X25519 private key.
+	DecryptingKey []byte
+	// SigningKey is an Ed25519 private key.
+	SigningKey []byte
+}
+
+// GenerateKeys generates a new pair of X25519 and Ed25519 keys.
+func GenerateKeys(rand io.Reader) (*PublicKey, *PrivateKey, error) {
+	// Generate a Ed25519 key pair.
+	verifyingKey, signingKey, err := ed25519.GenerateKey(rand)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Generate a random X25519 secret key.
+	var xPrivate, xPublic [32]byte
+	_, err = io.ReadFull(rand, xPrivate[:])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Calculate the X25519 public key.
+	curve25519.ScalarBaseMult(&xPublic, &xPrivate)
+
+	return &PublicKey{EncryptingKey: xPublic[:], VerifyingKey: verifyingKey},
+		&PrivateKey{DecryptingKey: xPrivate[:], SigningKey: signingKey},
+		nil
+}
 
 const (
 	headerLen          = demKeyLen + 8 + 8
@@ -29,10 +71,7 @@ const (
 
 // Encrypt returns a Veil ciphertext containing the given plaintext, decryptable by the given
 // recipients, with the given number of random padding bytes and fake recipients.
-func Encrypt(
-	rand io.Reader, sender ed25519.PrivateKey, recipients []ed25519.PublicKey, plaintext []byte,
-	padding, fakes int,
-) ([]byte, error) {
+func Encrypt(rand io.Reader, sender *PrivateKey, recipients []*PublicKey, plaintext []byte, padding, fakes int) ([]byte, error) {
 	// Add fake recipients.
 	recipients, err := addFakes(rand, recipients, fakes)
 	if err != nil {
@@ -65,7 +104,7 @@ func Encrypt(
 			}
 		} else {
 			// To include a real recipient, encrypt the header via KEM.
-			b, err := kemEncrypt(rand, public, header)
+			b, err := kemEncrypt(rand, public.EncryptingKey, header)
 			if err != nil {
 				return nil, err
 			}
@@ -83,7 +122,8 @@ func Encrypt(
 
 	// Generate an Ed25519 signature of the encrypted headers and the padded plaintext and prepend
 	// it to the padded plaintext.
-	signed := append(ed25519.Sign(sender, signatureInput(out[:offset], padded)), padded...)
+	signature := ed25519.Sign(sender.SigningKey, signatureInput(out[:offset], padded))
+	signed := append(signature, padded...)
 
 	// Encrypt the signed, padded plaintext with the data encapsulation key, using the encrypted
 	// headers as authenticated data.
@@ -98,18 +138,17 @@ func Encrypt(
 }
 
 // Decrypt returns the plaintext of the given Veil ciphertext iff it is decryptable by the given
-// private/public key pair and it has not been altered in any way. If the ciphertext was not
-// encrypted with the given key pair or if the ciphertext was altered, an error is returned.
-func Decrypt(
-	recipient ed25519.PrivateKey, sender ed25519.PublicKey, ciphertext []byte,
-) ([]byte, error) {
+// private key, signed by the given public key pair it has not been altered in any way. If the
+// ciphertext was not encrypted with the given key pair or if the ciphertext was altered, an error
+// is returned.
+func Decrypt(recipient *PrivateKey, sender *PublicKey, ciphertext []byte) ([]byte, error) {
 	var dek []byte
 	var offset, size uint64
 
 	// Scan through the ciphertext, one header-sized block at a time.
 	for i := 0; i < len(ciphertext)-encryptedHeaderLen; i += encryptedHeaderLen {
 		// Try to encrypt the possible header.
-		header, err := kemDecrypt(recipient, ciphertext[i:(i+encryptedHeaderLen)])
+		header, err := kemDecrypt(recipient.DecryptingKey, ciphertext[i:(i+encryptedHeaderLen)])
 		if err == nil {
 			// If we can decrypt it, read the data encapsulation key, offset, and size.
 			dek = header[:demKeyLen]
@@ -132,7 +171,7 @@ func Decrypt(
 
 	// Remove and verify the Ed25519 signature.
 	sig, padded := signed[:sigLen], signed[sigLen:]
-	if !ed25519.Verify(sender, signatureInput(ciphertext[:offset], padded), sig) {
+	if !ed25519.Verify(sender.VerifyingKey, signatureInput(ciphertext[:offset], padded), sig) {
 		return nil, errors.New("invalid ciphertext")
 	}
 
@@ -157,9 +196,9 @@ func signatureInput(headers []byte, padded []byte) []byte {
 
 // addFakes returns a copy of the given slice of recipients with the given number of nils inserted
 // randomly.
-func addFakes(r io.Reader, recipients []ed25519.PublicKey, n int) ([]ed25519.PublicKey, error) {
+func addFakes(r io.Reader, recipients []*PublicKey, n int) ([]*PublicKey, error) {
 	// Make a copy of the recipients with N nils at the end.
-	out := make([]ed25519.PublicKey, len(recipients)+n)
+	out := make([]*PublicKey, len(recipients)+n)
 	copy(out, recipients)
 
 	// Perform a Fisher-Yates shuffle, using crypto/rand to pick indexes. This will randomly

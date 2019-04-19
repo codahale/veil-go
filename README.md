@@ -33,7 +33,8 @@ X25519 for key agreement.
 
 ### Key Generation
 
-Veil static keys are Ed25519 keys.
+Veil keys consist of an X25519 key pair for encryption and an Ed25519 key pair for authenticity.
+This allows for X25519 keys to be rotated regularly.
 
 ### Data Encapsulation
 
