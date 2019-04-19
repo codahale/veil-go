@@ -144,9 +144,11 @@ func Decrypt(
 // plaintext.
 func signatureInput(headers []byte, padded []byte) []byte {
 	input := make([]byte, len(headers)+8+len(padded)+8)
+
 	// Write the headers and their length.
 	copy(input, headers)
 	binary.BigEndian.PutUint64(input[len(headers):], uint64(len(headers)))
+
 	// Write the padded plaintext and its length.
 	copy(input[len(headers)+8:], padded)
 	binary.BigEndian.PutUint64(input[len(input)-8:], uint64(len(padded)))
