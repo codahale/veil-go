@@ -15,55 +15,60 @@ true length, and fake recipients can be added to disguise their true number from
 
 ## Algorithms & Constructions
 
-Veil uses XChaCha20Poly1305 for authenticated encryption, Ed25519 for authenticity, and
-X25519 for key agreement.
+Veil uses ChaCha20Poly1305 for authenticated encryption, X25519 for key agreement and
+authentication, Elligator2 for indistinguishable public key encoding, and HKDF-SHA-512/256 for key
+derivation.
 
-* XChaCha20Poly1305 is fast, well-studied, and requires no padding. It uses 24-byte nonces, which is
+* ChaCha20Poly1305 is fast, well-studied, and requires no padding. It uses 24-byte nonces, which is
   a suitable size for randomly generated nonces. It is vulnerable to nonce misuse, but a reliable 
   source of random data is already a design requirement for Veil. Constant-time implementations are
   easy to implement without hardware support.
-* Ed25519 uses a [safe curve](https://safecurves.cr.yp.to). Constant-time implementations are 
-  common and certainly easier to make than other EC curves.
 * X25519 uses a [safe curve](https://safecurves.cr.yp.to) and provides ~128-bit security, which
   roughly maps to the security levels of the other algorithms and constructions. Constant-time 
   implementations are common and certainly easier to make than other EC curves.
 * Elligator2 allows us to map X25519 public keys to random strings, making ephemeral Diffie-Hellman
   indistinguishable from random noise. All Veil public keys are Elligator2 representations.
   Elligator2 is constant-time.
+* HKDF-SHA-512/256 is fast, standardized, constant-time, and very well-studied.
 
-### Key Generation
+### Key Encapsulation Mechanism (KEM)
 
-Veil keys consist of an X25519 key pair for encryption and an Ed25519 key pair for authenticity.
-This allows for X25519 keys to be rotated regularly.
+Veil headers and messages are encrypted using a Key Encapsulation Mechanism:
 
-### Data Encapsulation
-
-Data is encapsulated using XChaCha20Poly1305, with the 24-byte random nonce prepended to the
-ciphertext.
-
-### Key Encapsulation
-
-The recipient's Ed25519 public key is converted to an X25519 public key. An ephemeral X25519 key
-pair compatible with Elligator2 representation is generated, and used with the recipient's converted
-X25519 public key to generate a shared secret. The shared secret is used directly as the key for the
-data encapsulation mechanism with the ephemeral public key's Elligator 2 representative as
-authenticated data. The ephemeral public key's Elligator2 representative and the ciphertext are
-returned.
+1. An ephemeral X25519 key pair is generated.
+2. The X25519 shared secret is calculated for the recipient's public key and the ephemeral secret 
+   key.
+3. The X25519 shared secret is calculated for the recipient's public key and the initiator's secret
+   key.
+4. The two shared secrets are concatenated and used as the initial keying material for 
+   HKDF-SHA-512/256, with the ephemeral public key and the recipient's public key as the salt 
+   parameter and the authenticated data as the information parameter.
+5. The first 32 bytes from the HKDF output are used as a ChaCha20Poly1305 key.
+6. The next 12 bytes from the HKDF output as used as a ChaCha20Poly1305 nonce.
+7. The plaintext is encrypted with ChaCha20Poly1305 using the derived key, the derived nonce, and
+   the authenticated data.
+8. The Elligator2 encoding of the ephemeral public key and the ChaCha20Poly1305 ciphertext and tag
+   are returned.
 
 ### Messages
 
-A Veil message begins with a series of fixed-length encrypted headers, each of which contains a copy
-of the random 32-byte data encapsulation key, the offset in bytes where the message begins, and the
-length of the plaintext message in bytes.
+Encrypting a Veil message uses the following process:
 
-Following the headers is the plaintext, appended with random padding bytes, and prepended with an
-Ed25519 signature of the encrypted headers, the plaintext, and the padding, all encrypted using the
-data encapsulation key using the encrypted headers as authenticated data.
+1. An ephemeral X25519 key pair is generated.
+2. A plaintext header is generated, containing the ephemeral secret key, the total length of 
+   encrypted headers, and the length of the plaintext message bytes.
+3. For each recipient, a copy of the header is encrypted using the initiator's secret key and the
+   recipient's public key, and written as output. Fake recipients may be added by writing random
+   data instead of an encrypted header.
+4. The plaintext message has random padding bytes appended to it, and is encrypted using the 
+   initiator's secret key, the ephemeral public key, and the encrypted headers as authenticated 
+   data.
+5. The encrypted headers and encrypted, padded message are returned.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable header
 using the shared secret between the ephemeral public key and recipient's private key. When a header
-is successfully decrypted, the session key is used to decrypt the encrypted message, the signature
-is verified, and the padding is removed.
+is successfully decrypted, the ephemeral secret key is used to decrypt the encrypted message, and
+the padding is removed.
 
 ## What's the point
 

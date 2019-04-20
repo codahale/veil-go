@@ -3,29 +3,34 @@ package veil
 import (
 	"bytes"
 	"crypto/rand"
+	rand2 "math/rand"
 	"testing"
 )
 
 func TestRoundTrip(t *testing.T) {
-	publicA, privateA, err := GenerateKeys(rand.Reader)
+	pkA, skA, err := GenerateKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	publicB, privateB, err := GenerateKeys(rand.Reader)
+	pkB, skB, err := GenerateKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	message := []byte("one two three four I declare a thumb war")
-	ciphertext, err := Encrypt(rand.Reader, privateA, []*PublicKey{publicA, publicB}, message, 1024, 40)
+	ciphertext, err := Encrypt(rand.Reader, skA, []PublicKey{pkA, pkB}, message, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	plaintext, err := Decrypt(privateB, publicA, ciphertext)
+	pk, plaintext, err := Decrypt(skB, pkB, []PublicKey{pkB, pkA}, ciphertext)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if !bytes.Equal(pk, pkA) {
+		t.Errorf("Public key was %v, expected %v", pk, pkA)
 	}
 
 	if !bytes.Equal(message, plaintext) {
@@ -35,54 +40,67 @@ func TestRoundTrip(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		corruptCiphertext := corrupt(ciphertext)
 
-		_, err = Decrypt(privateB, publicA, corruptCiphertext)
+		_, _, err = Decrypt(skB, pkB, []PublicKey{pkA}, corruptCiphertext)
 		if err == nil {
-			t.Fatalf("Was able to decrypt %v/%v/%v", privateB, publicA, corruptCiphertext)
+			t.Fatalf("Was able to decrypt %v/%v/%v", skB, pkA, corruptCiphertext)
 		}
 
 	}
 }
 
 func BenchmarkVeilEncrypt(b *testing.B) {
-	r := fakeRand{}
-
-	publicA, privateA, err := GenerateKeys(r)
+	pkA, skA, err := GenerateKeys(rand.Reader)
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	publicB, _, err := GenerateKeys(r)
+	pkB, _, err := GenerateKeys(rand.Reader)
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	message := []byte("one two three four I declare a thumb war")
+	message := make([]byte, 1024*10)
 
 	for i := 0; i < b.N; i++ {
-		_, _ = Encrypt(r, privateA, []*PublicKey{publicA, publicB}, message, 1024, 40)
+		_, err = Encrypt(rand.Reader, skA, []PublicKey{pkA, pkB}, message, 1024, 40)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
 func BenchmarkVeilDecrypt(b *testing.B) {
-	r := fakeRand{}
-
-	publicB, privateB, err := GenerateKeys(r)
+	pkA, skA, err := GenerateKeys(rand.Reader)
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	publicC, privateC, err := GenerateKeys(r)
+	pkB, skB, err := GenerateKeys(rand.Reader)
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	message := []byte("one two three four I declare a thumb war")
-	ciphertext, err := Encrypt(r, privateB, []*PublicKey{publicB, publicC}, message, 1024, 40)
+	message := make([]byte, 1024*10)
+
+	ciphertext, err := Encrypt(rand.Reader, skA, []PublicKey{pkA, pkB}, message, 1024, 40)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	for i := 0; i < b.N; i++ {
-		_, _ = Decrypt(privateC, publicB, ciphertext)
+		_, _, err = Decrypt(skB, pkB, []PublicKey{pkA}, ciphertext)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
+}
+
+func corrupt(b []byte) []byte {
+	c := make([]byte, len(b))
+	copy(c, b)
+	c[rand2.Intn(len(c))] ^= byte(1 << uint(rand2.Intn(7)))
+	if bytes.Equal(b, c) {
+		panic("ag")
+	}
+	return c
 }

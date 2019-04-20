@@ -4,22 +4,25 @@ import (
 	"bytes"
 	"crypto/rand"
 	"testing"
-
-	"golang.org/x/crypto/ed25519"
 )
 
 func TestKEM(t *testing.T) {
-	public, _, private, err := ephemeralKeys(rand.Reader)
+	pkI, _, skI, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ciphertext, err := kemEncrypt(rand.Reader, public, []byte("a secret"))
+	pkR, _, skR, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	plaintext, err := kemDecrypt(private, ciphertext)
+	ciphertext, err := kemEncrypt(rand.Reader, skI, pkR, []byte("a secret"), []byte("data"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plaintext, err := kemDecrypt(skR, pkR, pkI, ciphertext, []byte("data"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,27 +36,35 @@ func TestKEM(t *testing.T) {
 	}
 
 	for i := 0; i < 1000; i++ {
+		data := []byte("data")
 		corruptCiphertext := corrupt(ciphertext)
-		_, err = kemDecrypt(private, corruptCiphertext)
+		corruptData := corrupt(data)
+
+		_, err = kemDecrypt(skR, pkR, pkI, corruptCiphertext, data)
 		if err == nil {
-			t.Fatalf("Was able to decrypt %v with %v", corruptCiphertext, private)
+			t.Fatalf("Was able to decrypt %v with %v/%v", corruptCiphertext, skI, data)
+		}
+
+		_, err = kemDecrypt(skR, pkR, pkI, ciphertext, corruptData)
+		if err == nil {
+			t.Fatalf("Was able to decrypt %v with %v/%v", ciphertext, skI, corruptData)
 		}
 	}
 }
 
 func TestXDH(t *testing.T) {
-	publicA, _, privateA, err := ephemeralKeys(rand.Reader)
+	pkA, _, skA, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	publicB, _, privateB, err := ephemeralKeys(rand.Reader)
+	pkB, _, skB, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sent := x25519(privateA, publicB)
-	received := x25519(privateB, publicA)
+	sent := x25519(skA, pkB)
+	received := x25519(skB, pkA)
 
 	if !bytes.Equal(sent, received) {
 		t.Errorf("XDH mismatch: %v/%v", sent, received)
@@ -61,52 +72,23 @@ func TestXDH(t *testing.T) {
 }
 
 func BenchmarkEphemeralKeys(b *testing.B) {
-	r := fakeRand{}
 	for i := 0; i < b.N; i++ {
-		_, _, _, _ = ephemeralKeys(r)
+		_, _, _, _ = ephemeralKeys(rand.Reader)
 	}
 }
 
 func BenchmarkXDH(b *testing.B) {
-	publicA, _, _, err := ephemeralKeys(rand.Reader)
+	pkA, _, _, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	_, _, privateB, err := ephemeralKeys(rand.Reader)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	for i := 0; i < b.N; i++ {
-		_ = x25519(privateB, publicA)
-	}
-}
-
-func BenchmarkKEMEncrypt(b *testing.B) {
-	r := fakeRand{}
-	public, _, err := ed25519.GenerateKey(r)
-	if err != nil {
-		b.Fatal(err)
-	}
-	for i := 0; i < b.N; i++ {
-		_, _ = kemEncrypt(r, public, []byte("a secret"))
-	}
-}
-
-func BenchmarkKEMDecrypt(b *testing.B) {
-	r := fakeRand{}
-	public, private, err := ed25519.GenerateKey(r)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	ciphertext, err := kemEncrypt(r, public, []byte("a secret"))
+	_, _, skB, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	for i := 0; i < b.N; i++ {
-		_, _ = kemDecrypt(private, ciphertext)
+		_ = x25519(skB, pkA)
 	}
 }
