@@ -33,9 +33,11 @@ func kemEncrypt(rand io.Reader, skI SecretKey, pkR PublicKey, plaintext, data []
 	// X25519 public key.
 	zzS := x25519(skI, pkR)
 
-	// Derive the key from both the ephemeral shared secret and the static shared secret.
-	ikm := append(zzE, zzS...)
-	key, nonce := deriveKeyAndNonce(ikm, pkE, pkR, data)
+	// Concatenate the two to form the shared secret.
+	zz := append(zzE, zzS...)
+
+	// Derive the key from the shared secret.
+	key, nonce := deriveKeyAndNonce(zz, pkE, pkR, data)
 
 	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
@@ -61,9 +63,11 @@ func kemDecrypt(skR SecretKey, pkR, pkI PublicKey, ciphertext, data []byte) ([]b
 	// public key.
 	zzS := x25519(skR, pkI)
 
+	// Concatenate the two to form the shared secret.
+	zz := append(zzE, zzS...)
+
 	// Derive the key from both the ephemeral shared secret and the static shared secret.
-	ikm := append(zzE, zzS...)
-	key, nonce := deriveKeyAndNonce(ikm, pkE[:], pkR, data)
+	key, nonce := deriveKeyAndNonce(zz, pkE[:], pkR, data)
 
 	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
