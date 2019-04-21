@@ -3,9 +3,43 @@ package veil
 import (
 	"bytes"
 	"crypto/rand"
+	"fmt"
 	rand2 "math/rand"
 	"testing"
 )
+
+func Example() {
+	pkA, skA, err := GenerateKeys(rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+
+	pkB, skB, err := GenerateKeys(rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+
+	message := []byte("one two three four I declare a thumb war")
+	ciphertext, err := Encrypt(rand.Reader, skA, []PublicKey{pkA, pkB}, message, 1000, 10)
+	if err != nil {
+		panic(err)
+	}
+
+	pk, plaintext, err := Decrypt(skB, pkB, []PublicKey{pkB, pkA}, ciphertext)
+	if err != nil {
+		panic(err)
+	}
+
+	if bytes.Equal(pk, pkA) {
+		fmt.Println("sent by A")
+	} else {
+		fmt.Println("sent by B")
+	}
+	fmt.Println(string(plaintext))
+	// Output:
+	// sent by A
+	// one two three four I declare a thumb war
+}
 
 func TestRoundTrip(t *testing.T) {
 	pkA, skA, err := GenerateKeys(rand.Reader)
@@ -19,7 +53,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	message := []byte("one two three four I declare a thumb war")
-	ciphertext, err := Encrypt(rand.Reader, skA, []PublicKey{pkA, pkB}, message, 0, 0)
+	ciphertext, err := Encrypt(rand.Reader, skA, []PublicKey{pkA, pkB}, message, 1000, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
