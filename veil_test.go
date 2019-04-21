@@ -9,22 +9,26 @@ import (
 )
 
 func Example() {
+	// Alice generates a set of keys and shares her public key with Bob.
 	pkA, skA, err := GenerateKeys(rand.Reader)
 	if err != nil {
 		panic(err)
 	}
 
+	// Bob generates a set of keys and shares his public key with Alice.
 	pkB, skB, err := GenerateKeys(rand.Reader)
 	if err != nil {
 		panic(err)
 	}
 
+	// Alice encrypts a message for her and Bob with 10 fake recipients and 1000 bytes of padding.
 	message := []byte("one two three four I declare a thumb war")
 	ciphertext, err := Encrypt(rand.Reader, skA, []PublicKey{pkA, pkB}, message, 1000, 10)
 	if err != nil {
 		panic(err)
 	}
 
+	// Bob decrypts the message and sees that it was encrypted by Alice.
 	pk, plaintext, err := Decrypt(skB, pkB, []PublicKey{pkB, pkA}, ciphertext)
 	if err != nil {
 		panic(err)
