@@ -1,7 +1,7 @@
 package veil
 
 import (
-	"crypto/sha512"
+	"crypto/sha256"
 	"io"
 
 	"github.com/agl/ed25519/extra25519"
@@ -83,9 +83,9 @@ func kdf(ikm, pkE, pkR, data []byte) []byte {
 	copy(salt, pkE)
 	copy(salt[:len(pkE)], pkR)
 
-	// Create an HKDF-SHA-512/256 instance from the initial keying material, the salt, and the
+	// Create an HKDF-SHA-256 instance from the initial keying material, the salt, and the
 	// authenticated data.
-	h := hkdf.New(sha512.New512_256, ikm, salt, data)
+	h := hkdf.New(sha256.New, ikm, salt, data)
 
 	// Derive the key and nonce from the HKDF output.
 	out := make([]byte, chacha20poly1305.KeySize+chacha20poly1305.NonceSize)
