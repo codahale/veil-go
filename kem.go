@@ -37,12 +37,12 @@ func kemEncrypt(rand io.Reader, skI SecretKey, pkR PublicKey, plaintext, data []
 	zz := append(zzE, zzS...)
 
 	// Derive the key from the shared secret.
-	key, nonce := deriveKeyAndNonce(zz, pkE, pkR, data)
+	kn := kdf(zz, pkE, pkR, data)
 
 	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
-	aead, _ := chacha20poly1305.New(key)
-	return aead.Seal(rkE, nonce, plaintext, data), nil
+	aead, _ := chacha20poly1305.New(kn[:chacha20poly1305.KeySize])
+	return aead.Seal(rkE, kn[chacha20poly1305.KeySize:], plaintext, data), nil
 }
 
 // kemDecrypt decrypts the given ciphertext using the recipient's secret key, the recipient's public
@@ -67,17 +67,17 @@ func kemDecrypt(skR SecretKey, pkR, pkI PublicKey, ciphertext, data []byte) ([]b
 	zz := append(zzE, zzS...)
 
 	// Derive the key from both the ephemeral shared secret and the static shared secret.
-	key, nonce := deriveKeyAndNonce(zz, pkE[:], pkR, data)
+	kn := kdf(zz, pkE[:], pkR, data)
 
 	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
-	aead, _ := chacha20poly1305.New(key)
-	return aead.Open(nil, nonce, ciphertext[kemKeyLen:], data)
+	aead, _ := chacha20poly1305.New(kn[:chacha20poly1305.KeySize])
+	return aead.Open(nil, kn[chacha20poly1305.KeySize:], ciphertext[kemKeyLen:], data)
 }
 
-// deriveKeyAndNonce returns a ChaCha20Poly1305 key and nonce derived from the given initial keying
-// material, ephemeral public key, recipient's public key, and authenticated data.
-func deriveKeyAndNonce(ikm, pkE, pkR, data []byte) ([]byte, []byte) {
+// kdf returns a ChaCha20Poly1305 key and nonce derived from the given initial keying material,
+// ephemeral public key, recipient's public key, and authenticated data.
+func kdf(ikm, pkE, pkR, data []byte) []byte {
 	// Create a salt consisting of the ephemeral public key and the recipient's public key.
 	salt := make([]byte, len(pkE)+len(pkR))
 	copy(salt, pkE)
@@ -88,11 +88,9 @@ func deriveKeyAndNonce(ikm, pkE, pkR, data []byte) ([]byte, []byte) {
 	h := hkdf.New(sha512.New512_256, ikm, salt, data)
 
 	// Derive the key and nonce from the HKDF output.
-	key := make([]byte, chacha20poly1305.KeySize)
-	nonce := make([]byte, chacha20poly1305.NonceSize)
-	_, _ = io.ReadFull(h, key)
-	_, _ = io.ReadFull(h, nonce)
-	return key, nonce
+	out := make([]byte, chacha20poly1305.KeySize+chacha20poly1305.NonceSize)
+	_, _ = io.ReadFull(h, out)
+	return out
 }
 
 // ephemeralKeys generate an X25519 key pair and returns the public key, the Elligator2
