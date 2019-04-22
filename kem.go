@@ -18,7 +18,7 @@ const (
 
 // kemEncrypt encrypts the given plaintext using the initiator's X25519 secret key, the recipient's
 // X25519 public key, and optional authenticated data.
-func kemEncrypt(rand io.Reader, skI SecretKey, pkI, pkR PublicKey, plaintext, data []byte) ([]byte, error) {
+func kemEncrypt(rand io.Reader, pkI PublicKey, skI SecretKey, pkR PublicKey, plaintext, data []byte) ([]byte, error) {
 	// Generate an ephemeral X25519 key pair.
 	pkE, rkE, skE, err := ephemeralKeys(rand)
 	if err != nil {
@@ -49,7 +49,7 @@ func kemEncrypt(rand io.Reader, skI SecretKey, pkI, pkR PublicKey, plaintext, da
 // key, the initiator's public key, and optional authenticated data. If the ciphertext can be
 // decrypted, there are strong assurances that the holder of the initiator's secret key created the
 // ciphertext.
-func kemDecrypt(skR SecretKey, pkR, pkI PublicKey, ciphertext, data []byte) ([]byte, error) {
+func kemDecrypt(pkR PublicKey, skR SecretKey, pkI PublicKey, ciphertext, data []byte) ([]byte, error) {
 	// Convert the embedded Elligator2 representative to an X25519 public key.
 	var rkE, pkE [32]byte
 	copy(rkE[:], ciphertext[:kemKeyLen])

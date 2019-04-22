@@ -39,7 +39,7 @@ const (
 )
 
 // Encrypt encrypts the given plaintext using the given secret key and list of public keys.
-func Encrypt(rand io.Reader, skI SecretKey, pkI PublicKey, pkRs []PublicKey, plaintext []byte, padding, fakes int) ([]byte, error) {
+func Encrypt(rand io.Reader, pkI PublicKey, skI SecretKey, pkRs []PublicKey, plaintext []byte, padding, fakes int) ([]byte, error) {
 	// Generate an ephemeral X25519 key pair.
 	pkE, _, skE, err := ephemeralKeys(rand)
 	if err != nil {
@@ -71,7 +71,7 @@ func Encrypt(rand io.Reader, skI SecretKey, pkI PublicKey, pkRs []PublicKey, pla
 			}
 		} else {
 			// To include a real recipient, encrypt the header via KEM.
-			b, err := kemEncrypt(rand, skI, pkI, pkR, header, nil)
+			b, err := kemEncrypt(rand, pkI, skI, pkR, header, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -89,7 +89,7 @@ func Encrypt(rand io.Reader, skI SecretKey, pkI PublicKey, pkRs []PublicKey, pla
 
 	// Encrypt the signed, padded plaintext with the ephemeral public key, using the encrypted
 	// headers as authenticated data.
-	ciphertext, err := kemEncrypt(rand, skI, pkI, pkE, padded, out[:offset])
+	ciphertext, err := kemEncrypt(rand, pkI, skI, pkE, padded, out[:offset])
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func Encrypt(rand io.Reader, skI SecretKey, pkI PublicKey, pkRs []PublicKey, pla
 // the initiator's public key and the original plaintext. If any bit of the ciphertext has been
 // altered, or if the message was not encrypted for the given secret key, or if the initiator's
 // public key was not provided, returns an error.
-func Decrypt(skR SecretKey, pkR PublicKey, pkIs []PublicKey, ciphertext []byte) (PublicKey, []byte, error) {
+func Decrypt(pkR PublicKey, skR SecretKey, pkIs []PublicKey, ciphertext []byte) (PublicKey, []byte, error) {
 	var skE, pkI []byte
 	var offset, size uint64
 
@@ -112,7 +112,7 @@ func Decrypt(skR SecretKey, pkR PublicKey, pkIs []PublicKey, ciphertext []byte) 
 		for i := 0; i < len(ciphertext)-encryptedHeaderLen; i += encryptedHeaderLen {
 			// Try to decrypt the possible header.
 			b := ciphertext[i:(i + encryptedHeaderLen)]
-			header, err := kemDecrypt(skR, pkR, pk, b, nil)
+			header, err := kemDecrypt(pkR, skR, pk, b, nil)
 			if err == nil {
 				// If we can decrypt it, read the ephemeral secret key, offset, and size.
 				pkI = pk
@@ -135,7 +135,7 @@ func Decrypt(skR SecretKey, pkR PublicKey, pkIs []PublicKey, ciphertext []byte) 
 	curve25519.ScalarBaseMult(&pkE, &buf)
 
 	// Decrypt the KEM-encrypted, padded plaintext.
-	padded, err := kemDecrypt(skE, pkE[:], pkI, ciphertext[offset:], ciphertext[:offset])
+	padded, err := kemDecrypt(pkE[:], skE, pkI, ciphertext[offset:], ciphertext[:offset])
 	if err != nil {
 		return nil, nil, err
 	}

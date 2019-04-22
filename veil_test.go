@@ -23,13 +23,13 @@ func Example() {
 
 	// Alice encrypts a message for her and Bob with 10 fake recipients and 1000 bytes of padding.
 	message := []byte("one two three four I declare a thumb war")
-	ciphertext, err := Encrypt(rand.Reader, skA, pkA, []PublicKey{pkA, pkB}, message, 1000, 10)
+	ciphertext, err := Encrypt(rand.Reader, pkA, skA, []PublicKey{pkA, pkB}, message, 1000, 10)
 	if err != nil {
 		panic(err)
 	}
 
 	// Bob decrypts the message and sees that it was encrypted by Alice.
-	pk, plaintext, err := Decrypt(skB, pkB, []PublicKey{pkB, pkA}, ciphertext)
+	pk, plaintext, err := Decrypt(pkB, skB, []PublicKey{pkB, pkA}, ciphertext)
 	if err != nil {
 		panic(err)
 	}
@@ -57,12 +57,12 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	message := []byte("one two three four I declare a thumb war")
-	ciphertext, err := Encrypt(rand.Reader, skA, pkA, []PublicKey{pkA, pkB}, message, 1000, 10)
+	ciphertext, err := Encrypt(rand.Reader, pkA, skA, []PublicKey{pkA, pkB}, message, 1000, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pk, plaintext, err := Decrypt(skB, pkB, []PublicKey{pkB, pkA}, ciphertext)
+	pk, plaintext, err := Decrypt(pkB, skB, []PublicKey{pkB, pkA}, ciphertext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestRoundTrip(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		corruptCiphertext := corrupt(ciphertext)
 
-		_, _, err = Decrypt(skB, pkB, []PublicKey{pkA}, corruptCiphertext)
+		_, _, err = Decrypt(pkB, skB, []PublicKey{pkA}, corruptCiphertext)
 		if err == nil {
 			t.Fatalf("Was able to decrypt %v/%v/%v", skB, pkA, corruptCiphertext)
 		}
@@ -100,7 +100,7 @@ func BenchmarkVeilEncrypt(b *testing.B) {
 	message := make([]byte, 1024*10)
 
 	for i := 0; i < b.N; i++ {
-		_, err = Encrypt(rand.Reader, skA, pkA, []PublicKey{pkA, pkB}, message, 1024, 40)
+		_, err = Encrypt(rand.Reader, pkA, skA, []PublicKey{pkA, pkB}, message, 1024, 40)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -120,13 +120,13 @@ func BenchmarkVeilDecrypt(b *testing.B) {
 
 	message := make([]byte, 1024*10)
 
-	ciphertext, err := Encrypt(rand.Reader, skA, pkA, []PublicKey{pkA, pkB}, message, 1024, 40)
+	ciphertext, err := Encrypt(rand.Reader, pkA, skA, []PublicKey{pkA, pkB}, message, 1024, 40)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	for i := 0; i < b.N; i++ {
-		_, _, err = Decrypt(skB, pkB, []PublicKey{pkA}, ciphertext)
+		_, _, err = Decrypt(pkB, skB, []PublicKey{pkA}, ciphertext)
 		if err != nil {
 			b.Fatal(err)
 		}

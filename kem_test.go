@@ -17,12 +17,12 @@ func TestKEM(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ciphertext, err := kemEncrypt(rand.Reader, skI, pkI, pkR, []byte("a secret"), []byte("data"))
+	ciphertext, err := kemEncrypt(rand.Reader, pkI, skI, pkR, []byte("a secret"), []byte("data"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	plaintext, err := kemDecrypt(skR, pkR, pkI, ciphertext, []byte("data"))
+	plaintext, err := kemDecrypt(pkR, skR, pkI, ciphertext, []byte("data"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,12 +40,12 @@ func TestKEM(t *testing.T) {
 		corruptCiphertext := corrupt(ciphertext)
 		corruptData := corrupt(data)
 
-		_, err = kemDecrypt(skR, pkR, pkI, corruptCiphertext, data)
+		_, err = kemDecrypt(pkR, skR, pkI, corruptCiphertext, data)
 		if err == nil {
 			t.Fatalf("Was able to decrypt %v with %v/%v", corruptCiphertext, skI, data)
 		}
 
-		_, err = kemDecrypt(skR, pkR, pkI, ciphertext, corruptData)
+		_, err = kemDecrypt(pkR, skR, pkI, ciphertext, corruptData)
 		if err == nil {
 			t.Fatalf("Was able to decrypt %v with %v/%v", ciphertext, skI, corruptData)
 		}
