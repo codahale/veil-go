@@ -49,7 +49,7 @@ Veil headers and messages are encrypted using a Key Encapsulation Mechanism:
 8. The Elligator2 encoding of the ephemeral public key and the ChaCha20Poly1305 ciphertext and tag
    are returned.
 
-As a One-Pass Unified Module, `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
+As a One-Pass Unified Model, `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
 KEM provides assurance that the message was encrypted by the holder of the sender's secret key.
 X25519 mutability issues are mitigated by the inclusion of both the ephemeral public key and the
 recipient's public key in the HKDF inputs. Deriving both the key and nonce from the ephemeral shared
