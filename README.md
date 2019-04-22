@@ -49,13 +49,13 @@ Veil headers and messages are encrypted using a Key Encapsulation Mechanism:
 8. The Elligator2 encoding of the ephemeral public key and the ChaCha20Poly1305 ciphertext and tag
    are returned.
 
-As a single-pass version of NIST SP 800-56A's `C(2e, 2s)` key agreement scheme, this KEM provides
-assurance that the message was encrypted by the holder of the sender's secret key. X25519 mutability
-issues are mitigated by the inclusion of both the ephemeral public key and the recipient's public
-key in the HKDF inputs. Deriving both the key and nonce from the ephemeral shared secret eliminates
-the possibility of nonce misuse, allows for the usage of ChaCha20 vs XChaCha20, and results in a
-shorter ciphertext by eliding the nonce. Finally, encoding the ephemeral public key with Elligator2
-ensures the final bytestring is indistinguishable from random noise.
+As a One-Pass Unified Module, `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
+KEM provides assurance that the message was encrypted by the holder of the sender's secret key.
+X25519 mutability issues are mitigated by the inclusion of both the ephemeral public key and the
+recipient's public key in the HKDF inputs. Deriving both the key and nonce from the ephemeral shared
+secret eliminates the possibility of nonce misuse, allows for the usage of ChaCha20 vs XChaCha20,
+and results in a shorter ciphertext by eliding the nonce. Finally, encoding the ephemeral public key
+with Elligator2 ensures the final bytestring is indistinguishable from random noise.
 
 ### Messages
 
