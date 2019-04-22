@@ -39,7 +39,7 @@ const (
 )
 
 // Encrypt encrypts the given plaintext using the given secret key and list of public keys.
-func Encrypt(rand io.Reader, skI SecretKey, pkRs []PublicKey, plaintext []byte, padding, fakes int) ([]byte, error) {
+func Encrypt(rand io.Reader, skI SecretKey, pkI PublicKey, pkRs []PublicKey, plaintext []byte, padding, fakes int) ([]byte, error) {
 	// Generate an ephemeral X25519 key pair.
 	pkE, _, skE, err := ephemeralKeys(rand)
 	if err != nil {
@@ -71,7 +71,7 @@ func Encrypt(rand io.Reader, skI SecretKey, pkRs []PublicKey, plaintext []byte, 
 			}
 		} else {
 			// To include a real recipient, encrypt the header via KEM.
-			b, err := kemEncrypt(rand, skI, pkR, header, nil)
+			b, err := kemEncrypt(rand, skI, pkI, pkR, header, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -89,7 +89,7 @@ func Encrypt(rand io.Reader, skI SecretKey, pkRs []PublicKey, plaintext []byte, 
 
 	// Encrypt the signed, padded plaintext with the ephemeral public key, using the encrypted
 	// headers as authenticated data.
-	ciphertext, err := kemEncrypt(rand, skI, pkE, padded, out[:offset])
+	ciphertext, err := kemEncrypt(rand, skI, pkI, pkE, padded, out[:offset])
 	if err != nil {
 		return nil, err
 	}

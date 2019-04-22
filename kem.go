@@ -18,7 +18,7 @@ const (
 
 // kemEncrypt encrypts the given plaintext using the initiator's X25519 secret key, the recipient's
 // X25519 public key, and optional authenticated data.
-func kemEncrypt(rand io.Reader, skI SecretKey, pkR PublicKey, plaintext, data []byte) ([]byte, error) {
+func kemEncrypt(rand io.Reader, skI SecretKey, pkI, pkR PublicKey, plaintext, data []byte) ([]byte, error) {
 	// Generate an ephemeral X25519 key pair.
 	pkE, rkE, skE, err := ephemeralKeys(rand)
 	if err != nil {
@@ -37,7 +37,7 @@ func kemEncrypt(rand io.Reader, skI SecretKey, pkR PublicKey, plaintext, data []
 	zz := append(zzE, zzS...)
 
 	// Derive the key from the shared secret.
-	kn := kdf(zz, pkE, pkR, data)
+	kn := kdf(zz, pkI, pkE, pkR, data)
 
 	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
@@ -67,7 +67,7 @@ func kemDecrypt(skR SecretKey, pkR, pkI PublicKey, ciphertext, data []byte) ([]b
 	zz := append(zzE, zzS...)
 
 	// Derive the key from both the ephemeral shared secret and the static shared secret.
-	kn := kdf(zz, pkE[:], pkR, data)
+	kn := kdf(zz, pkI, pkE[:], pkR, data)
 
 	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
@@ -76,12 +76,13 @@ func kemDecrypt(skR SecretKey, pkR, pkI PublicKey, ciphertext, data []byte) ([]b
 }
 
 // kdf returns a ChaCha20Poly1305 key and nonce derived from the given initial keying material,
-// ephemeral public key, recipient's public key, and authenticated data.
-func kdf(ikm, pkE, pkR, data []byte) []byte {
-	// Create a salt consisting of the ephemeral public key and the recipient's public key.
-	salt := make([]byte, len(pkE)+len(pkR))
-	copy(salt, pkE)
-	copy(salt[:len(pkE)], pkR)
+// initiator's public key, ephemeral public key, recipient's public key, and authenticated data.
+func kdf(ikm, pkI, pkE, pkR, data []byte) []byte {
+	// Create a salt consisting of the initiator's public key, the ephemeral public key and the
+	// recipient's public key.
+	salt := append([]byte(nil), pkI...)
+	salt = append(salt, pkE...)
+	salt = append(salt, pkR...)
 
 	// Create an HKDF-SHA-256 instance from the initial keying material, the salt, and the
 	// authenticated data.

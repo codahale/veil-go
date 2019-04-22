@@ -40,8 +40,8 @@ Veil headers and messages are encrypted using a Key Encapsulation Mechanism:
 3. The X25519 shared secret is calculated for the recipient's public key and the initiator's secret
    key.
 4. The two shared secrets are concatenated and used as the initial keying material for 
-   HKDF-SHA-256, with the ephemeral public key and the recipient's public key as the salt parameter 
-   and the authenticated data as the information parameter.
+   HKDF-SHA-256, with the initiator's public key, the ephemeral public key, and the recipient's 
+   public key as the salt parameter and the authenticated data as the information parameter.
 5. The first 32 bytes from the HKDF output are used as a ChaCha20Poly1305 key.
 6. The next 12 bytes from the HKDF output as used as a ChaCha20Poly1305 nonce.
 7. The plaintext is encrypted with ChaCha20Poly1305 using the derived key, the derived nonce, and

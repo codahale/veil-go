@@ -17,7 +17,7 @@ func TestKEM(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ciphertext, err := kemEncrypt(rand.Reader, skI, pkR, []byte("a secret"), []byte("data"))
+	ciphertext, err := kemEncrypt(rand.Reader, skI, pkI, pkR, []byte("a secret"), []byte("data"))
 	if err != nil {
 		t.Fatal(err)
 	}
