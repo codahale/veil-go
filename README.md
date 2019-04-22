@@ -51,7 +51,7 @@ Veil headers and messages are encrypted using a Key Encapsulation Mechanism:
    are returned.
 
 As a single-pass version of NIST SP 800-56A's `C(2e, 2s)` key agreement scheme, this KEM provides
-assurance that the message was encrypted by the holder of the sender's private key. X25519
+assurance that the message was encrypted by the holder of the sender's secret key. X25519
 mutability issues are mitigated by the inclusion of both the ephemeral public key and the
 recipient's in the HKDF inputs. Deriving both the key and nonce from the ephemeral shared secret
 eliminates the possibility of nonce misuse, allows for the usage of ChaCha20 vs XChaCha20, and
@@ -74,7 +74,7 @@ Encrypting a Veil message uses the following process:
 5. The encrypted headers and encrypted, padded message are returned.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable header
-using the shared secret between the ephemeral public key and recipient's private key. When a header
+using the shared secret between the ephemeral public key and recipient's secret key. When a header
 is successfully decrypted, the ephemeral secret key is used to decrypt the encrypted message, and
 the padding is removed.
 
@@ -82,7 +82,7 @@ the padding is removed.
 
 1. Veil messages are confidential: no one can read the message without being a recipient.
 2. Veil messages can be read by all of the intended recipients, but no recipient can modify the 
-   message's content or metadata without possessing the sender's private key.
+   message's content or metadata without possessing the sender's secret key.
 3. Veil messages are tamper-proof. If a single bit of the entire message is changed, all of the
    recipients will know.
 4. Veil messages are indistinguishable from random noise, revealing no metadata about recipients'
