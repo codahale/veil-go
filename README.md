@@ -19,10 +19,9 @@ Veil uses ChaCha20Poly1305 for authenticated encryption, X25519 for key agreemen
 authentication, Elligator2 for indistinguishable public key encoding, and HKDF-SHA-256 for key
 derivation.
 
-* ChaCha20Poly1305 is fast, well-studied, and requires no padding. It uses 24-byte nonces, which is
-  a suitable size for randomly generated nonces. It is vulnerable to nonce misuse, but a reliable 
-  source of random data is already a design requirement for Veil. Constant-time implementations are
-  easy to implement without hardware support.
+* ChaCha20Poly1305 is fast, well-studied, and requires no padding. It is vulnerable to nonce misuse,
+  but both keys and nonces are derived from random data, making collisions very improbable.
+  Constant-time implementations are easy to implement without hardware support.
 * X25519 uses a [safe curve](https://safecurves.cr.yp.to) and provides ~128-bit security, which
   roughly maps to the security levels of the other algorithms and constructions. Constant-time 
   implementations are common and certainly easier to make than other EC curves.
@@ -51,12 +50,12 @@ Veil headers and messages are encrypted using a Key Encapsulation Mechanism:
    are returned.
 
 As a single-pass version of NIST SP 800-56A's `C(2e, 2s)` key agreement scheme, this KEM provides
-assurance that the message was encrypted by the holder of the sender's secret key. X25519
-mutability issues are mitigated by the inclusion of both the ephemeral public key and the
-recipient's in the HKDF inputs. Deriving both the key and nonce from the ephemeral shared secret
-eliminates the possibility of nonce misuse, allows for the usage of ChaCha20 vs XChaCha20, and
-results in a shorter ciphertext. Finally, encoding the ephemeral public key with Elligator2 ensures
-the final bytestring is indistinguishable from random noise.
+assurance that the message was encrypted by the holder of the sender's secret key. X25519 mutability
+issues are mitigated by the inclusion of both the ephemeral public key and the recipient's public
+key in the HKDF inputs. Deriving both the key and nonce from the ephemeral shared secret eliminates
+the possibility of nonce misuse, allows for the usage of ChaCha20 vs XChaCha20, and results in a
+shorter ciphertext by eliding the nonce. Finally, encoding the ephemeral public key with Elligator2
+ensures the final bytestring is indistinguishable from random noise.
 
 ### Messages
 
