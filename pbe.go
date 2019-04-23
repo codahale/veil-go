@@ -3,24 +3,25 @@ package veil
 import (
 	"encoding/binary"
 	"io"
+	"math"
+	"runtime"
 
+	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
-	"golang.org/x/crypto/scrypt"
 )
 
 // EncryptedKeyPair is a KeyPair that has been encrypted with a password.
 type EncryptedKeyPair struct {
-	Salt       []byte
-	Ciphertext []byte
-	N, R, P    int
+	Salt         []byte
+	Ciphertext   []byte
+	Time, Memory uint32
+	Threads      uint8
 }
 
 const (
-	// per https://blog.filippo.io/the-scrypt-parameters/
-	defaultN = 1 << 20
-	defaultR = 8
-	defaultP = 1
+	defaultTime   = 1
+	defaultMemory = 64 * 1024
 )
 
 // NewEncryptedKeyPair encrypts the given key pair with the given password.
@@ -32,11 +33,17 @@ func NewEncryptedKeyPair(rand io.Reader, kp *KeyPair, password []byte) (*Encrypt
 		return nil, err
 	}
 
-	// Encode the scrypt parameters as authenticated data.
-	data := encodeScryptParams(defaultN, defaultR, defaultP)
+	// Use all available CPUs.
+	threads := uint8(math.MaxUint8)
+	if n := runtime.NumCPU(); n <= math.MaxUint8 {
+		threads = uint8(n)
+	}
 
-	// Use scrypt to derive a key and nonce from the password and salt.
-	k, _ := scrypt.Key(password, salt, defaultN, defaultR, defaultP, kdfOutputLen)
+	// Use Argon2id to derive a key and nonce from the password and salt.
+	k := argon2.IDKey(password, salt, defaultTime, defaultMemory, threads, kdfOutputLen)
+
+	// Encode the Argon2id parameters as authenticated data.
+	data := encodeArgonParams(defaultTime, defaultMemory, threads)
 
 	// Encrypt the secret key.
 	aead, _ := chacha20poly1305.New(k[:chacha20poly1305.KeySize])
@@ -46,20 +53,20 @@ func NewEncryptedKeyPair(rand io.Reader, kp *KeyPair, password []byte) (*Encrypt
 	return &EncryptedKeyPair{
 		Salt:       salt,
 		Ciphertext: ciphertext,
-		N:          defaultN,
-		R:          defaultR,
-		P:          defaultP,
+		Time:       defaultTime,
+		Memory:     defaultMemory,
+		Threads:    threads,
 	}, nil
 }
 
 // Decrypt uses the given password to decrypt the key pair. Returns an error if the password is
 // incorrect or if the encrypted key pair has been modified.
 func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*KeyPair, error) {
-	// Use the password, salt, and parameters to derive a key and nonce.
-	k, _ := scrypt.Key(password, ekp.Salt, ekp.N, ekp.R, ekp.P, kdfOutputLen)
+	// Use Argon2id to derive a key and nonce from the password and salt.
+	k := argon2.IDKey(password, ekp.Salt, ekp.Time, ekp.Memory, ekp.Threads, kdfOutputLen)
 
 	// Encode the scrypt parameters as authenticated data.
-	data := encodeScryptParams(ekp.N, ekp.R, ekp.P)
+	data := encodeArgonParams(ekp.Time, ekp.Memory, ekp.Threads)
 
 	// Decrypt the secret key.
 	aead, _ := chacha20poly1305.New(k[:chacha20poly1305.KeySize])
@@ -77,11 +84,11 @@ func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*KeyPair, error) {
 	return &KeyPair{PublicKey: dst[:], SecretKey: sk}, nil
 }
 
-// encodeScryptParams returns the three Scrypt parameters encoded as big-endian uint32s.
-func encodeScryptParams(n, r, p int) []byte {
-	data := make([]byte, 12)
-	binary.BigEndian.PutUint32(data, uint32(n))
-	binary.BigEndian.PutUint32(data[4:], uint32(r))
-	binary.BigEndian.PutUint32(data[8:], uint32(p))
+// encodeArgonParams returns the Argon2id params encoded as big-endian integers
+func encodeArgonParams(time, memory uint32, threads uint8) []byte {
+	data := make([]byte, 9)
+	binary.BigEndian.PutUint32(data, time)
+	binary.BigEndian.PutUint32(data[4:], memory)
+	data[8] = threads
 	return data
 }

@@ -79,9 +79,9 @@ the padding is removed.
 
 ### Password-Based Encryption
 
-To store safely store secret keys, Scrypt is used with a 32-byte random salt to derive a 
-ChaCha20Poly1305 key and nonce. The secret key is encrypted with ChaCha20Poly1305, using the Scrypt
-parameters as authenticated data.
+To safely store secret keys, Argon2id is used with a 32-byte random salt to derive a
+ChaCha20Poly1305 key and nonce. The secret key is encrypted with ChaCha20Poly1305, using the
+Argon2id parameters as authenticated data.
 
 ## What's the point
 
