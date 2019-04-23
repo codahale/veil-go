@@ -32,10 +32,7 @@ func NewEncryptedKeyPair(rand io.Reader, kp *KeyPair, password []byte) (*Encrypt
 	}
 
 	// Encode the scrypt parameters as authenticated data.
-	data := make([]byte, 12)
-	binary.BigEndian.PutUint32(data, defaultN)
-	binary.BigEndian.PutUint32(data[4:], defaultR)
-	binary.BigEndian.PutUint32(data[8:], defaultP)
+	data := encodeScryptParams(defaultN, defaultR, defaultP)
 
 	// Use scrypt to derive a key and nonce from the password and salt.
 	k, _ := scrypt.Key(password, salt, defaultN, defaultR, defaultP, chacha20poly1305.KeySize+chacha20poly1305.NonceSize)
@@ -61,10 +58,7 @@ func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*KeyPair, error) {
 	k, _ := scrypt.Key(password, ekp.Salt, ekp.N, ekp.R, ekp.P, chacha20poly1305.KeySize+chacha20poly1305.NonceSize)
 
 	// Encode the scrypt parameters as authenticated data.
-	data := make([]byte, 12)
-	binary.BigEndian.PutUint32(data, uint32(ekp.N))
-	binary.BigEndian.PutUint32(data[4:], uint32(ekp.R))
-	binary.BigEndian.PutUint32(data[8:], uint32(ekp.P))
+	data := encodeScryptParams(ekp.N, ekp.R, ekp.P)
 
 	// Decrypt the secret key.
 	aead, _ := chacha20poly1305.New(k[:chacha20poly1305.KeySize])
@@ -80,4 +74,13 @@ func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*KeyPair, error) {
 
 	// Return a KeyPair.
 	return &KeyPair{PublicKey: dst[:], SecretKey: sk}, nil
+}
+
+// encodeScryptParams returns the three Scrypt parameters encoded as big-endian uint32s.
+func encodeScryptParams(n, r, p int) []byte {
+	data := make([]byte, 12)
+	binary.BigEndian.PutUint32(data, uint32(n))
+	binary.BigEndian.PutUint32(data[4:], uint32(r))
+	binary.BigEndian.PutUint32(data[8:], uint32(p))
+	return data
 }
