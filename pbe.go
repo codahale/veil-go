@@ -17,7 +17,8 @@ type EncryptedKeyPair struct {
 }
 
 const (
-	defaultN = 32768
+	// per https://blog.filippo.io/the-scrypt-parameters/
+	defaultN = 1 << 20
 	defaultR = 8
 	defaultP = 1
 )
