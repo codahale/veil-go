@@ -65,7 +65,7 @@ func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*KeyPair, error) {
 	// Use Argon2id to derive a key and nonce from the password and salt.
 	k := argon2.IDKey(password, ekp.Salt, ekp.Time, ekp.Memory, ekp.Threads, kdfOutputLen)
 
-	// Encode the scrypt parameters as authenticated data.
+	// Encode the Argon parameters as authenticated data.
 	data := encodeArgonParams(ekp.Time, ekp.Memory, ekp.Threads)
 
 	// Decrypt the secret key.
