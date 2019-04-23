@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	kemKeyLen   = 32
-	kemOverhead = kemKeyLen + poly1305.TagSize
+	kemKeyLen    = 32
+	kemOverhead  = kemKeyLen + poly1305.TagSize
+	kdfOutputLen = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
 )
 
 // kemEncrypt encrypts the given plaintext using the initiator's X25519 secret key, the recipient's
@@ -89,7 +90,7 @@ func kdf(ikm, pkI, pkE, pkR, data []byte) []byte {
 	h := hkdf.New(sha256.New, ikm, salt, data)
 
 	// Derive the key and nonce from the HKDF output.
-	out := make([]byte, chacha20poly1305.KeySize+chacha20poly1305.NonceSize)
+	out := make([]byte, kdfOutputLen)
 	_, _ = io.ReadFull(h, out)
 	return out
 }

@@ -35,7 +35,7 @@ func NewEncryptedKeyPair(rand io.Reader, kp *KeyPair, password []byte) (*Encrypt
 	data := encodeScryptParams(defaultN, defaultR, defaultP)
 
 	// Use scrypt to derive a key and nonce from the password and salt.
-	k, _ := scrypt.Key(password, salt, defaultN, defaultR, defaultP, chacha20poly1305.KeySize+chacha20poly1305.NonceSize)
+	k, _ := scrypt.Key(password, salt, defaultN, defaultR, defaultP, kdfOutputLen)
 
 	// Encrypt the secret key.
 	aead, _ := chacha20poly1305.New(k[:chacha20poly1305.KeySize])
@@ -55,7 +55,7 @@ func NewEncryptedKeyPair(rand io.Reader, kp *KeyPair, password []byte) (*Encrypt
 // incorrect or if the encrypted key pair has been modified.
 func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*KeyPair, error) {
 	// Use the password, salt, and parameters to derive a key and nonce.
-	k, _ := scrypt.Key(password, ekp.Salt, ekp.N, ekp.R, ekp.P, chacha20poly1305.KeySize+chacha20poly1305.NonceSize)
+	k, _ := scrypt.Key(password, ekp.Salt, ekp.N, ekp.R, ekp.P, kdfOutputLen)
 
 	// Encode the scrypt parameters as authenticated data.
 	data := encodeScryptParams(ekp.N, ekp.R, ekp.P)
