@@ -52,43 +52,8 @@ func TestKEM(t *testing.T) {
 	}
 }
 
-func TestXDH(t *testing.T) {
-	pkA, _, skA, err := ephemeralKeys(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	pkB, _, skB, err := ephemeralKeys(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sent := x25519(skA, pkB)
-	received := x25519(skB, pkA)
-
-	if !bytes.Equal(sent, received) {
-		t.Errorf("XDH mismatch: %v/%v", sent, received)
-	}
-}
-
 func BenchmarkEphemeralKeys(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _, _, _ = ephemeralKeys(rand.Reader)
-	}
-}
-
-func BenchmarkXDH(b *testing.B) {
-	pkA, _, _, err := ephemeralKeys(rand.Reader)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	_, _, skB, err := ephemeralKeys(rand.Reader)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	for i := 0; i < b.N; i++ {
-		_ = x25519(skB, pkA)
 	}
 }

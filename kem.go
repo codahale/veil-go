@@ -28,11 +28,17 @@ func kemEncrypt(rand io.Reader, pkI PublicKey, skI SecretKey, pkR PublicKey, pla
 
 	// Calculate the X25519 shared secret between the ephemeral secret key and the recipient's
 	// X25519 public key.
-	zzE := x25519(skE, pkR)
+	zzE, err := curve25519.X25519(skE, pkR)
+	if err != nil {
+		return nil, err
+	}
 
 	// Calculate the X25519 shared secret between the initiator's secret key and the recipient's
 	// X25519 public key.
-	zzS := x25519(skI, pkR)
+	zzS, err := curve25519.X25519(skI, pkR)
+	if err != nil {
+		return nil, err
+	}
 
 	// Concatenate the two to form the shared secret.
 	zz := append(zzE, zzS...)
@@ -58,11 +64,17 @@ func kemDecrypt(pkR PublicKey, skR SecretKey, pkI PublicKey, ciphertext, data []
 
 	// Calculate the X25519 shared secret between the recipient's secret key and the ephemeral
 	// public key.
-	zzE := x25519(skR, pkE[:])
+	zzE, err := curve25519.X25519(skR, pkE[:])
+	if err != nil {
+		return nil, err
+	}
 
 	// Calculate the X25519 shared secret between the recipient's secret key and the initiator's
 	// public key.
-	zzS := x25519(skR, pkI)
+	zzS, err := curve25519.X25519(skR, pkI)
+	if err != nil {
+		return nil, err
+	}
 
 	// Concatenate the two to form the shared secret.
 	zz := append(zzE, zzS...)
@@ -112,15 +124,4 @@ func ephemeralKeys(rand io.Reader) ([]byte, []byte, []byte, error) {
 			return pk[:], rk[:], sk[:], nil
 		}
 	}
-}
-
-// x25519 calculates the X25519 shared secret for the given secret and public keys.
-func x25519(sk, pk []byte) []byte {
-	var in, base, dst [32]byte
-	copy(in[:], sk)
-	copy(base[:], pk)
-
-	// Calculate the shared secret.
-	curve25519.ScalarMult(&dst, &in, &base)
-	return dst[:]
 }
