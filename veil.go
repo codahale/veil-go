@@ -17,8 +17,6 @@ import (
 	"errors"
 	"io"
 	"math/big"
-
-	"golang.org/x/crypto/curve25519"
 )
 
 // PublicKey is an X25519 public key.
@@ -35,6 +33,10 @@ type KeyPair struct {
 	SecretKey SecretKey
 }
 
+// ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an
+// incorrect key or tampering.
+var ErrInvalidCiphertext = errors.New("invalid ciphertext")
+
 // NewKeyPair create a new X25519 public and secret key pair.
 func NewKeyPair(rand io.Reader) (*KeyPair, error) {
 	pk, _, sk, err := ephemeralKeys(rand)
@@ -47,7 +49,9 @@ const (
 )
 
 // Encrypt encrypts the given plaintext for list of public keys.
-func (kp *KeyPair) Encrypt(rand io.Reader, publicKeys []PublicKey, plaintext []byte, padding, fakes int) ([]byte, error) {
+func (kp *KeyPair) Encrypt(
+	rand io.Reader, publicKeys []PublicKey, plaintext []byte, padding, fakes int,
+) ([]byte, error) {
 	// Generate an ephemeral X25519 key pair.
 	pkE, _, skE, err := ephemeralKeys(rand)
 	if err != nil {
@@ -63,33 +67,24 @@ func (kp *KeyPair) Encrypt(rand io.Reader, publicKeys []PublicKey, plaintext []b
 	// Encode the ephemeral secret key, offset, and size into a header.
 	header := make([]byte, headerLen)
 	copy(header, skE)
+
 	offset := encryptedHeaderLen * len(publicKeys)
 	binary.BigEndian.PutUint64(header[kemKeyLen:], uint64(offset))
 	binary.BigEndian.PutUint64(header[kemKeyLen+8:], uint64(len(plaintext)))
 
-	// Write KEM-encrypted copies of the header.
+	// Allocate room for encrypted copies of the header.
 	out := make([]byte, offset+len(plaintext)+kemOverhead+padding)
-	for i, pkR := range publicKeys {
-		o := i * encryptedHeaderLen
-		if pkR == nil {
-			// To fake a recipient, write a header-sized block of random data.
-			_, err = io.ReadFull(rand, out[o:(o+encryptedHeaderLen)])
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			// To include a real recipient, encrypt the header via KEM.
-			b, err := kemEncrypt(rand, kp.PublicKey, kp.SecretKey, pkR, header, nil)
-			if err != nil {
-				return nil, err
-			}
-			copy(out[o:], b)
-		}
+
+	// Write KEM-encrypted copies of the header.
+	if err := kp.writeHeaders(rand, publicKeys, header, out); err != nil {
+		return nil, err
 	}
 
-	// Pad the plaintext with random data.
+	// Copy the plaintext into a buffer with room for padding.
 	padded := make([]byte, len(plaintext)+padding)
 	copy(padded[:len(plaintext)], plaintext)
+
+	// Pad the plaintext with random data.
 	_, err = io.ReadFull(rand, padded[len(plaintext):])
 	if err != nil {
 		return nil, err
@@ -101,10 +96,33 @@ func (kp *KeyPair) Encrypt(rand io.Reader, publicKeys []PublicKey, plaintext []b
 	if err != nil {
 		return nil, err
 	}
+
 	copy(out[offset:], ciphertext)
 
 	// Return the encrypted headers and the encrypted, padded plaintext.
 	return out, nil
+}
+
+func (kp *KeyPair) writeHeaders(rand io.Reader, publicKeys []PublicKey, header, dst []byte) error {
+	for i, pkR := range publicKeys {
+		o := i * encryptedHeaderLen
+		if pkR == nil {
+			// To fake a recipient, write a header-sized block of random data.
+			_, err := io.ReadFull(rand, dst[o:(o+encryptedHeaderLen)])
+			if err != nil {
+				return err
+			}
+		} else {
+			// To include a real recipient, encrypt the header via KEM.
+			b, err := kemEncrypt(rand, kp.PublicKey, kp.SecretKey, pkR, header, nil)
+			if err != nil {
+				return err
+			}
+			copy(dst[o:], b)
+		}
+	}
+
+	return nil
 }
 
 // Decrypt uses the recipient's secret key and public key to decrypt the given message, returning
@@ -112,14 +130,17 @@ func (kp *KeyPair) Encrypt(rand io.Reader, publicKeys []PublicKey, plaintext []b
 // altered, or if the message was not encrypted for the given secret key, or if the initiator's
 // public key was not provided, returns an error.
 func (kp *KeyPair) Decrypt(publicKeys []PublicKey, ciphertext []byte) (PublicKey, []byte, error) {
-	var skE, pkI []byte
-	var offset, size uint64
+	var (
+		skE, pkI     []byte
+		offset, size uint64
+	)
 
 	// Scan through the ciphertext, one header-sized block at a time.
 	for _, pk := range publicKeys {
 		for i := 0; i < len(ciphertext)-encryptedHeaderLen; i += encryptedHeaderLen {
-			// Try to decrypt the possible header.
 			b := ciphertext[i:(i + encryptedHeaderLen)]
+
+			// Try to decrypt the possible header.
 			header, err := kemDecrypt(kp.PublicKey, kp.SecretKey, pk, b, nil)
 			if err == nil {
 				// If we can decrypt it, read the ephemeral secret key, offset, and size.
@@ -127,6 +148,7 @@ func (kp *KeyPair) Decrypt(publicKeys []PublicKey, ciphertext []byte) (PublicKey
 				skE = header[:kemKeyLen]
 				offset = binary.BigEndian.Uint64(header[kemKeyLen:])
 				size = binary.BigEndian.Uint64(header[kemKeyLen+8:])
+
 				break
 			}
 		}
@@ -134,16 +156,14 @@ func (kp *KeyPair) Decrypt(publicKeys []PublicKey, ciphertext []byte) (PublicKey
 
 	// If we reach the end of the ciphertext without finding our header, we cannot decrypt it.
 	if skE == nil {
-		return nil, nil, errors.New("invalid ciphertext")
+		return nil, nil, ErrInvalidCiphertext
 	}
 
 	// Re-derive the ephemeral X25519 public key.
-	var buf, pkE [32]byte
-	copy(buf[:], skE)
-	curve25519.ScalarBaseMult(&pkE, &buf)
+	pkE := sk2pk(skE)
 
 	// Decrypt the KEM-encrypted, padded plaintext.
-	padded, err := kemDecrypt(pkE[:], skE, pkI, ciphertext[offset:], ciphertext[:offset])
+	padded, err := kemDecrypt(pkE, skE, pkI, ciphertext[offset:], ciphertext[:offset])
 	if err != nil {
 		return nil, nil, err
 	}
@@ -167,10 +187,12 @@ func addFakes(r io.Reader, keys []PublicKey, n int) ([]PublicKey, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		j := int(b.Int64())
 
 		// Swap it with the current card.
 		out[i], out[j] = out[j], out[i]
 	}
+
 	return out, nil
 }

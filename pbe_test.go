@@ -2,11 +2,14 @@ package veil
 
 import (
 	"crypto/rand"
-	"reflect"
 	"testing"
+
+	"github.com/codahale/gubbins/assert"
 )
 
 func TestPBE(t *testing.T) {
+	t.Parallel()
+
 	kp, err := NewKeyPair(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -22,7 +25,5 @@ func TestPBE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(kp, dkp) {
-		t.Errorf("Expected %#v, but was %#v", kp, dkp)
-	}
+	assert.Equal(t, "decrypted keypair", kp, dkp)
 }

@@ -8,7 +8,6 @@ import (
 
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/chacha20poly1305"
-	"golang.org/x/crypto/curve25519"
 )
 
 // EncryptedKeyPair is a KeyPair that has been encrypted with a password.
@@ -26,8 +25,9 @@ const (
 
 // NewEncryptedKeyPair encrypts the given key pair with the given password.
 func NewEncryptedKeyPair(rand io.Reader, kp *KeyPair, password []byte) (*EncryptedKeyPair, error) {
-	// Generate a random salt.
 	salt := make([]byte, 32)
+
+	// Generate a random salt.
 	_, err := io.ReadFull(rand, salt)
 	if err != nil {
 		return nil, err
@@ -68,27 +68,27 @@ func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*KeyPair, error) {
 	// Encode the Argon parameters as authenticated data.
 	data := encodeArgonParams(ekp.Time, ekp.Memory, ekp.Threads)
 
-	// Decrypt the secret key.
 	aead, _ := chacha20poly1305.New(k[:chacha20poly1305.KeySize])
+
+	// Decrypt the secret key.
 	sk, err := aead.Open(nil, k[chacha20poly1305.KeySize:], ekp.Ciphertext, data)
 	if err != nil {
 		return nil, err
 	}
 
 	// Calculate the public key for the decrypted secret key.
-	var dst, in [32]byte
-	copy(in[:], sk)
-	curve25519.ScalarBaseMult(&dst, &in)
+	pk := sk2pk(sk)
 
 	// Return a KeyPair.
-	return &KeyPair{PublicKey: dst[:], SecretKey: sk}, nil
+	return &KeyPair{PublicKey: pk, SecretKey: sk}, nil
 }
 
-// encodeArgonParams returns the Argon2id params encoded as big-endian integers
+// encodeArgonParams returns the Argon2id params encoded as big-endian integers.
 func encodeArgonParams(time, memory uint32, threads uint8) []byte {
 	data := make([]byte, 9)
 	binary.BigEndian.PutUint32(data, time)
 	binary.BigEndian.PutUint32(data[4:], memory)
 	data[8] = threads
+
 	return data
 }

@@ -21,8 +21,10 @@ func Example() {
 		panic(err)
 	}
 
-	// Alice encrypts a message for her and Bob with 10 fake recipients and 1000 bytes of padding.
+	// Alice writes a message.
 	message := []byte("one two three four I declare a thumb war")
+
+	// Alice encrypts the message for her and Bob with 10 fake recipients and 1000 bytes of padding.
 	ciphertext, err := alice.Encrypt(rand.Reader, []PublicKey{alice.PublicKey, bob.PublicKey}, message, 1000, 10)
 	if err != nil {
 		panic(err)
@@ -39,6 +41,7 @@ func Example() {
 	} else {
 		fmt.Println("sent by B")
 	}
+
 	fmt.Println(string(plaintext))
 	// Output:
 	// sent by A
@@ -46,6 +49,8 @@ func Example() {
 }
 
 func TestRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	a, err := NewKeyPair(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -57,6 +62,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	message := []byte("one two three four I declare a thumb war")
+
 	ciphertext, err := a.Encrypt(rand.Reader, []PublicKey{a.PublicKey, b.PublicKey}, message, 1000, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +88,6 @@ func TestRoundTrip(t *testing.T) {
 		if err == nil {
 			t.Fatalf("Was able to decrypt %v#/%#v/%v", a, b, corruptCiphertext)
 		}
-
 	}
 }
 
@@ -136,9 +141,11 @@ func BenchmarkVeilDecrypt(b *testing.B) {
 func corrupt(b []byte) []byte {
 	c := make([]byte, len(b))
 	copy(c, b)
+	//nolint:gosec // Don't need cryptographic security for tests.
 	c[rand2.Intn(len(c))] ^= byte(1 << uint(rand2.Intn(7)))
 	if bytes.Equal(b, c) {
 		panic("ag")
 	}
+
 	return c
 }

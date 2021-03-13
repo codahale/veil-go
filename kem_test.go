@@ -1,12 +1,15 @@
 package veil
 
 import (
-	"bytes"
 	"crypto/rand"
 	"testing"
+
+	"github.com/codahale/gubbins/assert"
 )
 
 func TestKEM(t *testing.T) {
+	t.Parallel()
+
 	pkI, _, skI, err := ephemeralKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -27,12 +30,27 @@ func TestKEM(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if expected, actual := len(plaintext)+kemOverhead, len(ciphertext); expected != actual {
-		t.Errorf("Expected ciphertext to be %d bytes, but was %d", expected, actual)
+	assert.Equal(t, "ciphertext length", len(plaintext)+kemOverhead, len(ciphertext))
+
+	assert.Equal(t, "plaintext", []byte("a secret"), plaintext)
+}
+
+func TestKEMCorruption(t *testing.T) {
+	t.Parallel()
+
+	pkI, _, skI, err := ephemeralKeys(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if expected, actual := []byte("a secret"), plaintext; !bytes.Equal(expected, actual) {
-		t.Errorf("Expected %v, but was %v", expected, actual)
+	pkR, _, skR, err := ephemeralKeys(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ciphertext, err := kemEncrypt(rand.Reader, pkI, skI, pkR, []byte("a secret"), []byte("data"))
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	for i := 0; i < 1000; i++ {

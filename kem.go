@@ -4,9 +4,7 @@ import (
 	"crypto/sha256"
 	"io"
 
-	"github.com/agl/ed25519/extra25519"
 	"golang.org/x/crypto/chacha20poly1305"
-	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/poly1305"
 )
@@ -28,14 +26,14 @@ func kemEncrypt(rand io.Reader, pkI PublicKey, skI SecretKey, pkR PublicKey, pla
 
 	// Calculate the X25519 shared secret between the ephemeral secret key and the recipient's
 	// X25519 public key.
-	zzE, err := curve25519.X25519(skE, pkR)
+	zzE, err := xdh(skE, pkR)
 	if err != nil {
 		return nil, err
 	}
 
 	// Calculate the X25519 shared secret between the initiator's secret key and the recipient's
 	// X25519 public key.
-	zzS, err := curve25519.X25519(skI, pkR)
+	zzS, err := xdh(skI, pkR)
 	if err != nil {
 		return nil, err
 	}
@@ -46,9 +44,10 @@ func kemEncrypt(rand io.Reader, pkI PublicKey, skI SecretKey, pkR PublicKey, pla
 	// Derive the key from the shared secret.
 	kn := kdf(zz, pkI, pkE, pkR, data)
 
-	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
+	// Encrypt the plaintext DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
 	aead, _ := chacha20poly1305.New(kn[:chacha20poly1305.KeySize])
+
 	return aead.Seal(rkE, kn[chacha20poly1305.KeySize:], plaintext, data), nil
 }
 
@@ -58,20 +57,19 @@ func kemEncrypt(rand io.Reader, pkI PublicKey, skI SecretKey, pkR PublicKey, pla
 // ciphertext.
 func kemDecrypt(pkR PublicKey, skR SecretKey, pkI PublicKey, ciphertext, data []byte) ([]byte, error) {
 	// Convert the embedded Elligator2 representative to an X25519 public key.
-	var rkE, pkE [32]byte
-	copy(rkE[:], ciphertext[:kemKeyLen])
-	extra25519.RepresentativeToPublicKey(&pkE, &rkE)
+	rkE := ciphertext[:kemKeyLen]
+	pkE := rk2pk(rkE)
 
 	// Calculate the X25519 shared secret between the recipient's secret key and the ephemeral
 	// public key.
-	zzE, err := curve25519.X25519(skR, pkE[:])
+	zzE, err := xdh(skR, pkE)
 	if err != nil {
 		return nil, err
 	}
 
 	// Calculate the X25519 shared secret between the recipient's secret key and the initiator's
 	// public key.
-	zzS, err := curve25519.X25519(skR, pkI)
+	zzS, err := xdh(skR, pkI)
 	if err != nil {
 		return nil, err
 	}
@@ -80,11 +78,12 @@ func kemDecrypt(pkR PublicKey, skR SecretKey, pkI PublicKey, ciphertext, data []
 	zz := append(zzE, zzS...)
 
 	// Derive the key from both the ephemeral shared secret and the static shared secret.
-	kn := kdf(zz, pkI, pkE[:], pkR, data)
+	kn := kdf(zz, pkI, pkE, pkR, data)
 
 	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
 	aead, _ := chacha20poly1305.New(kn[:chacha20poly1305.KeySize])
+
 	return aead.Open(nil, kn[chacha20poly1305.KeySize:], ciphertext[kemKeyLen:], data)
 }
 
@@ -104,24 +103,25 @@ func kdf(ikm, pkI, pkE, pkR, data []byte) []byte {
 	// Derive the key and nonce from the HKDF output.
 	out := make([]byte, kdfOutputLen)
 	_, _ = io.ReadFull(h, out)
+
 	return out
 }
 
 // ephemeralKeys generate an X25519 key pair and returns the public key, the Elligator2
 // representative of the public key, and the secret key.
 func ephemeralKeys(rand io.Reader) ([]byte, []byte, []byte, error) {
-	var sk, rk, pk [32]byte
+	sk := make([]byte, 32)
 	// Not all key pairs can be represented by Elligator2, so try until we find one.
 	for {
 		// Generate a random X25519 secret key.
-		_, err := io.ReadFull(rand, sk[:])
+		_, err := io.ReadFull(rand, sk)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 
 		// Calculate the corresponding X25519 public key and its Elligator2 representative.
-		if extra25519.ScalarBaseMult(&pk, &rk, &sk) {
-			return pk[:], rk[:], sk[:], nil
+		if pk, rk, err := sk2pkrk(sk); err == nil {
+			return pk, rk, sk, nil
 		}
 	}
 }
