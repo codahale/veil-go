@@ -16,7 +16,7 @@ true length, and fake recipients can be added to disguise their true number from
 ## Algorithms & Constructions
 
 Veil uses ChaCha20Poly1305 for authenticated encryption, Ristretto255/XDH for key agreement and
-authentication, Elligator2 for indistinguishable public key encoding, and HKDF-SHA-256 for key
+authentication, Elligator2 for indistinguishable public key encoding, and HKDF-SHA3-512 for key
 derivation.
 
 * ChaCha20Poly1305 is fast, well-studied, and requires no padding. It is vulnerable to nonce misuse,
@@ -28,7 +28,7 @@ derivation.
   easier to make than other EC curves.
 * Elligator2 allows us to map Ristretto255/DH public keys to random strings, making ephemeral
   Diffie-Hellman indistinguishable from random noise. Elligator2 is constant-time.
-* HKDF-SHA-256 is fast, standardized, constant-time, and very well-studied.
+* HKDF-SHA3-512 is fast, standardized, constant-time, and very well-studied.
 
 ### Key Encapsulation Mechanism (KEM)
 
@@ -39,9 +39,9 @@ Veil headers and messages are encrypted using a Key Encapsulation Mechanism:
    secret key.
 3. The Ristretto255/DH shared secret is calculated for the recipient's public key and the
    initiator's secret key.
-4. The two shared secrets are concatenated and used as the initial keying material for HKDF-SHA-256,
-   with the initiator's public key, the ephemeral public key, and the recipient's public key as the
-   salt parameter and the authenticated data as the information parameter.
+4. The two shared secrets are concatenated and used as the initial keying material for
+   HKDF-SHA3-512, with the initiator's public key, the ephemeral public key, and the recipient's
+   public key as the salt parameter and the authenticated data as the information parameter.
 5. The first 32 bytes from the HKDF output are used as a ChaCha20Poly1305 key.
 6. The next 12 bytes from the HKDF output as used as a ChaCha20Poly1305 nonce.
 7. The plaintext is encrypted with ChaCha20Poly1305 using the derived key, the derived nonce, and

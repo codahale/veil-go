@@ -1,12 +1,12 @@
 package veil
 
 import (
-	"crypto/sha256"
 	"io"
 
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/poly1305"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -98,7 +98,7 @@ func kdf(ikm, pkI, pkE, pkR, data []byte) []byte {
 
 	// Create an HKDF-SHA-256 instance from the initial keying material, the salt, and the
 	// authenticated data.
-	h := hkdf.New(sha256.New, ikm, salt, data)
+	h := hkdf.New(sha3.New512, ikm, salt, data)
 
 	// Derive the key and nonce from the HKDF output.
 	out := make([]byte, kdfOutputLen)
