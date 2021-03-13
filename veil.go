@@ -19,13 +19,13 @@ import (
 	"math/big"
 )
 
-// PublicKey is an X25519 public key.
+// PublicKey is an Ristretto255/DH public key.
 type PublicKey []byte
 
-// SecretKey is an X25519 secret key.
+// SecretKey is an Ristretto255/DH secret key.
 type SecretKey []byte
 
-// KeyPair is an X25519 secret key and its matching public key.
+// KeyPair is an Ristretto255/DH secret key and its matching public key.
 type KeyPair struct {
 	// PublicKey is the public key of the pair and should be transmitted publicly.
 	PublicKey PublicKey
@@ -37,7 +37,7 @@ type KeyPair struct {
 // incorrect key or tampering.
 var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 
-// NewKeyPair create a new X25519 public and secret key pair.
+// NewKeyPair create a new Ristretto255/DH public and secret key pair.
 func NewKeyPair(rand io.Reader) (*KeyPair, error) {
 	pk, _, sk, err := ephemeralKeys(rand)
 	return &KeyPair{PublicKey: pk, SecretKey: sk}, err
@@ -52,7 +52,7 @@ const (
 func (kp *KeyPair) Encrypt(
 	rand io.Reader, publicKeys []PublicKey, plaintext []byte, padding, fakes int,
 ) ([]byte, error) {
-	// Generate an ephemeral X25519 key pair.
+	// Generate an ephemeral Ristretto255/DH key pair.
 	pkE, _, skE, err := ephemeralKeys(rand)
 	if err != nil {
 		return nil, err
@@ -159,7 +159,7 @@ func (kp *KeyPair) Decrypt(publicKeys []PublicKey, ciphertext []byte) (PublicKey
 		return nil, nil, ErrInvalidCiphertext
 	}
 
-	// Re-derive the ephemeral X25519 public key.
+	// Re-derive the ephemeral Ristretto255/DH public key.
 	pkE := sk2pk(skE)
 
 	// Decrypt the KEM-encrypted, padded plaintext.

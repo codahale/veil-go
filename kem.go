@@ -15,24 +15,24 @@ const (
 	kdfOutputLen = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
 )
 
-// kemEncrypt encrypts the given plaintext using the initiator's X25519 secret key, the recipient's
-// X25519 public key, and optional authenticated data.
+// kemEncrypt encrypts the given plaintext using the initiator's Ristretto255/DH secret key, the recipient's
+// Ristretto255/DH public key, and optional authenticated data.
 func kemEncrypt(rand io.Reader, pkI PublicKey, skI SecretKey, pkR PublicKey, plaintext, data []byte) ([]byte, error) {
-	// Generate an ephemeral X25519 key pair.
+	// Generate an ephemeral Ristretto255/DH key pair.
 	pkE, rkE, skE, err := ephemeralKeys(rand)
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate the X25519 shared secret between the ephemeral secret key and the recipient's
-	// X25519 public key.
+	// Calculate the Ristretto255/DH shared secret between the ephemeral secret key and the recipient's
+	// Ristretto255/DH public key.
 	zzE, err := xdh(skE, pkR)
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate the X25519 shared secret between the initiator's secret key and the recipient's
-	// X25519 public key.
+	// Calculate the Ristretto255/DH shared secret between the initiator's secret key and the recipient's
+	// Ristretto255/DH public key.
 	zzS, err := xdh(skI, pkR)
 	if err != nil {
 		return nil, err
@@ -56,18 +56,18 @@ func kemEncrypt(rand io.Reader, pkI PublicKey, skI SecretKey, pkR PublicKey, pla
 // decrypted, there are strong assurances that the holder of the initiator's secret key created the
 // ciphertext.
 func kemDecrypt(pkR PublicKey, skR SecretKey, pkI PublicKey, ciphertext, data []byte) ([]byte, error) {
-	// Convert the embedded Elligator2 representative to an X25519 public key.
+	// Convert the embedded Elligator2 representative to an Ristretto255/DH public key.
 	rkE := ciphertext[:kemKeyLen]
 	pkE := rk2pk(rkE)
 
-	// Calculate the X25519 shared secret between the recipient's secret key and the ephemeral
+	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the ephemeral
 	// public key.
 	zzE, err := xdh(skR, pkE)
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate the X25519 shared secret between the recipient's secret key and the initiator's
+	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the initiator's
 	// public key.
 	zzS, err := xdh(skR, pkI)
 	if err != nil {
@@ -107,19 +107,20 @@ func kdf(ikm, pkI, pkE, pkR, data []byte) []byte {
 	return out
 }
 
-// ephemeralKeys generate an X25519 key pair and returns the public key, the Elligator2
+// ephemeralKeys generate an Ristretto255/DH key pair and returns the public key, the Elligator2
 // representative of the public key, and the secret key.
 func ephemeralKeys(rand io.Reader) ([]byte, []byte, []byte, error) {
 	sk := make([]byte, 32)
+
 	// Not all key pairs can be represented by Elligator2, so try until we find one.
 	for {
-		// Generate a random X25519 secret key.
+		// Generate a random Ristretto255/DH secret key.
 		_, err := io.ReadFull(rand, sk)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 
-		// Calculate the corresponding X25519 public key and its Elligator2 representative.
+		// Calculate the corresponding Ristretto255/DH public key and its Elligator2 representative.
 		if pk, rk, err := sk2pkrk(sk); err == nil {
 			return pk, rk, sk, nil
 		}
