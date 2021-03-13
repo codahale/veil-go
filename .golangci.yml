@@ -35,10 +35,8 @@ linters:
     - govet
     - ifshort
     - ineffassign
-    - interfacer
     - lll
     - makezero
-    - maligned
     - misspell
     - nakedret
     - nestif
@@ -66,6 +64,8 @@ linters:
 #    - forbidigo
 #    - goheader
 #    - gomnd
+#    - interfacer
+#    - maligned
 #    - nlreturn
 #    - testpackage
 #    - typecheck
