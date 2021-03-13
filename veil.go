@@ -85,8 +85,7 @@ func (kp *KeyPair) Encrypt(
 	copy(padded[:len(plaintext)], plaintext)
 
 	// Pad the plaintext with random data.
-	_, err = io.ReadFull(rand, padded[len(plaintext):])
-	if err != nil {
+	if _, err := io.ReadFull(rand, padded[len(plaintext):]); err != nil {
 		return nil, err
 	}
 
@@ -108,8 +107,7 @@ func (kp *KeyPair) writeHeaders(rand io.Reader, publicKeys []PublicKey, header, 
 		o := i * encryptedHeaderLen
 		if pkR == nil {
 			// To fake a recipient, write a header-sized block of random data.
-			_, err := io.ReadFull(rand, dst[o:(o+encryptedHeaderLen)])
-			if err != nil {
+			if _, err := io.ReadFull(rand, dst[o:(o+encryptedHeaderLen)]); err != nil {
 				return err
 			}
 		} else {
@@ -149,6 +147,7 @@ func (kp *KeyPair) Decrypt(publicKeys []PublicKey, ciphertext []byte) (PublicKey
 				offset = binary.BigEndian.Uint64(header[kemKeyLen:])
 				size = binary.BigEndian.Uint64(header[kemKeyLen+8:])
 
+				// Proceed with the decrypted ephemeral key.
 				break
 			}
 		}
@@ -188,6 +187,7 @@ func addFakes(r io.Reader, keys []PublicKey, n int) ([]PublicKey, error) {
 			return nil, err
 		}
 
+		// Convert to a platform int.
 		j := int(b.Int64())
 
 		// Swap it with the current card.

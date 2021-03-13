@@ -115,8 +115,7 @@ func ephemeralKeys(rand io.Reader) ([]byte, []byte, []byte, error) {
 	// Not all key pairs can be represented by Elligator2, so try until we find one.
 	for {
 		// Generate a random Ristretto255/DH secret key.
-		_, err := io.ReadFull(rand, sk)
-		if err != nil {
+		if _, err := io.ReadFull(rand, sk); err != nil {
 			return nil, nil, nil, err
 		}
 
