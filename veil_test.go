@@ -139,10 +139,10 @@ func BenchmarkVeilDecrypt(b *testing.B) {
 func corrupt(b []byte) []byte {
 	c := make([]byte, len(b))
 	copy(c, b)
-	//nolint:gosec // Don't need cryptographic security for tests.
-	c[rand2.Intn(len(c))] ^= byte(1 << uint(rand2.Intn(7)))
-	if bytes.Equal(b, c) {
-		panic("ag")
+
+	for bytes.Equal(b, c) {
+		//nolint:gosec // Don't need cryptographic security for tests.
+		c[rand2.Intn(len(c))] ^= byte(1 << uint(rand2.Intn(7)))
 	}
 
 	return c
