@@ -27,18 +27,18 @@ func Example() {
 	message := []byte("one two three four I declare a thumb war")
 
 	// Alice encrypts the message for her and Bob with 10 fake recipients and 1000 bytes of padding.
-	ciphertext, err := alice.Encrypt(rand.Reader, []PublicKey{alice.PublicKey(), bob.PublicKey()}, message, 1000, 10)
+	ciphertext, err := alice.Encrypt(rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()}, message, 1000, 10)
 	if err != nil {
 		panic(err)
 	}
 
 	// Bob decrypts the message and sees that it was encrypted by Alice.
-	pk, plaintext, err := bob.Decrypt([]PublicKey{bob.PublicKey(), alice.PublicKey()}, ciphertext)
+	pk, plaintext, err := bob.Decrypt([]*PublicKey{bob.PublicKey(), alice.PublicKey()}, ciphertext)
 	if err != nil {
 		panic(err)
 	}
 
-	if bytes.Equal(pk, alice.PublicKey()) {
+	if bytes.Equal(pk.Bytes(), alice.PublicKey().Bytes()) {
 		fmt.Println("sent by A")
 	} else {
 		fmt.Println("sent by B")
@@ -65,24 +65,24 @@ func TestRoundTrip(t *testing.T) {
 
 	message := []byte("one two three four I declare a thumb war")
 
-	ciphertext, err := a.Encrypt(rand.Reader, []PublicKey{a.PublicKey(), b.PublicKey()}, message, 1000, 10)
+	ciphertext, err := a.Encrypt(rand.Reader, []*PublicKey{a.PublicKey(), b.PublicKey()}, message, 1000, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pk, plaintext, err := b.Decrypt([]PublicKey{a.PublicKey(), b.PublicKey()}, ciphertext)
+	pk, plaintext, err := b.Decrypt([]*PublicKey{a.PublicKey(), b.PublicKey()}, ciphertext)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "public key", a.PublicKey(), pk)
+	assert.Equal(t, "public key", a.PublicKey().Bytes(), pk.Bytes())
 
 	assert.Equal(t, "plaintext", message, plaintext)
 
 	for i := 0; i < 1000; i++ {
 		corruptCiphertext := corrupt(ciphertext)
 
-		_, _, err = b.Decrypt([]PublicKey{a.PublicKey()}, corruptCiphertext)
+		_, _, err = b.Decrypt([]*PublicKey{a.PublicKey()}, corruptCiphertext)
 		if err == nil {
 			t.Fatalf("Was able to decrypt %v#/%#v/%v", a, b, corruptCiphertext)
 		}
@@ -103,7 +103,7 @@ func BenchmarkVeilEncrypt(b *testing.B) {
 	message := make([]byte, 1024*10)
 
 	for i := 0; i < b.N; i++ {
-		_, err = alice.Encrypt(rand.Reader, []PublicKey{alice.PublicKey(), bob.PublicKey()}, message, 1024, 40)
+		_, err = alice.Encrypt(rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()}, message, 1024, 40)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -123,13 +123,13 @@ func BenchmarkVeilDecrypt(b *testing.B) {
 
 	message := make([]byte, 1024*10)
 
-	ciphertext, err := alice.Encrypt(rand.Reader, []PublicKey{alice.PublicKey(), bob.PublicKey()}, message, 1024, 40)
+	ciphertext, err := alice.Encrypt(rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()}, message, 1024, 40)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	for i := 0; i < b.N; i++ {
-		_, _, err = bob.Decrypt([]PublicKey{alice.PublicKey()}, ciphertext)
+		_, _, err = bob.Decrypt([]*PublicKey{alice.PublicKey()}, ciphertext)
 		if err != nil {
 			b.Fatal(err)
 		}

@@ -25,5 +25,5 @@ func TestPBE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "decrypted keypair", kp, dkp)
+	assert.Equal(t, "decrypted keypair", kp.Bytes(), dkp.Bytes())
 }

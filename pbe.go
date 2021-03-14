@@ -24,7 +24,7 @@ const (
 )
 
 // NewEncryptedKeyPair encrypts the given key pair with the given password.
-func NewEncryptedKeyPair(rand io.Reader, sk SecretKey, password []byte) (*EncryptedKeyPair, error) {
+func NewEncryptedKeyPair(rand io.Reader, sk *SecretKey, password []byte) (*EncryptedKeyPair, error) {
 	salt := make([]byte, 32)
 
 	// Generate a random salt.
@@ -47,7 +47,7 @@ func NewEncryptedKeyPair(rand io.Reader, sk SecretKey, password []byte) (*Encryp
 
 	// Encrypt the secret key.
 	aead, _ := chacha20poly1305.New(k[:chacha20poly1305.KeySize])
-	ciphertext := aead.Seal(nil, k[chacha20poly1305.KeySize:], sk, data)
+	ciphertext := aead.Seal(nil, k[chacha20poly1305.KeySize:], sk.s.Bytes(), data)
 
 	// Return the salt, ciphertext, and parameters.
 	return &EncryptedKeyPair{
@@ -61,7 +61,7 @@ func NewEncryptedKeyPair(rand io.Reader, sk SecretKey, password []byte) (*Encryp
 
 // Decrypt uses the given password to decrypt the key pair. Returns an error if the password is
 // incorrect or if the encrypted key pair has been modified.
-func (ekp *EncryptedKeyPair) Decrypt(password []byte) (SecretKey, error) {
+func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*SecretKey, error) {
 	// Use Argon2id to derive a key and nonce from the password and salt.
 	k := argon2.IDKey(password, ekp.Salt, ekp.Time, ekp.Memory, ekp.Threads, kdfOutputLen)
 
@@ -71,12 +71,18 @@ func (ekp *EncryptedKeyPair) Decrypt(password []byte) (SecretKey, error) {
 	aead, _ := chacha20poly1305.New(k[:chacha20poly1305.KeySize])
 
 	// Decrypt the secret key.
-	sk, err := aead.Open(nil, k[chacha20poly1305.KeySize:], ekp.Ciphertext, data)
+	b, err := aead.Open(nil, k[chacha20poly1305.KeySize:], ekp.Ciphertext, data)
 	if err != nil {
 		return nil, err
 	}
 
-	return sk, err
+	// Decode the secret key.
+	var s SecretKey
+	if err := s.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+
+	return &s, err
 }
 
 // encodeArgonParams returns the Argon2id params encoded as big-endian integers.
