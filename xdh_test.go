@@ -45,7 +45,7 @@ func TestRepresentativeTransform(t *testing.T) {
 		t.SkipNow()
 	}
 
-	if pk2 := rk2pk(rk); !pk.Equals(pk2) {
-		t.Error("public key mismatch", pk, pk2)
-	}
+	pk2 := rk2pk(rk)
+
+	assert.Equal(t, "public key", pk.Bytes(), pk2.Bytes())
 }

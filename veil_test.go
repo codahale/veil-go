@@ -6,6 +6,8 @@ import (
 	"fmt"
 	rand2 "math/rand"
 	"testing"
+
+	"github.com/codahale/gubbins/assert"
 )
 
 func Example() {
@@ -73,13 +75,9 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !bytes.Equal(pk, a.PublicKey) {
-		t.Errorf("Public key was %v, expected %v", pk, a.PublicKey)
-	}
+	assert.Equal(t, "public key", a.PublicKey, pk)
 
-	if !bytes.Equal(message, plaintext) {
-		t.Errorf("Plaintext wss %v, expected %v", plaintext, message)
-	}
+	assert.Equal(t, "plaintext", message, plaintext)
 
 	for i := 0; i < 1000; i++ {
 		corruptCiphertext := corrupt(ciphertext)
