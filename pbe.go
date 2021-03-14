@@ -6,12 +6,11 @@ import (
 	"math"
 	"runtime"
 
-	"github.com/bwesterb/go-ristretto"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-// EncryptedKeyPair is a KeyPair that has been encrypted with a password.
+// EncryptedKeyPair is a SecretKey that has been encrypted with a password.
 type EncryptedKeyPair struct {
 	Salt         []byte
 	Ciphertext   []byte
@@ -25,7 +24,7 @@ const (
 )
 
 // NewEncryptedKeyPair encrypts the given key pair with the given password.
-func NewEncryptedKeyPair(rand io.Reader, kp *KeyPair, password []byte) (*EncryptedKeyPair, error) {
+func NewEncryptedKeyPair(rand io.Reader, sk SecretKey, password []byte) (*EncryptedKeyPair, error) {
 	salt := make([]byte, 32)
 
 	// Generate a random salt.
@@ -48,7 +47,7 @@ func NewEncryptedKeyPair(rand io.Reader, kp *KeyPair, password []byte) (*Encrypt
 
 	// Encrypt the secret key.
 	aead, _ := chacha20poly1305.New(k[:chacha20poly1305.KeySize])
-	ciphertext := aead.Seal(nil, k[chacha20poly1305.KeySize:], kp.SecretKey, data)
+	ciphertext := aead.Seal(nil, k[chacha20poly1305.KeySize:], sk, data)
 
 	// Return the salt, ciphertext, and parameters.
 	return &EncryptedKeyPair{
@@ -62,7 +61,7 @@ func NewEncryptedKeyPair(rand io.Reader, kp *KeyPair, password []byte) (*Encrypt
 
 // Decrypt uses the given password to decrypt the key pair. Returns an error if the password is
 // incorrect or if the encrypted key pair has been modified.
-func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*KeyPair, error) {
+func (ekp *EncryptedKeyPair) Decrypt(password []byte) (SecretKey, error) {
 	// Use Argon2id to derive a key and nonce from the password and salt.
 	k := argon2.IDKey(password, ekp.Salt, ekp.Time, ekp.Memory, ekp.Threads, kdfOutputLen)
 
@@ -77,17 +76,7 @@ func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*KeyPair, error) {
 		return nil, err
 	}
 
-	// Decode the Ristretto255/DH secret key.
-	var s ristretto.Scalar
-	if err := s.UnmarshalBinary(sk); err != nil {
-		return nil, err
-	}
-
-	// Calculate the public key for the decrypted secret key.
-	pk := sk2pk(&s)
-
-	// Return a KeyPair.
-	return &KeyPair{PublicKey: pk.Bytes(), SecretKey: sk}, nil
+	return sk, err
 }
 
 // encodeArgonParams returns the Argon2id params encoded as big-endian integers.

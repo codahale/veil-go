@@ -10,7 +10,7 @@ import (
 func TestPBE(t *testing.T) {
 	t.Parallel()
 
-	kp, err := NewKeyPair(rand.Reader)
+	kp, err := NewSecretKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
