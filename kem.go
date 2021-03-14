@@ -3,6 +3,7 @@ package veil
 import (
 	"io"
 
+	"github.com/bwesterb/go-ristretto"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/poly1305"
@@ -17,7 +18,9 @@ const (
 
 // kemEncrypt encrypts the given plaintext using the initiator's Ristretto255/DH secret key, the recipient's
 // Ristretto255/DH public key, and optional authenticated data.
-func kemEncrypt(rand io.Reader, pkI PublicKey, skI SecretKey, pkR PublicKey, plaintext, data []byte) ([]byte, error) {
+func kemEncrypt(
+	rand io.Reader, pkI *ristretto.Point, skI *ristretto.Scalar, pkR *ristretto.Point, plaintext, data []byte,
+) ([]byte, error) {
 	// Generate an ephemeral Ristretto255/DH key pair.
 	pkE, rkE, skE, err := ephemeralKeys(rand)
 	if err != nil {
@@ -42,7 +45,7 @@ func kemEncrypt(rand io.Reader, pkI PublicKey, skI SecretKey, pkR PublicKey, pla
 	zz := append(zzE, zzS...)
 
 	// Derive the key from the shared secret.
-	kn := kdf(zz, pkI, pkE, pkR, data)
+	kn := kdf(zz, pkI.Bytes(), pkE.Bytes(), pkR.Bytes(), data)
 
 	// Encrypt the plaintext DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
@@ -55,7 +58,9 @@ func kemEncrypt(rand io.Reader, pkI PublicKey, skI SecretKey, pkR PublicKey, pla
 // key, the initiator's public key, and optional authenticated data. If the ciphertext can be
 // decrypted, there are strong assurances that the holder of the initiator's secret key created the
 // ciphertext.
-func kemDecrypt(pkR PublicKey, skR SecretKey, pkI PublicKey, ciphertext, data []byte) ([]byte, error) {
+func kemDecrypt(
+	pkR *ristretto.Point, skR *ristretto.Scalar, pkI *ristretto.Point, ciphertext, data []byte,
+) ([]byte, error) {
 	// Convert the embedded Elligator2 representative to an Ristretto255/DH public key.
 	rkE := ciphertext[:kemKeyLen]
 	pkE := rk2pk(rkE)
@@ -78,7 +83,7 @@ func kemDecrypt(pkR PublicKey, skR SecretKey, pkI PublicKey, ciphertext, data []
 	zz := append(zzE, zzS...)
 
 	// Derive the key from both the ephemeral shared secret and the static shared secret.
-	kn := kdf(zz, pkI, pkE, pkR, data)
+	kn := kdf(zz, pkI.Bytes(), pkE.Bytes(), pkR.Bytes(), data)
 
 	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
@@ -109,19 +114,33 @@ func kdf(ikm, pkI, pkE, pkR, data []byte) []byte {
 
 // ephemeralKeys generate an Ristretto255/DH key pair and returns the public key, the Elligator2
 // representative of the public key, and the secret key.
-func ephemeralKeys(rand io.Reader) ([]byte, []byte, []byte, error) {
-	sk := make([]byte, 32)
+func ephemeralKeys(rand io.Reader) (*ristretto.Point, []byte, *ristretto.Scalar, error) {
+	var (
+		buf [32]byte
+		s   ristretto.Scalar
+	)
 
 	// Not all key pairs can be represented by Elligator2, so try until we find one.
 	for {
-		// Generate a random Ristretto255/DH secret key.
-		if _, err := io.ReadFull(rand, sk); err != nil {
+		// Generate 32 random bytes.
+		if _, err := io.ReadFull(rand, buf[:]); err != nil {
 			return nil, nil, nil, err
 		}
 
-		// Calculate the corresponding Ristretto255/DH public key and its Elligator2 representative.
-		if pk, rk, err := sk2pkrk(sk); err == nil {
-			return pk, rk, sk, nil
+		// Convert to a Ristretto255/DH secret key.
+		s.SetBytes(&buf)
+
+		// Generate the corresponding public key.
+		pk := sk2pk(&s)
+
+		// Calculate the public key's Elligator2 representative, if any.
+		rk, err := pk2rk(pk)
+		if err != nil {
+			// If the public key doesn't have an Elligator2 representative, try again.
+			continue
 		}
+
+		// Otherwise, return the values.
+		return pk, rk, &s, nil
 	}
 }

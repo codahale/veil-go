@@ -6,6 +6,7 @@ import (
 	"math"
 	"runtime"
 
+	"github.com/bwesterb/go-ristretto"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/chacha20poly1305"
 )
@@ -76,11 +77,17 @@ func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*KeyPair, error) {
 		return nil, err
 	}
 
+	// Decode the Ristretto255/DH secret key.
+	var s ristretto.Scalar
+	if err := s.UnmarshalBinary(sk); err != nil {
+		return nil, err
+	}
+
 	// Calculate the public key for the decrypted secret key.
-	pk := sk2pk(sk)
+	pk := sk2pk(&s)
 
 	// Return a KeyPair.
-	return &KeyPair{PublicKey: pk, SecretKey: sk}, nil
+	return &KeyPair{PublicKey: pk.Bytes(), SecretKey: sk}, nil
 }
 
 // encodeArgonParams returns the Argon2id params encoded as big-endian integers.

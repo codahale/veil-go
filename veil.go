@@ -17,13 +17,35 @@ import (
 	"errors"
 	"io"
 	"math/big"
+
+	"github.com/bwesterb/go-ristretto"
 )
 
 // PublicKey is an Ristretto255/DH public key.
 type PublicKey []byte
 
+func (pk PublicKey) toPoint() (*ristretto.Point, error) {
+	var q ristretto.Point
+
+	if err := q.UnmarshalBinary(pk); err != nil {
+		return nil, err
+	}
+
+	return &q, nil
+}
+
 // SecretKey is an Ristretto255/DH secret key.
 type SecretKey []byte
+
+func (sk SecretKey) toScalar() (*ristretto.Scalar, error) {
+	var s ristretto.Scalar
+
+	if err := s.UnmarshalBinary(sk); err != nil {
+		return nil, err
+	}
+
+	return &s, nil
+}
 
 // KeyPair is an Ristretto255/DH secret key and its matching public key.
 type KeyPair struct {
@@ -40,7 +62,11 @@ var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 // NewKeyPair create a new Ristretto255/DH public and secret key pair.
 func NewKeyPair(rand io.Reader) (*KeyPair, error) {
 	pk, _, sk, err := ephemeralKeys(rand)
-	return &KeyPair{PublicKey: pk, SecretKey: sk}, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &KeyPair{PublicKey: pk.Bytes(), SecretKey: sk.Bytes()}, nil
 }
 
 const (
@@ -66,7 +92,7 @@ func (kp *KeyPair) Encrypt(
 
 	// Encode the ephemeral secret key, offset, and size into a header.
 	header := make([]byte, headerLen)
-	copy(header, skE)
+	copy(header, skE.Bytes())
 
 	offset := encryptedHeaderLen * len(publicKeys)
 	binary.BigEndian.PutUint64(header[kemKeyLen:], uint64(offset))
@@ -75,8 +101,20 @@ func (kp *KeyPair) Encrypt(
 	// Allocate room for encrypted copies of the header.
 	out := make([]byte, offset+len(plaintext)+kemOverhead+padding)
 
+	// Decode the public key.
+	pk, err := kp.PublicKey.toPoint()
+	if err != nil {
+		return nil, err
+	}
+
+	// Decode the secret key.
+	sk, err := kp.SecretKey.toScalar()
+	if err != nil {
+		return nil, err
+	}
+
 	// Write KEM-encrypted copies of the header.
-	if err := kp.writeHeaders(rand, publicKeys, header, out); err != nil {
+	if err := writeHeaders(pk, sk, rand, publicKeys, header, out); err != nil {
 		return nil, err
 	}
 
@@ -91,7 +129,7 @@ func (kp *KeyPair) Encrypt(
 
 	// Encrypt the signed, padded plaintext with the ephemeral public key, using the encrypted
 	// headers as authenticated data.
-	ciphertext, err := kemEncrypt(rand, kp.PublicKey, kp.SecretKey, pkE, padded, out[:offset])
+	ciphertext, err := kemEncrypt(rand, pk, sk, pkE, padded, out[:offset])
 	if err != nil {
 		return nil, err
 	}
@@ -102,20 +140,23 @@ func (kp *KeyPair) Encrypt(
 	return out, nil
 }
 
-func (kp *KeyPair) writeHeaders(rand io.Reader, publicKeys []PublicKey, header, dst []byte) error {
-	for i, pkR := range publicKeys {
+func writeHeaders(
+	pk *ristretto.Point, sk *ristretto.Scalar, rand io.Reader, publicKeys []PublicKey, header, dst []byte,
+) error {
+	for i, pkB := range publicKeys {
 		o := i * encryptedHeaderLen
-		if pkR == nil {
+		if pkB == nil {
 			// To fake a recipient, write a header-sized block of random data.
 			if _, err := io.ReadFull(rand, dst[o:(o+encryptedHeaderLen)]); err != nil {
 				return err
 			}
 		} else {
 			// To include a real recipient, encrypt the header via KEM.
-			b, err := kemEncrypt(rand, kp.PublicKey, kp.SecretKey, pkR, header, nil)
+			b, err := writeHeader(pk, sk, rand, pkB, header)
 			if err != nil {
 				return err
 			}
+
 			copy(dst[o:], b)
 		}
 	}
@@ -123,38 +164,48 @@ func (kp *KeyPair) writeHeaders(rand io.Reader, publicKeys []PublicKey, header, 
 	return nil
 }
 
+func writeHeader(
+	pk *ristretto.Point, sk *ristretto.Scalar, rand io.Reader, pkB PublicKey, header []byte,
+) ([]byte, error) {
+	// Decode the recipient's public key.
+	pkR, err := pkB.toPoint()
+	if err != nil {
+		return nil, err
+	}
+
+	// Write an encrypted copy of the header via KEM.
+	b, err := kemEncrypt(rand, pk, sk, pkR, header, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
 // Decrypt uses the recipient's secret key and public key to decrypt the given message, returning
 // the initiator's public key and the original plaintext. If any bit of the ciphertext has been
 // altered, or if the message was not encrypted for the given secret key, or if the initiator's
 // public key was not provided, returns an error.
 func (kp *KeyPair) Decrypt(publicKeys []PublicKey, ciphertext []byte) (PublicKey, []byte, error) {
-	var (
-		skE, pkI     []byte
-		offset, size uint64
-	)
+	// Decode the public key.
+	pk, err := kp.PublicKey.toPoint()
+	if err != nil {
+		return nil, nil, err
+	}
 
-	// Scan through the ciphertext, one header-sized block at a time.
-	for _, pk := range publicKeys {
-		for i := 0; i < len(ciphertext)-encryptedHeaderLen; i += encryptedHeaderLen {
-			b := ciphertext[i:(i + encryptedHeaderLen)]
+	// Decode the secret key.
+	sk, err := kp.SecretKey.toScalar()
+	if err != nil {
+		return nil, nil, err
+	}
 
-			// Try to decrypt the possible header.
-			header, err := kemDecrypt(kp.PublicKey, kp.SecretKey, pk, b, nil)
-			if err == nil {
-				// If we can decrypt it, read the ephemeral secret key, offset, and size.
-				pkI = pk
-				skE = header[:kemKeyLen]
-				offset = binary.BigEndian.Uint64(header[kemKeyLen:])
-				size = binary.BigEndian.Uint64(header[kemKeyLen+8:])
-
-				// Proceed with the decrypted ephemeral key.
-				break
-			}
-		}
+	pkI, skE, offset, size, err := decryptHeader(publicKeys, ciphertext, pk, sk)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// If we reach the end of the ciphertext without finding our header, we cannot decrypt it.
-	if skE == nil {
+	if pkI == nil {
 		return nil, nil, ErrInvalidCiphertext
 	}
 
@@ -168,7 +219,40 @@ func (kp *KeyPair) Decrypt(publicKeys []PublicKey, ciphertext []byte) (PublicKey
 	}
 
 	// Strip the random padding and return the initiator's public key and the original plaintext.
-	return pkI, padded[:size], nil
+	return pkI.Bytes(), padded[:size], nil
+}
+
+func decryptHeader(
+	publicKeys []PublicKey, ciphertext []byte, pk *ristretto.Point, sk *ristretto.Scalar,
+) (*ristretto.Point, *ristretto.Scalar, uint64, uint64, error) {
+	// Scan through the ciphertext, one header-sized block at a time.
+	for _, pkB := range publicKeys {
+		// Decode the possible sender's public key.
+		pkR, err := pkB.toPoint()
+		if err != nil {
+			return nil, nil, 0, 0, err
+		}
+
+		for i := 0; i < len(ciphertext)-encryptedHeaderLen; i += encryptedHeaderLen {
+			b := ciphertext[i:(i + encryptedHeaderLen)]
+
+			// Try to decrypt the possible header.
+			header, err := kemDecrypt(pk, sk, pkR, b, nil)
+			if err == nil {
+				// If we can decrypt it, read the ephemeral secret key, offset, and size.
+				var skE ristretto.Scalar
+				_ = skE.UnmarshalBinary(header[:kemKeyLen])
+				offset := binary.BigEndian.Uint64(header[kemKeyLen:])
+				size := binary.BigEndian.Uint64(header[kemKeyLen+8:])
+
+				// Proceed with the decrypted ephemeral key.
+				return pkR, &skE, offset, size, nil
+			}
+		}
+	}
+
+	// If no header was decrypted, return failure.
+	return nil, nil, 0, 0, nil
 }
 
 // addFakes returns a copy of the given slice of recipients with the given number of nils inserted

@@ -13,33 +13,17 @@ var (
 )
 
 // xdh performs a Diffie-Hellman key exchange using the given secret key and public key.
-func xdh(sk, pk []byte) ([]byte, error) {
+func xdh(s *ristretto.Scalar, q *ristretto.Point) ([]byte, error) {
 	var (
-		buf  [32]byte
-		s    ristretto.Scalar
-		q    ristretto.Point
 		x    ristretto.Point
 		zero ristretto.Point
 	)
 
+	// Multiply the point by the scalar.
+	x.ScalarMult(q, s)
+
 	// Initialize a zero point.
 	zero.SetZero()
-
-	// Copy the secret key.
-	copy(buf[:], sk)
-
-	// Initialize the scalar with the secret key.
-	s.SetBytes(&buf)
-
-	// Copy the public key.
-	copy(buf[:], pk)
-
-	// Initialize the point with the public key.
-	q.SetBytes(&buf)
-
-	// Multiply the point by the scalar.
-
-	x.ScalarMult(&q, &s)
 
 	// Check to see that the shared secret point is not zero.
 	if x.Equals(&zero) {
@@ -51,7 +35,7 @@ func xdh(sk, pk []byte) ([]byte, error) {
 }
 
 // rk2pk converts an Elligator2 representative to a public key.
-func rk2pk(rk []byte) []byte {
+func rk2pk(rk []byte) *ristretto.Point {
 	var (
 		buf [32]byte
 		fe  edwards25519.FieldElement
@@ -75,29 +59,15 @@ func rk2pk(rk []byte) []byte {
 	q := ristretto.Point(ep)
 
 	// Return the public key.
-	return q.Bytes()
+	return &q
 }
 
-// sk2pkrk converts a secret key to a public key and its Elligator2 representative.
-func sk2pkrk(sk []byte) ([]byte, []byte, error) {
-	var (
-		buf [32]byte
-		s   ristretto.Scalar
-		q   ristretto.Point
-		fes [8]edwards25519.FieldElement
-	)
-
-	// Copy the secret key.
-	copy(buf[:], sk)
-
-	// Convert the secret key to a scalar.
-	s.SetBytes(&buf)
-
-	// Multiply the scalar by the curve base to produce the public key.
-	q.ScalarMultBase(&s)
+// pk2rk converts a public key to an Elligator2 representative, if possible.
+func pk2rk(q *ristretto.Point) ([]byte, error) {
+	var fes [8]edwards25519.FieldElement
 
 	// Convert the public key to an extended point.
-	qep := edwards25519.ExtendedPoint(q)
+	qep := edwards25519.ExtendedPoint(*q)
 
 	// Generate the 0 to 8 possible Elligator2 representatives.
 	mask := qep.RistrettoElligator2Inverse(&fes)
@@ -113,30 +83,15 @@ func sk2pkrk(sk []byte) ([]byte, []byte, error) {
 		rk := fes[i].Bytes()
 
 		// Return the public key and its representative.
-		return q.Bytes(), rk[:], nil
+		return rk[:], nil
 	}
 
 	// If no representative was generated, return an error.
-	return nil, nil, errNoRepresentative
+	return nil, errNoRepresentative
 }
 
 // sk2pk converts a secret key to a public key.
-func sk2pk(sk []byte) []byte {
-	var (
-		buf [32]byte
-		s   ristretto.Scalar
-		q   ristretto.Point
-	)
-
-	// Copy the secret key.
-	copy(buf[:], sk)
-
-	// Convert the secret key to a scalar.
-	s.SetBytes(&buf)
-
+func sk2pk(s *ristretto.Scalar) *ristretto.Point {
 	// Multiply the scalar by the curve base to produce the public key.
-	q.ScalarMultBase(&s)
-
-	// Return the public key.
-	return q.Bytes()
+	return (&ristretto.Point{}).ScalarMultBase(s)
 }

@@ -1,36 +1,29 @@
 package veil
 
 import (
-	"crypto/rand"
-	"io"
 	"testing"
 
+	"github.com/bwesterb/go-ristretto"
 	"github.com/codahale/gubbins/assert"
 )
 
 func TestXDH(t *testing.T) {
 	t.Parallel()
 
-	skA := make([]byte, 32)
-	skB := make([]byte, 32)
+	var skA, skB ristretto.Scalar
 
-	if _, err := io.ReadFull(rand.Reader, skA); err != nil {
-		t.Fatal(err)
-	}
+	skA.Rand()
+	skB.Rand()
 
-	if _, err := io.ReadFull(rand.Reader, skB); err != nil {
-		t.Fatal(err)
-	}
+	pkA := sk2pk(&skA)
+	pkB := sk2pk(&skB)
 
-	pkA := sk2pk(skA)
-	pkB := sk2pk(skB)
-
-	xA, err := xdh(skA, pkB)
+	xA, err := xdh(&skA, pkB)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	xB, err := xdh(skB, pkA)
+	xB, err := xdh(&skB, pkA)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,18 +34,18 @@ func TestXDH(t *testing.T) {
 func TestRepresentativeTransform(t *testing.T) {
 	t.Parallel()
 
-	sk := make([]byte, 32)
+	var sk ristretto.Scalar
 
-	if _, err := io.ReadFull(rand.Reader, sk); err != nil {
-		t.Fatal(err)
-	}
+	sk.Rand()
 
-	pk, rk, err := sk2pkrk(sk)
+	pk := sk2pk(&sk)
+
+	rk, err := pk2rk(pk)
 	if err != nil {
 		t.SkipNow()
 	}
 
-	pk2 := rk2pk(rk)
-
-	assert.Equal(t, "public key", pk, pk2)
+	if pk2 := rk2pk(rk); !pk.Equals(pk2) {
+		t.Error("public key mismatch", pk, pk2)
+	}
 }
