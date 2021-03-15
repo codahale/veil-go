@@ -13,8 +13,11 @@ package veil
 
 import (
 	"crypto/rand"
+	"encoding"
+	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 
@@ -26,13 +29,26 @@ type PublicKey struct {
 	q ristretto.Point
 }
 
-func (pk *PublicKey) Bytes() []byte {
-	b, _ := pk2rk(&pk.q)
-	return b
+func (pk *PublicKey) UnmarshalText(text []byte) error {
+	b, err := base64.RawURLEncoding.DecodeString(string(text))
+	if err != nil {
+		return err
+	}
+
+	return pk.UnmarshalBinary(b)
 }
 
-func (pk *PublicKey) String() string {
-	return pk.q.String()
+func (pk *PublicKey) MarshalText() ([]byte, error) {
+	return []byte(pk.String()), nil
+}
+
+func (pk *PublicKey) Bytes() []byte {
+	rk, _ := pk2rk(&pk.q)
+	return rk
+}
+
+func (pk *PublicKey) MarshalBinary() ([]byte, error) {
+	return pk.Bytes(), nil
 }
 
 func (pk *PublicKey) UnmarshalBinary(data []byte) error {
@@ -40,10 +56,42 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (pk *PublicKey) String() string {
+	rk, _ := pk2rk(&pk.q)
+	return base64.RawURLEncoding.EncodeToString(rk)
+}
+
+var (
+	_ encoding.BinaryMarshaler   = &PublicKey{}
+	_ encoding.BinaryUnmarshaler = &PublicKey{}
+	_ encoding.TextMarshaler     = &PublicKey{}
+	_ encoding.TextUnmarshaler   = &PublicKey{}
+	_ fmt.Stringer               = &PublicKey{}
+)
+
 // SecretKey is an Ristretto255/DH secret key.
 type SecretKey struct {
 	q ristretto.Point
 	s ristretto.Scalar
+}
+
+func (sk *SecretKey) UnmarshalText(text []byte) error {
+	if err := sk.s.UnmarshalText(text); err != nil {
+		return err
+	}
+
+	pk := sk2pk(&sk.s)
+	sk.q = *pk
+
+	return nil
+}
+
+func (sk *SecretKey) MarshalText() (text []byte, err error) {
+	return sk.s.MarshalText()
+}
+
+func (sk *SecretKey) MarshalBinary() ([]byte, error) {
+	return sk.s.MarshalBinary()
 }
 
 func (sk *SecretKey) Bytes() []byte {
@@ -69,6 +117,14 @@ func (sk *SecretKey) UnmarshalBinary(data []byte) error {
 func (sk *SecretKey) PublicKey() *PublicKey {
 	return &PublicKey{q: sk.q}
 }
+
+var (
+	_ encoding.BinaryMarshaler   = &SecretKey{}
+	_ encoding.BinaryUnmarshaler = &SecretKey{}
+	_ encoding.TextMarshaler     = &SecretKey{}
+	_ encoding.TextUnmarshaler   = &SecretKey{}
+	_ fmt.Stringer               = &SecretKey{}
+)
 
 // NewSecretKey creates a new Ristretto255/DH secret key.
 func NewSecretKey(rand io.Reader) (*SecretKey, error) {

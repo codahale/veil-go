@@ -3,10 +3,13 @@ package veil
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	rand2 "math/rand"
 	"testing"
 
+	"github.com/bwesterb/go-ristretto"
 	"github.com/codahale/gubbins/assert"
 )
 
@@ -86,6 +89,144 @@ func TestRoundTrip(t *testing.T) {
 		if err == nil {
 			t.Fatalf("Was able to decrypt %v#/%#v/%v", a, b, corruptCiphertext)
 		}
+	}
+}
+
+func TestPublicKey_Text(t *testing.T) {
+	t.Parallel()
+
+	var s ristretto.Scalar
+
+	// Generate a constant secret key.
+	s.Derive([]byte("this is a secret key"))
+
+	// Derive the public key.
+	q := sk2pk(&s)
+
+	// Create a constant public key.
+	pk := &PublicKey{q: *q}
+
+	j, err := json.Marshal(pk)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "text representation", `"2CDombiqQi23aJon7RnfMYwk-YbHQabdCMVAJA2k2w8"`, string(j))
+
+	var pk2 PublicKey
+	if err := json.Unmarshal(j, &pk2); err != nil {
+		t.Fatal(err)
+	}
+
+	if !pk.q.Equals(&pk2.q) {
+		t.Error("bad round trip")
+	}
+}
+
+func TestPublicKey_Binary(t *testing.T) {
+	t.Parallel()
+
+	var s ristretto.Scalar
+
+	// Generate a constant secret key.
+	s.Derive([]byte("this is a secret key"))
+
+	// Derive the public key.
+	q := sk2pk(&s)
+
+	// Create a constant public key.
+	pk := &PublicKey{q: *q}
+
+	w := bytes.NewBuffer(nil)
+	e := gob.NewEncoder(w)
+
+	if err := e.Encode(pk); err != nil {
+		t.Fatal(err)
+	}
+
+	var pk2 PublicKey
+
+	r := bytes.NewReader(w.Bytes())
+	d := gob.NewDecoder(r)
+
+	if err := d.Decode(&pk2); err != nil {
+		t.Fatal(err)
+	}
+
+	if !pk.q.Equals(&pk2.q) {
+		t.Error("bad round trip")
+	}
+}
+
+func TestSecretKey_Text(t *testing.T) {
+	t.Parallel()
+
+	var s ristretto.Scalar
+
+	// Generate a constant secret key.
+	s.Derive([]byte("this is a secret key"))
+
+	// Derive the public key.
+	q := sk2pk(&s)
+
+	// Create a constant public key.
+	sk := &SecretKey{q: *q, s: s}
+
+	j, err := json.Marshal(sk)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "text representation", `"7QY9hHOe8YCHX0z99P60VJNzUV0R_gnvK5zDlNVDQgs"`, string(j))
+
+	var sk2 SecretKey
+	if err := json.Unmarshal(j, &sk2); err != nil {
+		t.Fatal(err)
+	}
+
+	if !sk.s.Equals(&sk2.s) {
+		t.Error("bad round trip")
+	}
+
+	if !sk.q.Equals(&sk2.q) {
+		t.Error("bad round trip")
+	}
+}
+
+func TestSecretKey_Binary(t *testing.T) {
+	t.Parallel()
+
+	var s ristretto.Scalar
+
+	// Generate a constant secret key.
+	s.Derive([]byte("this is a secret key"))
+
+	// Derive the public key.
+	q := sk2pk(&s)
+	sk := &SecretKey{q: *q, s: s}
+
+	w := bytes.NewBuffer(nil)
+	e := gob.NewEncoder(w)
+
+	if err := e.Encode(sk); err != nil {
+		t.Fatal(err)
+	}
+
+	var sk2 SecretKey
+
+	r := bytes.NewReader(w.Bytes())
+	d := gob.NewDecoder(r)
+
+	if err := d.Decode(&sk2); err != nil {
+		t.Fatal(err)
+	}
+
+	if !sk.s.Equals(&sk2.s) {
+		t.Error("bad round trip")
+	}
+
+	if !sk.q.Equals(&sk2.q) {
+		t.Error("bad round trip")
 	}
 }
 
