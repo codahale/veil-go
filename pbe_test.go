@@ -15,7 +15,7 @@ func TestPBE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ekp, err := NewEncryptedKeyPair(rand.Reader, kp, []byte("this is magic"))
+	ekp, err := NewEncryptedSecretKey(rand.Reader, kp, []byte("this is magic"))
 	if err != nil {
 		t.Fatal(err)
 	}

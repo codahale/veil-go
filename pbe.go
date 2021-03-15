@@ -10,8 +10,8 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-// EncryptedKeyPair is a SecretKey that has been encrypted with a password.
-type EncryptedKeyPair struct {
+// EncryptedSecretKey is a SecretKey that has been encrypted with a password.
+type EncryptedSecretKey struct {
 	Salt         []byte
 	Ciphertext   []byte
 	Time, Memory uint32
@@ -23,8 +23,8 @@ const (
 	defaultMemory = 64 * 1024
 )
 
-// NewEncryptedKeyPair encrypts the given key pair with the given password.
-func NewEncryptedKeyPair(rand io.Reader, sk *SecretKey, password []byte) (*EncryptedKeyPair, error) {
+// NewEncryptedSecretKey encrypts the given key pair with the given password.
+func NewEncryptedSecretKey(rand io.Reader, sk *SecretKey, password []byte) (*EncryptedSecretKey, error) {
 	salt := make([]byte, 32)
 
 	// Generate a random salt.
@@ -50,7 +50,7 @@ func NewEncryptedKeyPair(rand io.Reader, sk *SecretKey, password []byte) (*Encry
 	ciphertext := aead.Seal(nil, k[chacha20poly1305.KeySize:], sk.s.Bytes(), data)
 
 	// Return the salt, ciphertext, and parameters.
-	return &EncryptedKeyPair{
+	return &EncryptedSecretKey{
 		Salt:       salt,
 		Ciphertext: ciphertext,
 		Time:       defaultTime,
@@ -61,7 +61,7 @@ func NewEncryptedKeyPair(rand io.Reader, sk *SecretKey, password []byte) (*Encry
 
 // Decrypt uses the given password to decrypt the key pair. Returns an error if the password is
 // incorrect or if the encrypted key pair has been modified.
-func (ekp *EncryptedKeyPair) Decrypt(password []byte) (*SecretKey, error) {
+func (ekp *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	// Use Argon2id to derive a key and nonce from the password and salt.
 	k := argon2.IDKey(password, ekp.Salt, ekp.Time, ekp.Memory, ekp.Threads, kdfOutputLen)
 
