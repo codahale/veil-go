@@ -41,7 +41,7 @@ func Example() {
 		panic(err)
 	}
 
-	if bytes.Equal(pk.Bytes(), alice.PublicKey().Bytes()) {
+	if alice.PublicKey().Equals(pk) {
 		fmt.Println("sent by A")
 	} else {
 		fmt.Println("sent by B")

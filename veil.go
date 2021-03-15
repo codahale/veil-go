@@ -29,6 +29,10 @@ type PublicKey struct {
 	q ristretto.Point
 }
 
+func (pk *PublicKey) Equals(other *PublicKey) bool {
+	return pk.q.Equals(&other.q)
+}
+
 func (pk *PublicKey) UnmarshalText(text []byte) error {
 	b, err := base64.RawURLEncoding.DecodeString(string(text))
 	if err != nil {
