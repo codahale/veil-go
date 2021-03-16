@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	kemKeyLen   = 32
-	kemOverhead = kemKeyLen + poly1305.TagSize
+	kemPublicKeyLen = 32                                 // The length of an Elligator2 representative for a Ristretto255 public key.
+	kemOverhead     = kemPublicKeyLen + poly1305.TagSize // Total overhead of KEM envelope.
 )
 
 // kemEncrypt encrypts the given plaintext using the initiator's Ristretto255/DH secret key, the
@@ -61,7 +61,7 @@ func kemEncrypt(
 // ciphertext.
 func kemDecrypt(pkI, pkR *ristretto.Point, skR *ristretto.Scalar, ciphertext, data []byte) ([]byte, error) {
 	// Convert the embedded Elligator2 representative to a Ristretto255/DH public key.
-	rkE := ciphertext[:kemKeyLen]
+	rkE := ciphertext[:kemPublicKeyLen]
 	pkE := rk2pk(rkE)
 
 	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the
@@ -88,7 +88,7 @@ func kemDecrypt(pkI, pkR *ristretto.Point, skR *ristretto.Scalar, ciphertext, da
 	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
 	aead, _ := chacha20poly1305.New(key)
-	plaintext, err := aead.Open(nil, nonce, ciphertext[kemKeyLen:], data)
+	plaintext, err := aead.Open(nil, nonce, ciphertext[kemPublicKeyLen:], data)
 
 	return plaintext, err
 }

@@ -113,7 +113,7 @@ func NewSecretKey(rand io.Reader) (*SecretKey, error) {
 var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 
 const (
-	headerLen          = kemKeyLen + 8 + 8
+	headerLen          = kemPublicKeyLen + 8 + 8
 	encryptedHeaderLen = headerLen + kemOverhead
 )
 
@@ -138,8 +138,8 @@ func (sk *SecretKey) Encrypt(
 	copy(header, skE.Bytes())
 
 	offset := encryptedHeaderLen * len(publicKeys)
-	binary.BigEndian.PutUint64(header[kemKeyLen:], uint64(offset))
-	binary.BigEndian.PutUint64(header[kemKeyLen+8:], uint64(len(plaintext)))
+	binary.BigEndian.PutUint64(header[kemPublicKeyLen:], uint64(offset))
+	binary.BigEndian.PutUint64(header[kemPublicKeyLen+8:], uint64(len(plaintext)))
 
 	// Allocate room for encrypted copies of the header.
 	out := make([]byte, offset+len(plaintext)+kemOverhead+padding)
@@ -216,9 +216,9 @@ func (sk SecretKey) Decrypt(publicKeys []*PublicKey, ciphertext []byte) (*Public
 			if err == nil {
 				// If we can decrypt it, read the ephemeral secret key, offset, and size.
 				pkI = pkR
-				_ = skE.UnmarshalBinary(header[:kemKeyLen])
-				offset = binary.BigEndian.Uint64(header[kemKeyLen:])
-				size = binary.BigEndian.Uint64(header[kemKeyLen+8:])
+				_ = skE.UnmarshalBinary(header[:kemPublicKeyLen])
+				offset = binary.BigEndian.Uint64(header[kemPublicKeyLen:])
+				size = binary.BigEndian.Uint64(header[kemPublicKeyLen+8:])
 
 				// Proceed with the decrypted ephemeral key.
 				break

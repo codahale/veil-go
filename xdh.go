@@ -9,8 +9,12 @@ import (
 )
 
 var (
+	// errNoRepresentative is returned when a Ristretto255 point has no Elligator2 representative.
 	errNoRepresentative = errors.New("no representative")
-	errInvalidExchange  = errors.New("invalid exchange")
+
+	// errInvalidExchange is returned when a Ristretto255/DH shared secret point is zero. This
+	// should never happen.
+	errInvalidExchange = errors.New("invalid exchange")
 )
 
 // xdh performs a Diffie-Hellman key exchange using the given secret key and public key.
