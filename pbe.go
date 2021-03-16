@@ -133,6 +133,7 @@ var (
 	_ fmt.Stringer               = &EncryptedSecretKey{}
 )
 
+//nolint:gochecknoglobals // just a constant
 // defaultParams is the set of default parameters, chosen for a balance of security and speed.
 var defaultParams = &Argon2idParams{
 	Time:        4,

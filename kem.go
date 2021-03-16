@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	kemPublicKeyLen = 32                                 // The length of an Elligator2 representative for a Ristretto255 public key.
+	// The length of an Elligator2 representative for a Ristretto255 public key.
+	kemPublicKeyLen = 32
 	kemOverhead     = kemPublicKeyLen + poly1305.TagSize // Total overhead of KEM envelope.
 )
 
