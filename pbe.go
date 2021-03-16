@@ -114,15 +114,15 @@ func NewEncryptedSecretKey(rand io.Reader, sk *SecretKey, password []byte) (*Enc
 		threads = uint8(n)
 	}
 
-	// Use Argon2id to derive a key and nonce from the password and salt.
-	k := argon2.IDKey(password, salt, defaultTime, defaultMemory, threads, kdfOutputLen)
-
 	// Encode the Argon2id parameters as authenticated data.
 	data := encodeArgonParams(defaultTime, defaultMemory, threads)
 
+	// Use Argon2id to derive a key and nonce from the password and salt.
+	key, nonce := pbeKDF(password, salt, defaultTime, defaultMemory, threads)
+
 	// Encrypt the secret key.
-	aead, _ := chacha20poly1305.New(k[:chacha20poly1305.KeySize])
-	ciphertext := aead.Seal(nil, k[chacha20poly1305.KeySize:], sk.s.Bytes(), data)
+	aead, _ := chacha20poly1305.New(key)
+	ciphertext := aead.Seal(nil, nonce, sk.s.Bytes(), data)
 
 	// Return the salt, ciphertext, and parameters.
 	return &EncryptedSecretKey{
@@ -137,23 +137,22 @@ func NewEncryptedSecretKey(rand io.Reader, sk *SecretKey, password []byte) (*Enc
 // Decrypt uses the given password to decrypt the key pair. Returns an error if the password is
 // incorrect or if the encrypted key pair has been modified.
 func (ekp *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
-	// Use Argon2id to derive a key and nonce from the password and salt.
-	k := argon2.IDKey(password, ekp.Salt, ekp.Time, ekp.Memory, ekp.Threads, kdfOutputLen)
-
 	// Encode the Argon parameters as authenticated data.
 	data := encodeArgonParams(ekp.Time, ekp.Memory, ekp.Threads)
 
-	aead, _ := chacha20poly1305.New(k[:chacha20poly1305.KeySize])
+	// Use Argon2id to derive a key and nonce from the password and salt.
+	key, nonce := pbeKDF(password, ekp.Salt, ekp.Time, ekp.Memory, ekp.Threads)
+	aead, _ := chacha20poly1305.New(key)
 
 	// Decrypt the secret key.
-	b, err := aead.Open(nil, k[chacha20poly1305.KeySize:], ekp.Ciphertext, data)
+	plaintext, err := aead.Open(nil, nonce, ekp.Ciphertext, data)
 	if err != nil {
 		return nil, err
 	}
 
 	// Decode the secret key.
 	var s ristretto.Scalar
-	if err := s.UnmarshalBinary(b); err != nil {
+	if err := s.UnmarshalBinary(plaintext); err != nil {
 		return nil, err
 	}
 
@@ -171,4 +170,13 @@ func encodeArgonParams(time, memory uint32, threads uint8) []byte {
 	b.AddUint8(threads)
 
 	return b.BytesOrPanic()
+}
+
+// pbeKDF uses Argon2id to derive a ChaCha20 key and nonce from the password, salt, and parameters.
+func pbeKDF(password, salt []byte, time, memory uint32, threads uint8) ([]byte, []byte) {
+	k := argon2.IDKey(password, salt, time, memory, threads, chacha20poly1305.KeySize+chacha20poly1305.NonceSize)
+	key := k[:chacha20poly1305.KeySize]
+	nonce := k[chacha20poly1305.KeySize:]
+
+	return key, nonce
 }

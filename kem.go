@@ -11,9 +11,8 @@ import (
 )
 
 const (
-	kemKeyLen    = 32
-	kemOverhead  = kemKeyLen + poly1305.TagSize
-	kdfOutputLen = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
+	kemKeyLen   = 32
+	kemOverhead = kemKeyLen + poly1305.TagSize
 )
 
 // kemEncrypt encrypts the given plaintext using the initiator's Ristretto255/DH secret key, the
@@ -44,14 +43,14 @@ func kemEncrypt(
 	// Concatenate the two to form the shared secret.
 	zz := append(zzE, zzS...)
 
-	// Derive the key from the shared secret, the authenticated data, the ephemeral public key's
-	// Elligator2 representative, and the public keys of both the recipient and the initiator.
-	kn := kdf(zz, data, rkE, pkR, pkI)
+	// Derive the key and nonce from the shared secret, the authenticated data, the ephemeral public
+	// key's Elligator2 representative, and the public keys of both the recipient and the initiator.
+	key, nonce := kdf(zz, data, rkE, pkR, pkI)
 
 	// Encrypt the plaintext DEM using the derived key, the derived nonce, and the the authenticated
 	// data. Prepend the ephemeral public key's Elligator2 representative and return.
-	aead, _ := chacha20poly1305.New(kn[:chacha20poly1305.KeySize])
-	ciphertext := aead.Seal(rkE, kn[chacha20poly1305.KeySize:], plaintext, data)
+	aead, _ := chacha20poly1305.New(key)
+	ciphertext := aead.Seal(rkE, nonce, plaintext, data)
 
 	return ciphertext, nil
 }
@@ -84,12 +83,12 @@ func kemDecrypt(pkI, pkR *ristretto.Point, skR *ristretto.Scalar, ciphertext, da
 
 	// Derive the key from the shared secret, the authenticated data, the ephemeral public key's
 	// Elligator2 representative, and the public keys of both the recipient and the initiator.
-	kn := kdf(zz, data, rkE, pkR, pkI)
+	key, nonce := kdf(zz, data, rkE, pkR, pkI)
 
 	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
-	aead, _ := chacha20poly1305.New(kn[:chacha20poly1305.KeySize])
-	plaintext, err := aead.Open(nil, kn[chacha20poly1305.KeySize:], ciphertext[kemKeyLen:], data)
+	aead, _ := chacha20poly1305.New(key)
+	plaintext, err := aead.Open(nil, nonce, ciphertext[kemKeyLen:], data)
 
 	return plaintext, err
 }
@@ -97,7 +96,7 @@ func kemDecrypt(pkI, pkR *ristretto.Point, skR *ristretto.Scalar, ciphertext, da
 // kdf returns a ChaCha20Poly1305 key and nonce derived from the given initial keying material, the
 // authenticated data, the Elligator2 representative of the ephemeral key, the recipient's public
 // key, and the initiator's public key.
-func kdf(ikm, data, rkE []byte, pkR, pkI *ristretto.Point) []byte {
+func kdf(ikm, data, rkE []byte, pkR, pkI *ristretto.Point) ([]byte, []byte) {
 	// Create a salt consisting of the Elligator2 representative of the ephemeral key, the
 	// recipient's public key, and the initiator's public key.
 	salt := append([]byte(nil), rkE...)
@@ -108,9 +107,13 @@ func kdf(ikm, data, rkE []byte, pkR, pkI *ristretto.Point) []byte {
 	// authenticated data.
 	h := hkdf.New(sha3.New512, ikm, salt, data)
 
-	// Derive the key and nonce from the HKDF output.
-	out := make([]byte, kdfOutputLen)
-	_, _ = io.ReadFull(h, out)
+	// Derive the key from the HKDF output.
+	key := make([]byte, chacha20poly1305.KeySize)
+	_, _ = io.ReadFull(h, key)
 
-	return out
+	// Derive the nonce from the HKDF output.
+	nonce := make([]byte, chacha20poly1305.NonceSize)
+	_, _ = io.ReadFull(h, nonce)
+
+	return key, nonce
 }
