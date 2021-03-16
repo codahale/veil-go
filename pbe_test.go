@@ -15,7 +15,7 @@ func TestPBE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ekp, err := NewEncryptedSecretKey(rand.Reader, kp, []byte("this is magic"))
+	ekp, err := NewEncryptedSecretKey(rand.Reader, kp, []byte("this is magic"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,9 +36,11 @@ func TestEncryptedSecretKey_MarshalBinary(t *testing.T) {
 	ekp := &EncryptedSecretKey{
 		Salt:       []byte("salt"),
 		Ciphertext: []byte("ciphertext"),
-		Time:       10,
-		Memory:     200,
-		Threads:    30,
+		Argon2idParams: Argon2idParams{
+			Time:        10,
+			Memory:      200,
+			Parallelism: 30,
+		},
 	}
 
 	data, err := ekp.MarshalBinary()
@@ -64,9 +66,11 @@ func TestEncryptedSecretKey_UnmarshalBinary(t *testing.T) {
 	want := &EncryptedSecretKey{
 		Salt:       []byte("salt"),
 		Ciphertext: []byte("ciphertext"),
-		Time:       10,
-		Memory:     200,
-		Threads:    30,
+		Argon2idParams: Argon2idParams{
+			Time:        10,
+			Memory:      200,
+			Parallelism: 30,
+		},
 	}
 	got := &EncryptedSecretKey{}
 
@@ -83,9 +87,11 @@ func TestEncryptedSecretKey_MarshalText(t *testing.T) {
 	ekp := &EncryptedSecretKey{
 		Salt:       []byte("salt"),
 		Ciphertext: []byte("ciphertext"),
-		Time:       10,
-		Memory:     200,
-		Threads:    30,
+		Argon2idParams: Argon2idParams{
+			Time:        10,
+			Memory:      200,
+			Parallelism: 30,
+		},
 	}
 
 	text, err := ekp.MarshalText()
@@ -103,9 +109,11 @@ func TestEncryptedSecretKey_UnmarshalText(t *testing.T) {
 	want := &EncryptedSecretKey{
 		Salt:       []byte("salt"),
 		Ciphertext: []byte("ciphertext"),
-		Time:       10,
-		Memory:     200,
-		Threads:    30,
+		Argon2idParams: Argon2idParams{
+			Time:        10,
+			Memory:      200,
+			Parallelism: 30,
+		},
 	}
 	got := &EncryptedSecretKey{}
 
@@ -122,9 +130,11 @@ func TestEncryptedSecretKey_String(t *testing.T) {
 	ekp := &EncryptedSecretKey{
 		Salt:       []byte("salt"),
 		Ciphertext: []byte("ciphertext"),
-		Time:       10,
-		Memory:     200,
-		Threads:    30,
+		Argon2idParams: Argon2idParams{
+			Time:        10,
+			Memory:      200,
+			Parallelism: 30,
+		},
 	}
 
 	assert.Equal(t, "encoded keypair", "BHNhbHQACmNpcGhlcnRleHQAAAAKAAAAyB4", ekp.String())
