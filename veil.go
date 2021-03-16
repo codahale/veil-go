@@ -200,7 +200,7 @@ func (sk *SecretKey) Encrypt(
 
 	// Encrypt the signed, padded plaintext with the ephemeral public key, using the encrypted
 	// headers as authenticated data.
-	ciphertext, err := kemEncrypt(rand, &sk.q, &sk.s, pkE, padded, out[:offset])
+	ciphertext, err := kemEncrypt(rand, &sk.s, &sk.q, pkE, padded, out[:offset])
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func writeHeaders(
 			}
 		} else {
 			// To include a real recipient, encrypt the header via KEM.
-			b, err := kemEncrypt(rand, pkI, skI, &pkR.q, header, nil)
+			b, err := kemEncrypt(rand, skI, pkI, &pkR.q, header, nil)
 			if err != nil {
 				return err
 			}
@@ -252,7 +252,7 @@ func (sk SecretKey) Decrypt(publicKeys []*PublicKey, ciphertext []byte) (*Public
 			b := ciphertext[i:(i + encryptedHeaderLen)]
 
 			// Try to decrypt the possible header.
-			header, err := kemDecrypt(&sk.q, &sk.s, &pkR.q, b, nil)
+			header, err := kemDecrypt(&pkR.q, &sk.q, &sk.s, b, nil)
 			if err == nil {
 				// If we can decrypt it, read the ephemeral secret key, offset, and size.
 				pkI = pkR
@@ -275,7 +275,7 @@ func (sk SecretKey) Decrypt(publicKeys []*PublicKey, ciphertext []byte) (*Public
 	pkE := sk2pk(&skE)
 
 	// Decrypt the KEM-encrypted, padded plaintext.
-	padded, err := kemDecrypt(pkE, &skE, &pkI.q, ciphertext[offset:], ciphertext[:offset])
+	padded, err := kemDecrypt(&pkI.q, pkE, &skE, ciphertext[offset:], ciphertext[:offset])
 	if err != nil {
 		return nil, nil, err
 	}

@@ -40,8 +40,9 @@ Veil headers and messages are encrypted using a Key Encapsulation Mechanism:
 3. The Ristretto255/DH shared secret is calculated for the recipient's public key and the
    initiator's secret key.
 4. The two shared secrets are concatenated and used as the initial keying material for
-   HKDF-SHA3-512, with the initiator's public key, the ephemeral public key, and the recipient's
-   public key as the salt parameter and the authenticated data as the information parameter.
+   HKDF-SHA3-512, with the ephemeral public key's Elligator2 representative, the recipient's public 
+   key,and the initiator's public key as the salt parameter and the authenticated data as the
+   information parameter.
 5. The first 32 bytes from the HKDF output are used as a ChaCha20Poly1305 key.
 6. The next 12 bytes from the HKDF output as used as a ChaCha20Poly1305 nonce.
 7. The plaintext is encrypted with ChaCha20Poly1305 using the derived key, the derived nonce, and
@@ -51,12 +52,12 @@ Veil headers and messages are encrypted using a Key Encapsulation Mechanism:
 
 As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
 KEM provides assurance that the message was encrypted by the holder of the sender's secret key.
-Ristretto255/DH mutability issues are mitigated by the inclusion of both the ephemeral public key
-and the recipient's public key in the HKDF inputs. Deriving both the key and nonce from the
-ephemeral shared secret eliminates the possibility of nonce misuse, allows for the usage of ChaCha20
-vs XChaCha20, and results in a shorter ciphertext by eliding the nonce. Finally, encoding the
-ephemeral public key with Elligator2 ensures the final bytestring is indistinguishable from random
-noise.
+Ristretto255/DH mutability issues are mitigated by the inclusion of both the ephemeral public key's
+Elligator2 representative and the recipient's public key in the HKDF inputs. Deriving both the key
+and nonce from the ephemeral shared secret eliminates the possibility of nonce misuse, allows for
+the usage of ChaCha20 vs XChaCha20, and results in a shorter ciphertext by eliding the nonce.
+Finally, encoding the ephemeral public key with Elligator2 ensures the final bytestring is
+indistinguishable from random noise.
 
 ### Messages
 
