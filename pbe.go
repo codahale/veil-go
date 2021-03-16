@@ -3,7 +3,6 @@ package veil
 import (
 	"encoding"
 	"encoding/base64"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -166,10 +165,10 @@ func (ekp *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 
 // encodeArgonParams returns the Argon2id params encoded as big-endian integers.
 func encodeArgonParams(time, memory uint32, threads uint8) []byte {
-	data := make([]byte, 9)
-	binary.BigEndian.PutUint32(data, time)
-	binary.BigEndian.PutUint32(data[4:], memory)
-	data[8] = threads
+	b := cryptobyte.NewFixedBuilder(make([]byte, 0, 9))
+	b.AddUint32(time)
+	b.AddUint32(memory)
+	b.AddUint8(threads)
 
-	return data
+	return b.BytesOrPanic()
 }
