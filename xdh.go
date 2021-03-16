@@ -2,6 +2,7 @@ package veil
 
 import (
 	"errors"
+	"io"
 
 	"github.com/bwesterb/go-ristretto"
 	"github.com/bwesterb/go-ristretto/edwards25519"
@@ -94,4 +95,37 @@ func pk2rk(q *ristretto.Point) ([]byte, error) {
 func sk2pk(s *ristretto.Scalar) *ristretto.Point {
 	// Multiply the scalar by the curve base to produce the public key.
 	return (&ristretto.Point{}).ScalarMultBase(s)
+}
+
+// ephemeralKeys generate an Ristretto255/DH key pair and returns the public key, the Elligator2
+// representative of the public key, and the secret key.
+func ephemeralKeys(rand io.Reader) (*ristretto.Point, []byte, *ristretto.Scalar, error) {
+	var (
+		buf [32]byte
+		s   ristretto.Scalar
+	)
+
+	// Not all key pairs can be represented by Elligator2, so try until we find one.
+	for {
+		// Generate 32 random bytes.
+		if _, err := io.ReadFull(rand, buf[:]); err != nil {
+			return nil, nil, nil, err
+		}
+
+		// Convert to a Ristretto255/DH secret key.
+		s.SetBytes(&buf)
+
+		// Generate the corresponding public key.
+		pk := sk2pk(&s)
+
+		// Calculate the public key's Elligator2 representative, if any.
+		rk, err := pk2rk(pk)
+		if err != nil {
+			// If the public key doesn't have an Elligator2 representative, try again.
+			continue
+		}
+
+		// Otherwise, return the values.
+		return pk, rk, &s, nil
+	}
 }

@@ -29,8 +29,30 @@ type PublicKey struct {
 	q ristretto.Point
 }
 
+// Equals returns true if the given PublicKey is equal to the receiver.
 func (pk *PublicKey) Equals(other *PublicKey) bool {
 	return pk.q.Equals(&other.q)
+}
+
+func (pk *PublicKey) MarshalBinary() ([]byte, error) {
+	return pk2rk(&pk.q)
+}
+
+func (pk *PublicKey) UnmarshalBinary(data []byte) error {
+	pk.q = *rk2pk(data)
+	return nil
+}
+
+func (pk *PublicKey) MarshalText() ([]byte, error) {
+	rk, err := pk.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	b := make([]byte, base64.RawURLEncoding.EncodedLen(len(rk)))
+	base64.RawURLEncoding.Encode(b, rk)
+
+	return b, nil
 }
 
 func (pk *PublicKey) UnmarshalText(text []byte) error {
@@ -42,27 +64,9 @@ func (pk *PublicKey) UnmarshalText(text []byte) error {
 	return pk.UnmarshalBinary(b)
 }
 
-func (pk *PublicKey) MarshalText() ([]byte, error) {
-	return []byte(pk.String()), nil
-}
-
-func (pk *PublicKey) Bytes() []byte {
-	rk, _ := pk2rk(&pk.q)
-	return rk
-}
-
-func (pk *PublicKey) MarshalBinary() ([]byte, error) {
-	return pk.Bytes(), nil
-}
-
-func (pk *PublicKey) UnmarshalBinary(data []byte) error {
-	pk.q = *rk2pk(data)
-	return nil
-}
-
 func (pk *PublicKey) String() string {
-	rk, _ := pk2rk(&pk.q)
-	return base64.RawURLEncoding.EncodeToString(rk)
+	s, _ := pk.MarshalText()
+	return string(s)
 }
 
 var (
@@ -79,31 +83,8 @@ type SecretKey struct {
 	s ristretto.Scalar
 }
 
-func (sk *SecretKey) UnmarshalText(text []byte) error {
-	if err := sk.s.UnmarshalText(text); err != nil {
-		return err
-	}
-
-	pk := sk2pk(&sk.s)
-	sk.q = *pk
-
-	return nil
-}
-
-func (sk *SecretKey) MarshalText() (text []byte, err error) {
-	return sk.s.MarshalText()
-}
-
 func (sk *SecretKey) MarshalBinary() ([]byte, error) {
 	return sk.s.MarshalBinary()
-}
-
-func (sk *SecretKey) Bytes() []byte {
-	return sk.s.Bytes()
-}
-
-func (sk *SecretKey) String() string {
-	return sk.s.String()
 }
 
 func (sk *SecretKey) UnmarshalBinary(data []byte) error {
@@ -115,6 +96,32 @@ func (sk *SecretKey) UnmarshalBinary(data []byte) error {
 	sk.q = *pk
 
 	return nil
+}
+
+func (sk *SecretKey) MarshalText() ([]byte, error) {
+	s, err := sk.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	b := make([]byte, base64.RawURLEncoding.EncodedLen(len(s)))
+	base64.RawURLEncoding.Encode(b, s)
+
+	return b, nil
+}
+
+func (sk *SecretKey) UnmarshalText(text []byte) error {
+	b, err := base64.RawURLEncoding.DecodeString(string(text))
+	if err != nil {
+		return err
+	}
+
+	return sk.UnmarshalBinary(b)
+}
+
+func (sk *SecretKey) String() string {
+	s, _ := sk.MarshalText()
+	return string(s)
 }
 
 // PublicKey returns the public key for the given secret key.

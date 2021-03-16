@@ -78,7 +78,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "public key", a.PublicKey().Bytes(), pk.Bytes())
+	assert.Equal(t, "public key", pk.q.Bytes(), a.q.Bytes())
 
 	assert.Equal(t, "plaintext", message, plaintext)
 
