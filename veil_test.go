@@ -104,7 +104,7 @@ func TestPublicKey_Text(t *testing.T) {
 	q := sk2pk(&s)
 
 	// Create a constant public key.
-	pk := &PublicKey{q: *q}
+	pk := &PublicKey{q: q}
 
 	j, err := json.Marshal(pk)
 	if err != nil {
@@ -135,7 +135,7 @@ func TestPublicKey_Binary(t *testing.T) {
 	q := sk2pk(&s)
 
 	// Create a constant public key.
-	pk := &PublicKey{q: *q}
+	pk := &PublicKey{q: q}
 
 	w := bytes.NewBuffer(nil)
 	e := gob.NewEncoder(w)

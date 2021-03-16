@@ -39,7 +39,7 @@ func (pk *PublicKey) MarshalBinary() ([]byte, error) {
 }
 
 func (pk *PublicKey) UnmarshalBinary(data []byte) error {
-	pk.q = *rk2pk(data)
+	pk.q = rk2pk(data)
 	return nil
 }
 
@@ -102,7 +102,7 @@ func NewSecretKey(rand io.Reader) (*SecretKey, error) {
 		return nil, err
 	}
 
-	return &SecretKey{s: *s, q: *q}, nil
+	return &SecretKey{s: s, q: q}, nil
 }
 
 // ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an
@@ -157,7 +157,7 @@ func (sk *SecretKey) Encrypt(
 
 	// Encrypt the signed, padded plaintext with the ephemeral public key, using the encrypted
 	// headers as authenticated data.
-	ciphertext, err := kemEncrypt(rand, &sk.s, &sk.q, pkE, padded, out[:offset])
+	ciphertext, err := kemEncrypt(rand, &sk.s, &sk.q, &pkE, padded, out[:offset])
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +232,7 @@ func (sk SecretKey) Decrypt(publicKeys []*PublicKey, ciphertext []byte) (*Public
 	pkE := sk2pk(&skE)
 
 	// Decrypt the KEM-encrypted, padded plaintext.
-	padded, err := kemDecrypt(&pkI.q, pkE, &skE, ciphertext[offset:], ciphertext[:offset])
+	padded, err := kemDecrypt(&pkI.q, &pkE, &skE, ciphertext[offset:], ciphertext[:offset])
 	if err != nil {
 		return nil, nil, err
 	}

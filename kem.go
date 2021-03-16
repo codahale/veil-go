@@ -28,7 +28,7 @@ func kemEncrypt(
 
 	// Calculate the Ristretto255/DH shared secret between the ephemeral secret key and the
 	// recipient's Ristretto255/DH public key.
-	zzE, err := xdh(skE, pkR)
+	zzE, err := xdh(&skE, pkR)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func kemDecrypt(pkI, pkR *ristretto.Point, skR *ristretto.Scalar, ciphertext, da
 
 	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the
 	// ephemeral public key.
-	zzE, err := xdh(skR, pkE)
+	zzE, err := xdh(skR, &pkE)
 	if err != nil {
 		return nil, err
 	}

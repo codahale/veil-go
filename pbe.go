@@ -159,7 +159,7 @@ func (ekp *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	// Derive the public key.
 	q := sk2pk(&s)
 
-	return &SecretKey{s: s, q: *q}, err
+	return &SecretKey{s: s, q: q}, err
 }
 
 // encodeArgonParams returns the Argon2id params encoded as big-endian integers.

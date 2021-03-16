@@ -36,7 +36,7 @@ func xdh(s *ristretto.Scalar, q *ristretto.Point) ([]byte, error) {
 }
 
 // rk2pk converts an Elligator2 representative to a public key.
-func rk2pk(rk []byte) *ristretto.Point {
+func rk2pk(rk []byte) ristretto.Point {
 	var (
 		buf [32]byte
 		fe  edwards25519.FieldElement
@@ -60,7 +60,7 @@ func rk2pk(rk []byte) *ristretto.Point {
 	q := ristretto.Point(ep)
 
 	// Return the public key.
-	return &q
+	return q
 }
 
 // pk2rk converts a public key to an Elligator2 representative, if possible.
@@ -68,7 +68,7 @@ func pk2rk(q *ristretto.Point) ([]byte, error) {
 	var fes [8]edwards25519.FieldElement
 
 	// Convert the public key to an extended point.
-	qep := edwards25519.ExtendedPoint(*q)
+	qep := (*edwards25519.ExtendedPoint)(q)
 
 	// Generate the 0 to 8 possible Elligator2 representatives.
 	mask := qep.RistrettoElligator2Inverse(&fes)
@@ -92,40 +92,41 @@ func pk2rk(q *ristretto.Point) ([]byte, error) {
 }
 
 // sk2pk converts a secret key to a public key.
-func sk2pk(s *ristretto.Scalar) *ristretto.Point {
+func sk2pk(s *ristretto.Scalar) ristretto.Point {
+	var q ristretto.Point
+
 	// Multiply the scalar by the curve base to produce the public key.
-	return (&ristretto.Point{}).ScalarMultBase(s)
+	q.ScalarMultBase(s)
+
+	return q
 }
 
 // ephemeralKeys generate an Ristretto255/DH key pair and returns the public key, the Elligator2
 // representative of the public key, and the secret key.
-func ephemeralKeys(rand io.Reader) (*ristretto.Point, []byte, *ristretto.Scalar, error) {
-	var (
-		buf [32]byte
-		s   ristretto.Scalar
-	)
+func ephemeralKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Scalar, err error) {
+	var buf [32]byte
 
 	// Not all key pairs can be represented by Elligator2, so try until we find one.
 	for {
 		// Generate 32 random bytes.
-		if _, err := io.ReadFull(rand, buf[:]); err != nil {
-			return nil, nil, nil, err
+		if _, err = io.ReadFull(rand, buf[:]); err != nil {
+			return
 		}
 
 		// Convert to a Ristretto255/DH secret key.
 		s.SetBytes(&buf)
 
 		// Generate the corresponding public key.
-		pk := sk2pk(&s)
+		q = sk2pk(&s)
 
 		// Calculate the public key's Elligator2 representative, if any.
-		rk, err := pk2rk(pk)
+		rk, err = pk2rk(&q)
 		if err != nil {
 			// If the public key doesn't have an Elligator2 representative, try again.
 			continue
 		}
 
 		// Otherwise, return the values.
-		return pk, rk, &s, nil
+		return
 	}
 }

@@ -18,12 +18,12 @@ func TestXDH(t *testing.T) {
 	pkA := sk2pk(&skA)
 	pkB := sk2pk(&skB)
 
-	xA, err := xdh(&skA, pkB)
+	xA, err := xdh(&skA, &pkB)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	xB, err := xdh(&skB, pkA)
+	xB, err := xdh(&skB, &pkA)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func TestRepresentativeTransform(t *testing.T) {
 
 	pk := sk2pk(&sk)
 
-	rk, err := pk2rk(pk)
+	rk, err := pk2rk(&pk)
 	if err != nil {
 		t.SkipNow()
 	}
