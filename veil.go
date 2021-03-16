@@ -44,15 +44,15 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 }
 
 func (pk *PublicKey) MarshalText() ([]byte, error) {
-	rk, err := pk.MarshalBinary()
+	b, err := pk.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
-	b := make([]byte, base64.RawURLEncoding.EncodedLen(len(rk)))
-	base64.RawURLEncoding.Encode(b, rk)
+	t := make([]byte, base64.RawURLEncoding.EncodedLen(len(b)))
+	base64.RawURLEncoding.Encode(t, b)
 
-	return b, nil
+	return t, nil
 }
 
 func (pk *PublicKey) UnmarshalText(text []byte) error {
@@ -83,45 +83,8 @@ type SecretKey struct {
 	s ristretto.Scalar
 }
 
-func (sk *SecretKey) MarshalBinary() ([]byte, error) {
-	return sk.s.MarshalBinary()
-}
-
-func (sk *SecretKey) UnmarshalBinary(data []byte) error {
-	if err := sk.s.UnmarshalBinary(data); err != nil {
-		return err
-	}
-
-	pk := sk2pk(&sk.s)
-	sk.q = *pk
-
-	return nil
-}
-
-func (sk *SecretKey) MarshalText() ([]byte, error) {
-	s, err := sk.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	b := make([]byte, base64.RawURLEncoding.EncodedLen(len(s)))
-	base64.RawURLEncoding.Encode(b, s)
-
-	return b, nil
-}
-
-func (sk *SecretKey) UnmarshalText(text []byte) error {
-	b, err := base64.RawURLEncoding.DecodeString(string(text))
-	if err != nil {
-		return err
-	}
-
-	return sk.UnmarshalBinary(b)
-}
-
 func (sk *SecretKey) String() string {
-	s, _ := sk.MarshalText()
-	return string(s)
+	return sk.PublicKey().String()
 }
 
 // PublicKey returns the public key for the given secret key.
@@ -129,13 +92,7 @@ func (sk *SecretKey) PublicKey() *PublicKey {
 	return &PublicKey{q: sk.q}
 }
 
-var (
-	_ encoding.BinaryMarshaler   = &SecretKey{}
-	_ encoding.BinaryUnmarshaler = &SecretKey{}
-	_ encoding.TextMarshaler     = &SecretKey{}
-	_ encoding.TextUnmarshaler   = &SecretKey{}
-	_ fmt.Stringer               = &SecretKey{}
-)
+var _ fmt.Stringer = &SecretKey{}
 
 // NewSecretKey creates a new Ristretto255/DH secret key.
 func NewSecretKey(rand io.Reader) (*SecretKey, error) {
