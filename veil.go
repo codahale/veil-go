@@ -26,7 +26,8 @@ import (
 
 // PublicKey is an Ristretto255/DH public key.
 type PublicKey struct {
-	q ristretto.Point
+	rk []byte
+	q  ristretto.Point
 }
 
 // Equals returns true if the given PublicKey is equal to the receiver.
@@ -35,11 +36,13 @@ func (pk *PublicKey) Equals(other *PublicKey) bool {
 }
 
 func (pk *PublicKey) MarshalBinary() ([]byte, error) {
-	return pk2rk(&pk.q)
+	return pk.rk, nil
 }
 
 func (pk *PublicKey) UnmarshalBinary(data []byte) error {
+	pk.rk = data
 	pk.q = rk2pk(data)
+
 	return nil
 }
 
@@ -79,17 +82,17 @@ var (
 
 // SecretKey is an Ristretto255/DH secret key.
 type SecretKey struct {
-	q ristretto.Point
-	s ristretto.Scalar
+	pk PublicKey
+	s  ristretto.Scalar
 }
 
 func (sk *SecretKey) String() string {
-	return sk.PublicKey().String()
+	return sk.pk.String()
 }
 
 // PublicKey returns the public key for the given secret key.
 func (sk *SecretKey) PublicKey() *PublicKey {
-	return &PublicKey{q: sk.q}
+	return &sk.pk
 }
 
 var _ fmt.Stringer = &SecretKey{}
@@ -97,12 +100,12 @@ var _ fmt.Stringer = &SecretKey{}
 // NewSecretKey creates a new Ristretto255/DH secret key.
 func NewSecretKey(rand io.Reader) (*SecretKey, error) {
 	// Always generate a key with a possible Elligator2 representative.
-	q, _, s, err := ephemeralKeys(rand)
+	q, rk, s, err := ephemeralKeys(rand)
 	if err != nil {
 		return nil, err
 	}
 
-	return &SecretKey{s: s, q: q}, nil
+	return &SecretKey{s: s, pk: PublicKey{q: q, rk: rk}}, nil
 }
 
 // ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an
@@ -142,7 +145,7 @@ func (sk *SecretKey) Encrypt(
 	out := make([]byte, offset+len(plaintext)+kemOverhead+padding)
 
 	// Write KEM-encrypted copies of the header.
-	if err := writeHeaders(rand, &sk.q, &sk.s, publicKeys, header, out); err != nil {
+	if err := writeHeaders(rand, &sk.pk.q, &sk.s, publicKeys, header, out); err != nil {
 		return nil, err
 	}
 
@@ -157,7 +160,7 @@ func (sk *SecretKey) Encrypt(
 
 	// Encrypt the signed, padded plaintext with the ephemeral public key, using the encrypted
 	// headers as authenticated data.
-	ciphertext, err := kemEncrypt(rand, &sk.s, &sk.q, &pkE, padded, out[:offset])
+	ciphertext, err := kemEncrypt(rand, &sk.s, &sk.pk.q, &pkE, padded, out[:offset])
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +212,7 @@ func (sk SecretKey) Decrypt(publicKeys []*PublicKey, ciphertext []byte) (*Public
 			b := ciphertext[i:(i + encryptedHeaderLen)]
 
 			// Try to decrypt the possible header.
-			header, err := kemDecrypt(&pkR.q, &sk.q, &sk.s, b, nil)
+			header, err := kemDecrypt(&pkR.q, &sk.pk.q, &sk.s, b, nil)
 			if err == nil {
 				// If we can decrypt it, read the ephemeral secret key, offset, and size.
 				pkI = pkR

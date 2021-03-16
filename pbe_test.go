@@ -25,7 +25,9 @@ func TestPBE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "decrypted keypair", kp.q.Bytes(), dkp.q.Bytes())
+	assert.Equal(t, "decrypted secret key", kp.s.Bytes(), dkp.s.Bytes())
+	assert.Equal(t, "decrypted public key", kp.pk.q.Bytes(), dkp.pk.q.Bytes())
+	assert.Equal(t, "decrypted public key representative", kp.pk.rk, dkp.pk.rk)
 }
 
 func TestEncryptedSecretKey_MarshalBinary(t *testing.T) {

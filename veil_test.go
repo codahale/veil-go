@@ -9,7 +9,6 @@ import (
 	rand2 "math/rand"
 	"testing"
 
-	"github.com/bwesterb/go-ristretto"
 	"github.com/codahale/gubbins/assert"
 )
 
@@ -78,7 +77,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "public key", pk.q.Bytes(), a.q.Bytes())
+	assert.Equal(t, "public key", pk.q.Bytes(), a.pk.q.Bytes())
 
 	assert.Equal(t, "plaintext", message, plaintext)
 
@@ -95,30 +94,24 @@ func TestRoundTrip(t *testing.T) {
 func TestPublicKey_Text(t *testing.T) {
 	t.Parallel()
 
-	var s ristretto.Scalar
-
-	// Generate a constant secret key.
-	s.Derive([]byte("this is a secret key"))
-
-	// Derive the public key.
-	q := sk2pk(&s)
-
-	// Create a constant public key.
-	pk := &PublicKey{q: q}
-
-	j, err := json.Marshal(pk)
+	sk, err := NewSecretKey(bytes.NewReader(make([]byte, 10*1024)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "text representation", `"2CDombiqQi23aJon7RnfMYwk-YbHQabdCMVAJA2k2w8"`, string(j))
+	j, err := json.Marshal(&sk.pk)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "text representation", `"qBtcSssqMHWqbeoOLam8zRVu63OZVDR1l-t79FhVswU"`, string(j))
 
 	var pk2 PublicKey
 	if err := json.Unmarshal(j, &pk2); err != nil {
 		t.Fatal(err)
 	}
 
-	if !pk.q.Equals(&pk2.q) {
+	if !sk.pk.q.Equals(&pk2.q) || !bytes.Equal(sk.pk.rk, pk2.rk) {
 		t.Error("bad round trip")
 	}
 }
@@ -126,21 +119,15 @@ func TestPublicKey_Text(t *testing.T) {
 func TestPublicKey_Binary(t *testing.T) {
 	t.Parallel()
 
-	var s ristretto.Scalar
-
-	// Generate a constant secret key.
-	s.Derive([]byte("this is a secret key"))
-
-	// Derive the public key.
-	q := sk2pk(&s)
-
-	// Create a constant public key.
-	pk := &PublicKey{q: q}
+	sk, err := NewSecretKey(bytes.NewReader(make([]byte, 10*1024)))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	w := bytes.NewBuffer(nil)
 	e := gob.NewEncoder(w)
 
-	if err := e.Encode(pk); err != nil {
+	if err := e.Encode(&sk.pk); err != nil {
 		t.Fatal(err)
 	}
 
@@ -153,7 +140,7 @@ func TestPublicKey_Binary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !pk.q.Equals(&pk2.q) {
+	if !sk.pk.q.Equals(&pk2.q) || !bytes.Equal(sk.pk.rk, pk2.rk) {
 		t.Error("bad round trip")
 	}
 }
