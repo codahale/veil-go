@@ -25,12 +25,18 @@ type EncryptedSecretKey struct {
 
 func (ekp *EncryptedSecretKey) MarshalBinary() ([]byte, error) {
 	b := cryptobyte.NewBuilder(nil)
-	b.AddUint24LengthPrefixed(func(child *cryptobyte.Builder) {
+
+	// Encode the salt with an 8-bit length prefix.
+	b.AddUint8LengthPrefixed(func(child *cryptobyte.Builder) {
 		child.AddBytes(ekp.Salt)
 	})
-	b.AddUint24LengthPrefixed(func(child *cryptobyte.Builder) {
+
+	// Encode the ciphertext with a 16-bit length prefix.
+	b.AddUint16LengthPrefixed(func(child *cryptobyte.Builder) {
 		child.AddBytes(ekp.Ciphertext)
 	})
+
+	// Encode the Argon2id parameters.
 	b.AddUint32(ekp.Time)
 	b.AddUint32(ekp.Memory)
 	b.AddUint8(ekp.Threads)
@@ -45,8 +51,8 @@ func (ekp *EncryptedSecretKey) UnmarshalBinary(data []byte) error {
 
 	s := cryptobyte.String(data)
 
-	if !(s.ReadUint24LengthPrefixed(&salt) &&
-		s.ReadUint24LengthPrefixed(&ciphertext) &&
+	if !(s.ReadUint8LengthPrefixed(&salt) &&
+		s.ReadUint16LengthPrefixed(&ciphertext) &&
 		s.ReadUint32(&ekp.Time) &&
 		s.ReadUint32(&ekp.Memory) &&
 		s.ReadUint8(&ekp.Threads)) {
