@@ -154,11 +154,9 @@ func NewEncryptedSecretKey(
 		params = defaultParams
 	}
 
-	salt := make([]byte, pbeSaltLen)
-
 	// Generate a random salt.
-	_, err := io.ReadFull(rand, salt)
-	if err != nil {
+	salt := make([]byte, pbeSaltLen)
+	if _, err := io.ReadFull(rand, salt); err != nil {
 		return nil, err
 	}
 
