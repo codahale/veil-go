@@ -56,21 +56,21 @@ type EncryptedSecretKey struct {
 	Ciphertext []byte // The secret key, encrypted with ChaCha20Poly1305.
 }
 
-func (ekp *EncryptedSecretKey) MarshalBinary() ([]byte, error) {
+func (esk *EncryptedSecretKey) MarshalBinary() ([]byte, error) {
 	b := cryptobyte.NewBuilder(nil)
 
 	// Encode the salt with an 8-bit length prefix.
 	b.AddUint8LengthPrefixed(func(child *cryptobyte.Builder) {
-		child.AddBytes(ekp.Salt)
+		child.AddBytes(esk.Salt)
 	})
 
 	// Encode the ciphertext with a 16-bit length prefix.
 	b.AddUint16LengthPrefixed(func(child *cryptobyte.Builder) {
-		child.AddBytes(ekp.Ciphertext)
+		child.AddBytes(esk.Ciphertext)
 	})
 
 	// Encode the Argon2id parameters.
-	p, _ := ekp.Argon2idParams.MarshalBinary()
+	p, _ := esk.Argon2idParams.MarshalBinary()
 	b.AddBytes(p)
 
 	return b.Bytes()
@@ -80,22 +80,22 @@ func (ekp *EncryptedSecretKey) MarshalBinary() ([]byte, error) {
 // provided data.
 var ErrInvalidEncryptedKeyPair = errors.New("invalid encrypted key pair")
 
-func (ekp *EncryptedSecretKey) UnmarshalBinary(data []byte) error {
+func (esk *EncryptedSecretKey) UnmarshalBinary(data []byte) error {
 	s := cryptobyte.String(data)
 
-	if !(s.ReadUint8LengthPrefixed((*cryptobyte.String)(&ekp.Salt)) &&
-		s.ReadUint16LengthPrefixed((*cryptobyte.String)(&ekp.Ciphertext)) &&
-		s.ReadUint32(&ekp.Time) &&
-		s.ReadUint32(&ekp.Memory) &&
-		s.ReadUint8(&ekp.Parallelism)) {
+	if !(s.ReadUint8LengthPrefixed((*cryptobyte.String)(&esk.Salt)) &&
+		s.ReadUint16LengthPrefixed((*cryptobyte.String)(&esk.Ciphertext)) &&
+		s.ReadUint32(&esk.Time) &&
+		s.ReadUint32(&esk.Memory) &&
+		s.ReadUint8(&esk.Parallelism)) {
 		return ErrInvalidEncryptedKeyPair
 	}
 
 	return nil
 }
 
-func (ekp *EncryptedSecretKey) MarshalText() ([]byte, error) {
-	b, err := ekp.MarshalBinary()
+func (esk *EncryptedSecretKey) MarshalText() ([]byte, error) {
+	b, err := esk.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -106,17 +106,17 @@ func (ekp *EncryptedSecretKey) MarshalText() ([]byte, error) {
 	return t, nil
 }
 
-func (ekp *EncryptedSecretKey) UnmarshalText(text []byte) error {
+func (esk *EncryptedSecretKey) UnmarshalText(text []byte) error {
 	b, err := base64.RawURLEncoding.DecodeString(string(text))
 	if err != nil {
 		return err
 	}
 
-	return ekp.UnmarshalBinary(b)
+	return esk.UnmarshalBinary(b)
 }
 
-func (ekp *EncryptedSecretKey) String() string {
-	t, _ := ekp.MarshalText()
+func (esk *EncryptedSecretKey) String() string {
+	t, _ := esk.MarshalText()
 	return string(t)
 }
 
@@ -168,16 +168,16 @@ func NewEncryptedSecretKey(
 
 // Decrypt uses the given password to decrypt the key pair. Returns an error if the password is
 // incorrect or if the encrypted key pair has been modified.
-func (ekp *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
+func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	// Encode the Argon parameters as authenticated data.
-	data, _ := ekp.Argon2idParams.MarshalBinary()
+	data, _ := esk.Argon2idParams.MarshalBinary()
 
 	// Use Argon2id to derive a key and nonce from the password and salt.
-	key, nonce := pbeKDF(password, ekp.Salt, &ekp.Argon2idParams)
+	key, nonce := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
 	aead, _ := chacha20poly1305.New(key)
 
 	// Decrypt the secret key.
-	plaintext, err := aead.Open(nil, nonce, ekp.Ciphertext, data)
+	plaintext, err := aead.Open(nil, nonce, esk.Ciphertext, data)
 	if err != nil {
 		return nil, err
 	}

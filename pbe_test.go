@@ -15,12 +15,12 @@ func TestPBE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ekp, err := NewEncryptedSecretKey(rand.Reader, kp, []byte("this is magic"), nil)
+	esk, err := NewEncryptedSecretKey(rand.Reader, kp, []byte("this is magic"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	dkp, err := ekp.Decrypt([]byte("this is magic"))
+	dkp, err := esk.Decrypt([]byte("this is magic"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestPBE(t *testing.T) {
 func TestEncryptedSecretKey_MarshalBinary(t *testing.T) {
 	t.Parallel()
 
-	ekp := &EncryptedSecretKey{
+	esk := &EncryptedSecretKey{
 		Salt:       []byte("salt"),
 		Ciphertext: []byte("ciphertext"),
 		Argon2idParams: Argon2idParams{
@@ -43,7 +43,7 @@ func TestEncryptedSecretKey_MarshalBinary(t *testing.T) {
 		},
 	}
 
-	data, err := ekp.MarshalBinary()
+	data, err := esk.MarshalBinary()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestEncryptedSecretKey_UnmarshalBinary(t *testing.T) {
 func TestEncryptedSecretKey_MarshalText(t *testing.T) {
 	t.Parallel()
 
-	ekp := &EncryptedSecretKey{
+	esk := &EncryptedSecretKey{
 		Salt:       []byte("salt"),
 		Ciphertext: []byte("ciphertext"),
 		Argon2idParams: Argon2idParams{
@@ -94,7 +94,7 @@ func TestEncryptedSecretKey_MarshalText(t *testing.T) {
 		},
 	}
 
-	text, err := ekp.MarshalText()
+	text, err := esk.MarshalText()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestEncryptedSecretKey_UnmarshalText(t *testing.T) {
 func TestEncryptedSecretKey_String(t *testing.T) {
 	t.Parallel()
 
-	ekp := &EncryptedSecretKey{
+	esk := &EncryptedSecretKey{
 		Salt:       []byte("salt"),
 		Ciphertext: []byte("ciphertext"),
 		Argon2idParams: Argon2idParams{
@@ -137,5 +137,5 @@ func TestEncryptedSecretKey_String(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, "encoded keypair", "BHNhbHQACmNpcGhlcnRleHQAAAAKAAAAyB4", ekp.String())
+	assert.Equal(t, "encoded keypair", "BHNhbHQACmNpcGhlcnRleHQAAAAKAAAAyB4", esk.String())
 }
