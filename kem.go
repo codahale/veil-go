@@ -61,8 +61,10 @@ func kemEncrypt(
 // decrypted, there are strong assurances that the holder of the initiator's secret key created the
 // ciphertext.
 func kemDecrypt(pkI, pkR *ristretto.Point, skR *ristretto.Scalar, ciphertext, data []byte) ([]byte, error) {
+	// Parse out the Elligator2 representative and the remaining ciphertext.
+	rkE, ciphertext := ciphertext[:kemPublicKeyLen], ciphertext[kemPublicKeyLen:]
+
 	// Convert the embedded Elligator2 representative to a Ristretto255/DH public key.
-	rkE := ciphertext[:kemPublicKeyLen]
 	pkE := rk2pk(rkE)
 
 	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the
@@ -89,7 +91,7 @@ func kemDecrypt(pkI, pkR *ristretto.Point, skR *ristretto.Scalar, ciphertext, da
 	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
 	aead, _ := chacha20poly1305.New(key)
-	plaintext, err := aead.Open(nil, nonce, ciphertext[kemPublicKeyLen:], data)
+	plaintext, err := aead.Open(nil, nonce, ciphertext, data)
 
 	return plaintext, err
 }
