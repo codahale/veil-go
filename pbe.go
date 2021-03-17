@@ -81,20 +81,15 @@ func (ekp *EncryptedSecretKey) MarshalBinary() ([]byte, error) {
 var ErrInvalidEncryptedKeyPair = errors.New("invalid encrypted key pair")
 
 func (ekp *EncryptedSecretKey) UnmarshalBinary(data []byte) error {
-	var salt, ciphertext cryptobyte.String
-
 	s := cryptobyte.String(data)
 
-	if !(s.ReadUint8LengthPrefixed(&salt) &&
-		s.ReadUint16LengthPrefixed(&ciphertext) &&
+	if !(s.ReadUint8LengthPrefixed((*cryptobyte.String)(&ekp.Salt)) &&
+		s.ReadUint16LengthPrefixed((*cryptobyte.String)(&ekp.Ciphertext)) &&
 		s.ReadUint32(&ekp.Time) &&
 		s.ReadUint32(&ekp.Memory) &&
 		s.ReadUint8(&ekp.Parallelism)) {
 		return ErrInvalidEncryptedKeyPair
 	}
-
-	ekp.Salt = salt
-	ekp.Ciphertext = ciphertext
 
 	return nil
 }
