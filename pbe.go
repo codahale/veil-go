@@ -133,29 +133,22 @@ var (
 	_ fmt.Stringer               = &EncryptedSecretKey{}
 )
 
-//nolint:gochecknoglobals // just a constant
-// defaultParams is the set of default parameters, chosen for a balance of security and speed.
-var defaultParams = &Argon2idParams{
-	Time:        4,
-	Memory:      1 * 1024 * 1024, // 1GiB
-	Parallelism: 4,
-}
-
-const (
-	pbeSaltLen = 16 // The length of PBE salts, in bytes.
-)
-
 // NewEncryptedSecretKey encrypts the given key pair with the given password.
 func NewEncryptedSecretKey(
 	rand io.Reader, sk *SecretKey, password []byte, params *Argon2idParams,
 ) (*EncryptedSecretKey, error) {
 	// Use default parameters if none are provided.
 	if params == nil {
-		params = defaultParams
+		// As recommended in https://tools.ietf.org/html/draft-irtf-cfrg-argon2-12#section-7.4.
+		params = &Argon2idParams{
+			Time:        1,
+			Memory:      1 * 1024 * 1024, // 1GiB
+			Parallelism: 4,
+		}
 	}
 
-	// Generate a random salt.
-	salt := make([]byte, pbeSaltLen)
+	// Generate a random 16-byte salt.
+	salt := make([]byte, 16)
 	if _, err := io.ReadFull(rand, salt); err != nil {
 		return nil, err
 	}
