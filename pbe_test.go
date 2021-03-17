@@ -10,24 +10,24 @@ import (
 func TestPBE(t *testing.T) {
 	t.Parallel()
 
-	kp, err := NewSecretKey(rand.Reader)
+	sk, err := NewSecretKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	esk, err := NewEncryptedSecretKey(rand.Reader, kp, []byte("this is magic"), nil)
+	esk, err := NewEncryptedSecretKey(rand.Reader, sk, []byte("this is magic"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	dkp, err := esk.Decrypt([]byte("this is magic"))
+	dsk, err := esk.Decrypt([]byte("this is magic"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "decrypted secret key", kp.s.Bytes(), dkp.s.Bytes())
-	assert.Equal(t, "decrypted public key", kp.pk.q.Bytes(), dkp.pk.q.Bytes())
-	assert.Equal(t, "decrypted public key representative", kp.pk.rk, dkp.pk.rk)
+	assert.Equal(t, "decrypted secret key", sk.s.Bytes(), dsk.s.Bytes())
+	assert.Equal(t, "decrypted public key", sk.pk.q.Bytes(), dsk.pk.q.Bytes())
+	assert.Equal(t, "decrypted public key representative", sk.pk.rk, dsk.pk.rk)
 }
 
 func TestEncryptedSecretKey_MarshalBinary(t *testing.T) {
