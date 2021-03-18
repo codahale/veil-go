@@ -1,6 +1,7 @@
 package veil
 
 import (
+	"bytes"
 	"io"
 
 	"github.com/bwesterb/go-ristretto"
@@ -51,9 +52,18 @@ func kemEncrypt(
 	// Encrypt the plaintext DEM using the derived key, the derived nonce, and the the authenticated
 	// data. Prepend the ephemeral public key's Elligator2 representative and return.
 	aead, _ := chacha20poly1305.New(key)
-	ciphertext := aead.Seal(rkE, nonce, plaintext, data)
+	stream := aeadStream{
+		aead: aead,
+		nonceSequence: nonceSequence{
+			nonce: nonce,
+		},
+	}
+	in := bytes.NewReader(plaintext)
+	out := bytes.NewBuffer(nil)
+	_, _ = out.Write(rkE)
+	_, _ = stream.encrypt(out, in, data, len(plaintext)*2)
 
-	return ciphertext, nil
+	return out.Bytes(), nil
 }
 
 // kemDecrypt decrypts the given ciphertext using the recipient's secret key, the recipient's public
@@ -88,12 +98,24 @@ func kemDecrypt(pkI, pkR *ristretto.Point, skR *ristretto.Scalar, ciphertext, da
 	// Elligator2 representative, and the public keys of both the recipient and the initiator.
 	key, nonce := kdf(zz, data, rkE, pkR, pkI)
 
-	// Encrypt the plaintext with the DEM using the derived key, the derived nonce, and the
+	// Decrypt the ciphertext with the DEM using the derived key, the derived nonce, and the
 	// ephemeral public key representative as the authenticated data.
 	aead, _ := chacha20poly1305.New(key)
-	plaintext, err := aead.Open(nil, nonce, ciphertext, data)
+	stream := aeadStream{
+		aead: aead,
+		nonceSequence: nonceSequence{
+			nonce: nonce,
+		},
+	}
+	in := bytes.NewReader(ciphertext)
+	out := bytes.NewBuffer(nil)
 
-	return plaintext, err
+	_, err = stream.decrypt(out, in, data, len(ciphertext)*2)
+	if err != nil {
+		return nil, err
+	}
+
+	return out.Bytes(), nil
 }
 
 // kdf returns a ChaCha20Poly1305 key and nonce derived from the given initial keying material, the
