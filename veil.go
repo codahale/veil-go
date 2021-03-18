@@ -150,17 +150,17 @@ func (sk *SecretKey) Encrypt(
 	_, _ = buf.Write(headers)
 
 	// Copy the plaintext into a buffer with room for padding.
-	padded := make([]byte, size+padding)
-	copy(padded[:size], plaintext)
+	padded := bytes.NewBuffer(make([]byte, 0, size+padding))
+	_, _ = padded.Write(plaintext)
 
 	// Pad the plaintext with random data.
-	if _, err := io.ReadFull(rand, padded[size:]); err != nil {
+	if _, err := io.CopyN(padded, rand, int64(padding)); err != nil {
 		return nil, err
 	}
 
 	// Encrypt the signed, padded plaintext with the ephemeral public key, using the encrypted
 	// headers as authenticated data.
-	ciphertext, err := kemEncrypt(rand, &sk.s, &sk.pk.q, &pkE, padded, headers)
+	ciphertext, err := kemEncrypt(rand, &sk.s, &sk.pk.q, &pkE, padded.Bytes(), headers)
 	if err != nil {
 		return nil, err
 	}
@@ -175,12 +175,12 @@ func (sk *SecretKey) Encrypt(
 // encodeHeader returns a header with the ephemeral secret key, the ciphertext offset, and the
 // ciphertext length.
 func encodeHeader(skE *ristretto.Scalar, offset, size int) []byte {
-	header := make([]byte, headerLen)
-	copy(header, skE.Bytes())
-	binary.BigEndian.PutUint64(header[kemPublicKeyLen:], uint64(offset))
-	binary.BigEndian.PutUint64(header[kemPublicKeyLen+8:], uint64(size))
+	buf := bytes.NewBuffer(make([]byte, 0, headerLen))
+	_, _ = buf.Write(skE.Bytes())
+	_ = binary.Write(buf, binary.BigEndian, uint64(offset))
+	_ = binary.Write(buf, binary.BigEndian, uint64(size))
 
-	return header
+	return buf.Bytes()
 }
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
