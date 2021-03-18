@@ -102,7 +102,8 @@ func kemDecrypt(pkI, pkR *ristretto.Point, skR *ristretto.Scalar, ciphertext, da
 func kdf(ikm, data, rkE []byte, pkR, pkI *ristretto.Point) ([]byte, []byte) {
 	// Create a salt consisting of the Elligator2 representative of the ephemeral key, the
 	// recipient's public key, and the initiator's public key.
-	salt := append([]byte(nil), rkE...)
+	salt := make([]byte, 0, len(rkE)*3)
+	salt = append(salt, rkE...)
 	salt = append(salt, pkR.Bytes()...)
 	salt = append(salt, pkI.Bytes()...)
 
