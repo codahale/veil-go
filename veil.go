@@ -12,6 +12,7 @@
 package veil
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding"
 	"encoding/base64"
@@ -134,65 +135,81 @@ func (sk *SecretKey) Encrypt(
 	}
 
 	// Encode the ephemeral secret key, offset, and size into a header.
-	header := make([]byte, headerLen)
-	copy(header, skE.Bytes())
-
 	offset := encryptedHeaderLen * len(publicKeys)
-	binary.BigEndian.PutUint64(header[kemPublicKeyLen:], uint64(offset))
-	binary.BigEndian.PutUint64(header[kemPublicKeyLen+8:], uint64(len(plaintext)))
+	size := len(plaintext)
+	header := encodeHeader(&skE, offset, size)
 
-	// Allocate room for encrypted copies of the header.
-	out := make([]byte, offset+len(plaintext)+kemOverhead+padding)
-
-	// Write KEM-encrypted copies of the header.
-	if err := writeHeaders(rand, &sk.pk.q, &sk.s, publicKeys, header, out); err != nil {
+	// Encrypt copies of the header for each recipient.
+	headers, err := encryptHeaders(rand, header, &sk.s, &sk.pk.q, publicKeys)
+	if err != nil {
 		return nil, err
 	}
 
+	// Write KEM-encrypted copies of the header.
+	buf := bytes.NewBuffer(make([]byte, 0, offset+size+kemOverhead+padding))
+	_, _ = buf.Write(headers)
+
 	// Copy the plaintext into a buffer with room for padding.
-	padded := make([]byte, len(plaintext)+padding)
-	copy(padded[:len(plaintext)], plaintext)
+	padded := make([]byte, size+padding)
+	copy(padded[:size], plaintext)
 
 	// Pad the plaintext with random data.
-	if _, err := io.ReadFull(rand, padded[len(plaintext):]); err != nil {
+	if _, err := io.ReadFull(rand, padded[size:]); err != nil {
 		return nil, err
 	}
 
 	// Encrypt the signed, padded plaintext with the ephemeral public key, using the encrypted
 	// headers as authenticated data.
-	ciphertext, err := kemEncrypt(rand, &sk.s, &sk.pk.q, &pkE, padded, out[:offset])
+	ciphertext, err := kemEncrypt(rand, &sk.s, &sk.pk.q, &pkE, padded, headers)
 	if err != nil {
 		return nil, err
 	}
 
-	copy(out[offset:], ciphertext)
+	// Write the ciphertext.
+	_, _ = buf.Write(ciphertext)
 
 	// Return the encrypted headers and the encrypted, padded plaintext.
-	return out, nil
+	return buf.Bytes(), nil
 }
 
-func writeHeaders(
-	rand io.Reader, pkI *ristretto.Point, skI *ristretto.Scalar, publicKeys []*PublicKey, header, dst []byte,
-) error {
-	for i, pkR := range publicKeys {
-		o := i * encryptedHeaderLen
+// encodeHeader returns a header with the ephemeral secret key, the ciphertext offset, and the
+// ciphertext length.
+func encodeHeader(skE *ristretto.Scalar, offset, size int) []byte {
+	header := make([]byte, headerLen)
+	copy(header, skE.Bytes())
+	binary.BigEndian.PutUint64(header[kemPublicKeyLen:], uint64(offset))
+	binary.BigEndian.PutUint64(header[kemPublicKeyLen+8:], uint64(size))
+
+	return header
+}
+
+// encryptHeaders encrypts the header for the given set of public keys with the specified number of
+// fake recipients.
+func encryptHeaders(
+	rand io.Reader, header []byte, skI *ristretto.Scalar, pkI *ristretto.Point, publicKeys []*PublicKey,
+) ([]byte, error) {
+	// Allocate a buffer for the entire header.
+	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
+
+	// Encrypt a copy of the header for each recipient.
+	for _, pkR := range publicKeys {
 		if pkR == nil {
 			// To fake a recipient, write a header-sized block of random data.
-			if _, err := io.ReadFull(rand, dst[o:(o+encryptedHeaderLen)]); err != nil {
-				return err
+			if _, err := io.CopyN(buf, rand, encryptedHeaderLen); err != nil {
+				return nil, err
 			}
 		} else {
 			// To include a real recipient, encrypt the header via KEM.
 			b, err := kemEncrypt(rand, skI, pkI, &pkR.q, header, nil)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
-			copy(dst[o:], b)
+			_, _ = buf.Write(b)
 		}
 	}
 
-	return nil
+	return buf.Bytes(), nil
 }
 
 // Decrypt uses the recipient's secret key and public key to decrypt the given message, returning
