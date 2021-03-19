@@ -230,51 +230,68 @@ func (sk *SecretKey) findHeader(src io.Reader, senders []*PublicKey) ([]byte, *P
 	buf := make([]byte, encryptedHeaderLen)
 
 	for {
+		// Iterate through src in header-sized blocks.
 		_, err := io.ReadFull(src, buf)
 		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			// If we hit the end of src without finding a decryptable header, then the ciphertext is
+			// not valid for the given parameters.
 			return nil, nil, nil, ErrInvalidCiphertext
 		} else if err != nil {
 			return nil, nil, nil, err
 		}
 
+		// Append the current header to the list of encrypted headers.
 		headers = append(headers, buf...)
 
+		// Attempt to decrypt the header.
 		pkS, skE, offset, err := sk.decryptHeader(buf, senders)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 
+		// If we successfully decrypt the header, use the message offset to read the remaining
+		// encrypted headers.
 		if pkS != nil {
 			remaining := make([]byte, offset-len(headers))
 			if _, err := io.ReadFull(src, remaining); err != nil {
 				return nil, nil, nil, err
 			}
 
+			// Return the full set of encrypted headers, the sender's public key, and the ephemeral
+			// secret key.
 			return append(headers, remaining...), pkS, skE, nil
 		}
 	}
 }
 
 // decryptHeader attempts to decrypt the given header block if sent from any of the given public
-// keys,.
+// keys.
 func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*PublicKey, *ristretto.Scalar, int, error) {
 	var skE ristretto.Scalar
 
+	// Separate the Elligator2 representative from the ciphertext.
 	rkE, ciphertext := header[:kemPublicKeyLen], header[kemPublicKeyLen:]
 
+	// Iterate through all possible senders.
 	for _, pkR := range senders {
+		// Re-derive the KEM key and nonce between the sender and recipient.
 		key, nonce, err := kemReceive(&sk.s, &sk.pk.q, &pkR.q, rkE, nil)
 		if err != nil {
 			return nil, nil, 0, err
 		}
 
+		// Use the key and nonce to attempt to decrypt the header.
 		aead, _ := chacha20poly1305.New(key)
-
 		header, err := aead.Open(nil, nonce, ciphertext, nil)
+
+		// If the header cannot be decrypted, it means the header wasn't encrypted for us by this
+		// possible sender. Continue to the next possible sender.
 		if err != nil {
 			continue
 		}
 
+		// If the header wss successful decrypted, decode the ephemeral secret key and message
+		// offset and return them.
 		_ = skE.UnmarshalBinary(header[:kemPublicKeyLen])
 		offset := binary.BigEndian.Uint32(header[kemPublicKeyLen:])
 
