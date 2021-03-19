@@ -192,10 +192,7 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	q := sk2pk(&s)
 
 	// Derive its Elligator2 representative.
-	rk, err := pk2rk(&q)
-	if err != nil {
-		return nil, err
-	}
+	rk := pk2rk(&q)
 
 	return &SecretKey{s: s, pk: PublicKey{q: q, rk: rk}}, err
 }

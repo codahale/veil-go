@@ -19,15 +19,8 @@ func TestXDH(t *testing.T) {
 	pkA := sk2pk(&skA)
 	pkB := sk2pk(&skB)
 
-	xA, err := xdh(&skA, &pkB)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	xB, err := xdh(&skB, &pkA)
-	if err != nil {
-		t.Fatal(err)
-	}
+	xA := xdh(&skA, &pkB)
+	xB := xdh(&skB, &pkA)
 
 	assert.Equal(t, "shared secret", xA, xB)
 }
@@ -41,9 +34,9 @@ func TestRepresentativeTransform(t *testing.T) {
 
 	pk := sk2pk(&sk)
 
-	rk, err := pk2rk(&pk)
-	if err != nil {
-		t.SkipNow()
+	rk := pk2rk(&pk)
+	if rk != nil {
+		t.Skipf("%s has no representative", sk.Bytes())
 	}
 
 	pk2 := rk2pk(rk)
@@ -71,10 +64,7 @@ func TestKemExchange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	keyB, nonceB, err := kemReceive(&skB, &pkB, &pkA, rkW, data)
-	if err != nil {
-		t.Fatal(err)
-	}
+	keyB, nonceB := kemReceive(&skB, &pkB, &pkA, rkW, data)
 
 	assert.Equal(t, "key", keyA, keyB)
 	assert.Equal(t, "nonce", nonceA, nonceB)

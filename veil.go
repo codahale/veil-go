@@ -197,10 +197,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	}
 
 	// Derive the shared key and nonce between the sender and the ephemeral key.
-	key, nonce, err := kemReceive(skE, &pkE, &pkS.q, rkW, headers)
-	if err != nil {
-		return nil, 0, err
-	}
+	key, nonce := kemReceive(skE, &pkE, &pkS.q, rkW, headers)
 
 	// Initialize an AEAD stream with the key and nonce.
 	stream := newAEADStream(key, nonce)
@@ -234,16 +231,11 @@ func (sk *SecretKey) findHeader(
 		headers = append(headers, block...)
 
 		// Attempt to decrypt the header.
-		pkS, skE, offset, err := sk.decryptHeader(block, senders)
+		pkS, skE, offset := sk.decryptHeader(block, senders)
 
-		switch {
-		case err != nil:
-			// If there was an error decrypting the header, return it.
-			return nil, nil, nil, err
-
-		case pkS != nil:
-			// If we successfully decrypt the header, use the message offset to read the remaining
-			// encrypted headers.
+		// If we successfully decrypt the header, use the message offset to read the remaining
+		// encrypted headers.
+		if pkS != nil {
 			remaining := make([]byte, offset-len(headers))
 			if _, err := io.ReadFull(src, remaining); err != nil {
 				return nil, nil, nil, err
@@ -252,10 +244,11 @@ func (sk *SecretKey) findHeader(
 			// Return the full set of encrypted headers, the sender's public key, and the ephemeral
 			// secret key.
 			return append(headers, remaining...), pkS, skE, nil
+		}
 
-		case final:
-			// If we hit the end of src without finding a decryptable header, then the ciphertext is
-			// not valid for the given parameters.
+		// If we hit the end of src without finding a decryptable header, then the ciphertext is
+		// not valid for the given parameters.
+		if final {
 			return nil, nil, nil, ErrInvalidCiphertext
 		}
 	}
@@ -263,7 +256,7 @@ func (sk *SecretKey) findHeader(
 
 // decryptHeader attempts to decrypt the given header block if sent from any of the given public
 // keys.
-func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*PublicKey, *ristretto.Scalar, int, error) {
+func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*PublicKey, *ristretto.Scalar, int) {
 	var skE ristretto.Scalar
 
 	// Separate the Elligator2 representative from the ciphertext.
@@ -272,10 +265,7 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 	// Iterate through all possible senders.
 	for _, pkR := range senders {
 		// Re-derive the KEM key and nonce between the sender and recipient.
-		key, nonce, err := kemReceive(&sk.s, &sk.pk.q, &pkR.q, rkE, nil)
-		if err != nil {
-			return nil, nil, 0, err
-		}
+		key, nonce := kemReceive(&sk.s, &sk.pk.q, &pkR.q, rkE, nil)
 
 		// Use the key and nonce with ChaCha20Poly1305.
 		aead, err := chacha20poly1305.New(key)
@@ -295,10 +285,10 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 		_ = skE.UnmarshalBinary(header[:kemPublicKeyLen])
 		offset := binary.BigEndian.Uint32(header[kemPublicKeyLen:])
 
-		return pkR, &skE, int(offset), nil
+		return pkR, &skE, int(offset)
 	}
 
-	return nil, nil, 0, nil
+	return nil, nil, 0
 }
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of

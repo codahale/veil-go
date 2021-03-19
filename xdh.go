@@ -1,7 +1,6 @@
 package veil
 
 import (
-	"errors"
 	"io"
 
 	"github.com/bwesterb/go-ristretto"
@@ -12,35 +11,22 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-var (
-	// errNoRepresentative is returned when a Ristretto255 point has no Elligator2 representative.
-	errNoRepresentative = errors.New("no representative")
-
-	// errInvalidExchange is returned when a Ristretto255/DH shared secret point is zero. This
-	// should never happen.
-	errInvalidExchange = errors.New("invalid exchange")
-)
+// Zero on the Ristretto255 curve.
+var zero = (&ristretto.Point{}).SetZero() //nolint:gochecknoglobals // only one zero
 
 // xdh performs a Diffie-Hellman key exchange using the given secret key and public key.
-func xdh(s *ristretto.Scalar, q *ristretto.Point) ([]byte, error) {
-	var (
-		x    ristretto.Point
-		zero ristretto.Point
-	)
-
+func xdh(s *ristretto.Scalar, q *ristretto.Point) []byte {
 	// Multiply the point by the scalar.
-	x.ScalarMult(q, s)
+	x := (&ristretto.Point{}).ScalarMult(q, s)
 
-	// Initialize a zero point.
-	zero.SetZero()
-
-	// Check to see that the shared secret point is not zero.
-	if x.Equals(&zero) {
-		return nil, errInvalidExchange
+	// Check to see that the shared secret point is not zero. This should never happen, but it's
+	// better to panic when an invariant is broken than keep chugging, and it's not hard to check.
+	if x.Equals(zero) {
+		panic("invalid exchange")
 	}
 
 	// Return the shared secret.
-	return x.Bytes(), nil
+	return x.Bytes()
 }
 
 // rk2pk converts an Elligator2 representative to a public key.
@@ -72,7 +58,7 @@ func rk2pk(rk []byte) ristretto.Point {
 }
 
 // pk2rk converts a public key to an Elligator2 representative, if possible.
-func pk2rk(q *ristretto.Point) ([]byte, error) {
+func pk2rk(q *ristretto.Point) []byte {
 	var fes [8]edwards25519.FieldElement
 
 	// Convert the public key to an extended point.
@@ -92,11 +78,11 @@ func pk2rk(q *ristretto.Point) ([]byte, error) {
 		rk := fes[i].Bytes()
 
 		// Return the public key and its representative.
-		return rk[:], nil
+		return rk[:]
 	}
 
-	// If no representative was generated, return an error.
-	return nil, errNoRepresentative
+	// If no representative was generated, return nil.
+	return nil
 }
 
 // sk2pk converts a secret key to a public key.
@@ -128,8 +114,7 @@ func ephemeralKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Sc
 		q = sk2pk(&s)
 
 		// Calculate the public key's Elligator2 representative, if any.
-		rk, err = pk2rk(&q)
-		if err != nil {
+		if rk = pk2rk(&q); rk == nil {
 			// If the public key doesn't have an Elligator2 representative, try again.
 			continue
 		}
@@ -159,17 +144,11 @@ func kemSend(
 
 	// Calculate the Ristretto255/DH shared secret between the ephemeral secret key and the
 	// recipient's Ristretto255/DH public key.
-	zzE, err := xdh(&skE, pkR)
-	if err != nil {
-		return nil, nil, nil, err
-	}
+	zzE := xdh(&skE, pkR)
 
 	// Calculate the Ristretto255/DH shared secret between the sender's secret key and the
 	// recipient's Ristretto255/DH public key.
-	zzS, err := xdh(skS, pkR)
-	if err != nil {
-		return nil, nil, nil, err
-	}
+	zzS := xdh(skS, pkR)
 
 	// Concatenate the two to form the shared secret.
 	zz := append(zzE, zzS...)
@@ -184,23 +163,17 @@ func kemSend(
 // kemReceive generates a symmetric key and a nonce given the recipient's secret key, the
 // recipient's public key, the sender's public key, the ephemeral Elligator2 representative, and
 // any authenticated data.
-func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []byte) ([]byte, []byte, error) {
+func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []byte) ([]byte, []byte) {
 	// Convert the embedded Elligator2 representative to a Ristretto255/DH public key.
 	pkE := rk2pk(rkE)
 
 	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the
 	// ephemeral public key.
-	zzE, err := xdh(skR, &pkE)
-	if err != nil {
-		return nil, nil, err
-	}
+	zzE := xdh(skR, &pkE)
 
 	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the
 	// sender's public key.
-	zzS, err := xdh(skR, pkS)
-	if err != nil {
-		return nil, nil, err
-	}
+	zzS := xdh(skR, pkS)
 
 	// Concatenate the two to form the shared secret.
 	zz := append(zzE, zzS...)
@@ -209,7 +182,7 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []by
 	// Elligator2 representative, and the public keys of both the recipient and sender.
 	key, nonce := kdf(zz, data, rkE, pkR, pkS)
 
-	return key, nonce, nil
+	return key, nonce
 }
 
 // kdf returns a ChaCha20Poly1305 key and nonce derived from the given initial keying material, the
