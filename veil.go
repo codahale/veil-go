@@ -12,6 +12,7 @@
 package veil
 
 import (
+	"bufio"
 	"bytes"
 	crand "crypto/rand"
 	"encoding"
@@ -124,6 +125,8 @@ const (
 // authenticate it and writes the results to dst. Returns the number of bytes written and the first
 // error reported while encrypting, if any.
 func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*PublicKey) (int, error) {
+	r := bufio.NewReader(src)
+
 	// Generate an ephemeral Ristretto255/DH key pair.
 	pkE, _, skE, err := ephemeralKeys(rand)
 	if err != nil {
@@ -164,7 +167,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 	stream := newAEADStream(key, nonce)
 
 	// Encrypt the plaintext as a stream.
-	bn, err := stream.encrypt(dst, src, nil, blockSize)
+	bn, err := stream.encrypt(dst, r, nil, blockSize)
 	if err != nil {
 		return n + an + bn, err
 	}
@@ -176,8 +179,10 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 // the sender's public key, the number of decrypted bytes written, and the first reported error, if
 // any.
 func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey) (*PublicKey, int, error) {
+	r := bufio.NewReader(src)
+
 	// Find a decryptable header and recover the ephemeral secret key.
-	headers, pkS, skE, err := sk.findHeader(src, senders)
+	headers, pkS, skE, err := sk.findHeader(r, senders)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -187,7 +192,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 
 	// Read the ephemeral Elligator2 representative.
 	rkW := make([]byte, kemPublicKeyLen)
-	if _, err := io.ReadFull(src, rkW); err != nil {
+	if _, err := io.ReadFull(r, rkW); err != nil {
 		return nil, 0, err
 	}
 
@@ -201,7 +206,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	stream := newAEADStream(key, nonce)
 
 	// Decrypt the original stream.
-	n, err := stream.decrypt(dst, src, nil, blockSize)
+	n, err := stream.decrypt(dst, r, nil, blockSize)
 	if err != nil {
 		return nil, n, err
 	}
@@ -212,34 +217,33 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 
 // findHeader scans src for header blocks encrypted by any of the given possible senders. Returns
 // the full slice of encrypted headers, the sender's public key, and the ephemeral secret key.
-//nolint:gocognit // This isn't actually that complicated.
-func (sk *SecretKey) findHeader(src io.Reader, senders []*PublicKey) ([]byte, *PublicKey, *ristretto.Scalar, error) {
-	headers := make([]byte, 0, len(senders)*encryptedHeaderLen)
-	buf := make([]byte, encryptedHeaderLen)
+func (sk *SecretKey) findHeader(
+	src *bufio.Reader, senders []*PublicKey,
+) ([]byte, *PublicKey, *ristretto.Scalar, error) {
+	headers := make([]byte, 0, len(senders)*encryptedHeaderLen) // a guess at initial capacity
+	br := newBlockReader(src, encryptedHeaderLen)
 
 	for {
 		// Iterate through src in header-sized blocks.
-		_, err := io.ReadFull(src, buf)
-		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-			// If we hit the end of src without finding a decryptable header, then the ciphertext is
-			// not valid for the given parameters.
-			return nil, nil, nil, ErrInvalidCiphertext
-		} else if err != nil {
-			return nil, nil, nil, err
-		}
-
-		// Append the current header to the list of encrypted headers.
-		headers = append(headers, buf...)
-
-		// Attempt to decrypt the header.
-		pkS, skE, offset, err := sk.decryptHeader(buf, senders)
+		block, final, err := br.read()
 		if err != nil {
 			return nil, nil, nil, err
 		}
 
-		// If we successfully decrypt the header, use the message offset to read the remaining
-		// encrypted headers.
-		if pkS != nil {
+		// Append the current header to the list of encrypted headers.
+		headers = append(headers, block...)
+
+		// Attempt to decrypt the header.
+		pkS, skE, offset, err := sk.decryptHeader(block, senders)
+
+		switch {
+		case err != nil:
+			// If there was an error decrypting the header, return it.
+			return nil, nil, nil, err
+
+		case pkS != nil:
+			// If we successfully decrypt the header, use the message offset to read the remaining
+			// encrypted headers.
 			remaining := make([]byte, offset-len(headers))
 			if _, err := io.ReadFull(src, remaining); err != nil {
 				return nil, nil, nil, err
@@ -248,6 +252,11 @@ func (sk *SecretKey) findHeader(src io.Reader, senders []*PublicKey) ([]byte, *P
 			// Return the full set of encrypted headers, the sender's public key, and the ephemeral
 			// secret key.
 			return append(headers, remaining...), pkS, skE, nil
+
+		case final:
+			// If we hit the end of src without finding a decryptable header, then the ciphertext is
+			// not valid for the given parameters.
+			return nil, nil, nil, ErrInvalidCiphertext
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package veil
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/rand"
 	"io"
@@ -14,7 +15,7 @@ func TestAEADStream(t *testing.T) {
 	t.Parallel()
 
 	// Set up inputs and outputs.
-	src := bytes.NewBufferString("welcome to paradise")
+	src := bufio.NewReader(bytes.NewBufferString("welcome to paradise"))
 	dst := bytes.NewBuffer(nil)
 
 	// Create an AEAD.
@@ -41,7 +42,7 @@ func TestAEADStream(t *testing.T) {
 
 	// Reset the stream and swap inputs and outputs.
 	stream.counter = 0
-	src = bytes.NewBuffer(dst.Bytes())
+	src = bufio.NewReader(bytes.NewBuffer(dst.Bytes()))
 	dst = bytes.NewBuffer(nil)
 
 	// Decrypt the output using the same block size.
@@ -76,7 +77,7 @@ func TestNonceSequence(t *testing.T) {
 func TestBlockReader_Exact(t *testing.T) {
 	t.Parallel()
 
-	r := io.LimitReader(rand.Reader, blockSize*6)
+	r := bufio.NewReader(io.LimitReader(rand.Reader, blockSize*6))
 	br := newBlockReader(r, blockSize)
 
 	var counts []int
@@ -101,7 +102,7 @@ func TestBlockReader_Exact(t *testing.T) {
 func TestBlockReader_Odd(t *testing.T) {
 	t.Parallel()
 
-	r := io.LimitReader(rand.Reader, (blockSize*6)+100)
+	r := bufio.NewReader(io.LimitReader(rand.Reader, (blockSize*6)+100))
 	br := newBlockReader(r, blockSize)
 
 	var counts []int

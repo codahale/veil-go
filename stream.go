@@ -31,7 +31,7 @@ func newAEADStream(key, nonce []byte) *aeadStream {
 	}
 }
 
-func (as *aeadStream) encrypt(dst io.Writer, src io.Reader, ad []byte, blockSize int) (int, error) {
+func (as *aeadStream) encrypt(dst io.Writer, src *bufio.Reader, ad []byte, blockSize int) (int, error) {
 	br := newBlockReader(src, blockSize)
 	wn := 0
 
@@ -59,7 +59,7 @@ func (as *aeadStream) encrypt(dst io.Writer, src io.Reader, ad []byte, blockSize
 	}
 }
 
-func (as *aeadStream) decrypt(dst io.Writer, src io.Reader, ad []byte, blockSize int) (int, error) {
+func (as *aeadStream) decrypt(dst io.Writer, src *bufio.Reader, ad []byte, blockSize int) (int, error) {
 	br := newBlockReader(src, blockSize+as.aead.Overhead())
 	wn := 0
 
@@ -124,9 +124,9 @@ type blockReader struct {
 	in        []byte
 }
 
-func newBlockReader(src io.Reader, blockSize int) *blockReader {
+func newBlockReader(src *bufio.Reader, blockSize int) *blockReader {
 	return &blockReader{
-		r:         bufio.NewReader(src),
+		r:         src,
 		blockSize: blockSize,
 		in:        make([]byte, blockSize),
 	}
