@@ -1,6 +1,7 @@
 package veil
 
 import (
+	"bufio"
 	"crypto/cipher"
 	"encoding/binary"
 	"errors"
@@ -31,25 +32,21 @@ func newAEADStream(key, nonce []byte) *aeadStream {
 }
 
 func (as *aeadStream) encrypt(dst io.Writer, src io.Reader, ad []byte, blockSize int) (int, error) {
-	// Allocate a buffer big enough for a block of ciphertext.
-	buf := make([]byte, blockSize+as.aead.Overhead())
+	br := newBlockReader(src, blockSize)
 	wn := 0
-	final := false
 
 	for {
 		// Read a block of plaintext.
-		rn, err := io.ReadFull(src, buf[:blockSize])
-		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-			final = true
-		} else if err != nil {
+		block, final, err := br.read()
+		if err != nil {
 			return wn, err
 		}
 
 		// Encrypt the block.
-		buf = as.aead.Seal(buf[:0], as.next(final), buf[:rn], ad)
+		block = as.aead.Seal(block[:0], as.next(final), block, ad)
 
 		// Write the encrypted block.
-		n, err := dst.Write(buf)
+		n, err := dst.Write(block)
 		wn += n
 
 		if err != nil {
@@ -63,28 +60,24 @@ func (as *aeadStream) encrypt(dst io.Writer, src io.Reader, ad []byte, blockSize
 }
 
 func (as *aeadStream) decrypt(dst io.Writer, src io.Reader, ad []byte, blockSize int) (int, error) {
-	blockSize += as.aead.Overhead()
-	buf := make([]byte, blockSize)
+	br := newBlockReader(src, blockSize+as.aead.Overhead())
 	wn := 0
-	final := false
 
 	for {
 		// Read a block of ciphertext, plus AEAD tag.
-		rn, err := io.ReadFull(src, buf[:blockSize])
-		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-			final = true
-		} else if err != nil {
+		block, final, err := br.read()
+		if err != nil {
 			return wn, err
 		}
 
 		// Decrypt the block.
-		buf, err = as.aead.Open(buf[:0], as.next(final), buf[:rn], ad)
+		block, err = as.aead.Open(block[:0], as.next(final), block, ad)
 		if err != nil {
 			return wn, err
 		}
 
 		// Write the decrypted block.
-		n, err := dst.Write(buf)
+		n, err := dst.Write(block)
 		wn += n
 
 		if err != nil {
@@ -123,4 +116,45 @@ func (ns *nonceSequence) next(final bool) []byte {
 
 	// Return the new nonce.
 	return ns.nonce
+}
+
+type blockReader struct {
+	r         *bufio.Reader
+	blockSize int
+	in        []byte
+}
+
+func newBlockReader(src io.Reader, blockSize int) *blockReader {
+	return &blockReader{
+		r:         bufio.NewReader(src),
+		blockSize: blockSize,
+		in:        make([]byte, blockSize),
+	}
+}
+
+func (br *blockReader) read() ([]byte, bool, error) {
+	final := false
+
+	// Read a block of data.
+	n, err := io.ReadFull(br.r, br.in[:br.blockSize])
+	if err != nil {
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			// If we hit an EOF, expected and/or otherwise, this is the final block.
+			final = true
+		} else {
+			return nil, false, err
+		}
+	}
+
+	// Peek ahead a single byte.
+	if _, err := br.r.Peek(1); err != nil {
+		// If we hit an EOF, expected and/or otherwise, this is the final block.
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			final = true
+		} else {
+			return nil, false, err
+		}
+	}
+
+	return br.in[:n], final, nil
 }

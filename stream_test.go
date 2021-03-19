@@ -2,6 +2,8 @@ package veil
 
 import (
 	"bytes"
+	"crypto/rand"
+	"io"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -69,4 +71,54 @@ func TestNonceSequence(t *testing.T) {
 	n3 := ns.next(true)
 	assert.Equal(t, "nonce sequence",
 		[]byte{0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x00, 0x00, 0x00, 0x03, 0x01}, n3)
+}
+
+func TestBlockReader_Exact(t *testing.T) {
+	t.Parallel()
+
+	r := io.LimitReader(rand.Reader, blockSize*6)
+	br := newBlockReader(r, blockSize)
+
+	var counts []int
+
+	for {
+		block, final, err := br.read()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		counts = append(counts, len(block))
+
+		if final {
+			break
+		}
+	}
+
+	assert.Equal(t, "block sizes",
+		[]int{1048576, 1048576, 1048576, 1048576, 1048576, 1048576}, counts)
+}
+
+func TestBlockReader_Odd(t *testing.T) {
+	t.Parallel()
+
+	r := io.LimitReader(rand.Reader, (blockSize*6)+100)
+	br := newBlockReader(r, blockSize)
+
+	var counts []int
+
+	for {
+		block, final, err := br.read()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		counts = append(counts, len(block))
+
+		if final {
+			break
+		}
+	}
+
+	assert.Equal(t, "block sizes",
+		[]int{1048576, 1048576, 1048576, 1048576, 1048576, 1048576, 100}, counts)
 }
