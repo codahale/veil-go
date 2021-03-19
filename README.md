@@ -86,14 +86,14 @@ Argon2id parameters as authenticated data.
 ## What's the point
 
 1. Veil messages are confidential: no one can read the message without being a recipient.
-2. Veil messages can be read by all of the intended recipients, but no recipient can modify the
+2. Veil messages can be read by all the intended recipients, but no recipient can modify the
    message's content or metadata without possessing the sender's secret key.
-3. Veil messages are tamper-proof. If a single bit of the entire message is changed, all of the
+3. Veil messages are tamper-proof. If a single bit of the entire message is changed, all the
    recipients will know.
 4. Veil messages are indistinguishable from random noise, revealing no metadata about recipients'
    identities, number of recipients, etc.
 5. Veil messages can be padded, obscuring a message's actual length.
-6. The number of recipients in a Veil message can be obscured from recipients by adding blocks of
-   random noise instead of encrypted headers.
+6. The number of recipients in a Veil message can be obscured from recipients by adding fake keys
+   to the recipients list.
 7. Veil messages are non-repudiable.
-8. Veil messages can be arbitrarily big.
+8. Veil messages can be arbitrarily big and both encrypted and decrypted in a single pass.
