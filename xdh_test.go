@@ -1,6 +1,7 @@
 package veil
 
 import (
+	"crypto/rand"
 	"testing"
 
 	"github.com/bwesterb/go-ristretto"
@@ -48,4 +49,39 @@ func TestRepresentativeTransform(t *testing.T) {
 	pk2 := rk2pk(rk)
 
 	assert.Equal(t, "public key", pk.Bytes(), pk2.Bytes())
+}
+
+func TestKemExchange(t *testing.T) {
+	t.Parallel()
+
+	pkA, _, skA, err := ephemeralKeys(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pkB, _, skB, err := ephemeralKeys(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data := []byte("ok")
+
+	rkW, keyA, nonceA, err := kemSend(rand.Reader, &skA, &pkA, &pkB, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	keyB, nonceB, err := kemReceive(&skB, &pkB, &pkA, rkW, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "key", keyA, keyB)
+	assert.Equal(t, "nonce", nonceA, nonceB)
+}
+
+func BenchmarkEphemeralKeys(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, _, _, _ = ephemeralKeys(rand.Reader)
+	}
 }

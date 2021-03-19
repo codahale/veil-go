@@ -6,7 +6,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	rand2 "math/rand"
+	"io"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -26,16 +26,21 @@ func Example() {
 	}
 
 	// Alice writes a message.
-	message := []byte("one two three four I declare a thumb war")
+	message := bytes.NewReader([]byte("one two three four I declare a thumb war"))
+	encrypted := bytes.NewBuffer(nil)
 
-	// Alice encrypts the message for her and Bob with 10 fake recipients and 1000 bytes of padding.
-	ciphertext, err := alice.Encrypt(rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()}, message, 1000, 10)
+	// Alice encrypts the message for her and Bob.
+	_, err = alice.Encrypt(encrypted, message, rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()})
 	if err != nil {
 		panic(err)
 	}
 
+	// Alice sends the message to Bob.
+	received := bytes.NewReader(encrypted.Bytes())
+	decrypted := bytes.NewBuffer(nil)
+
 	// Bob decrypts the message and sees that it was encrypted by Alice.
-	pk, plaintext, err := bob.Decrypt([]*PublicKey{bob.PublicKey(), alice.PublicKey()}, ciphertext)
+	pk, _, err := bob.Decrypt(decrypted, received, []*PublicKey{bob.PublicKey(), alice.PublicKey()})
 	if err != nil {
 		panic(err)
 	}
@@ -46,7 +51,7 @@ func Example() {
 		fmt.Println("sent by B")
 	}
 
-	fmt.Println(string(plaintext))
+	fmt.Println(decrypted.String())
 	// Output:
 	// sent by A
 	// one two three four I declare a thumb war
@@ -66,29 +71,27 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	message := []byte("one two three four I declare a thumb war")
+	enc := bytes.NewBuffer(nil)
 
-	ciphertext, err := a.Encrypt(rand.Reader, []*PublicKey{a.PublicKey(), b.PublicKey()}, message, 1000, 10)
+	publicKeys := []*PublicKey{a.PublicKey(), b.PublicKey()}
+
+	eb, err := a.Encrypt(enc, bytes.NewReader(message), rand.Reader, publicKeys)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pk, plaintext, err := b.Decrypt([]*PublicKey{a.PublicKey(), b.PublicKey()}, ciphertext)
+	enc = bytes.NewBuffer(enc.Bytes())
+	dec := bytes.NewBuffer(nil)
+
+	pk, db, err := b.Decrypt(dec, bytes.NewBuffer(enc.Bytes()), publicKeys)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assert.Equal(t, "public key", pk.q.Bytes(), a.pk.q.Bytes())
-
-	assert.Equal(t, "plaintext", message, plaintext)
-
-	for i := 0; i < 1000; i++ {
-		corruptCiphertext := corrupt(ciphertext)
-
-		_, _, err = b.Decrypt([]*PublicKey{a.PublicKey()}, corruptCiphertext)
-		if err == nil {
-			t.Fatalf("Was able to decrypt %v#/%#v/%v", a, b, corruptCiphertext)
-		}
-	}
+	assert.Equal(t, "plaintext", message, dec.Bytes())
+	assert.Equal(t, "encrypted bytes", 256, eb)
+	assert.Equal(t, "decrypted bytes", 40, db)
 }
 
 func TestPublicKey_Text(t *testing.T) {
@@ -156,61 +159,65 @@ func TestSecretKey_String(t *testing.T) {
 	assert.Equal(t, "string representation", sk.PublicKey().String(), sk.String())
 }
 
-func BenchmarkVeilEncrypt(b *testing.B) {
+func TestPad(t *testing.T) {
+	t.Parallel()
+
+	s := "this is a value"
+
+	padded, err := io.ReadAll(Pad(bytes.NewBufferString(s), rand.Reader, 40))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "padded length", 55, len(padded))
+
+	r := bytes.NewReader(padded)
+	if err := Unpad(r); err != nil {
+		t.Fatal(err)
+	}
+
+	unpadded, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "unpadded value", s, string(unpadded))
+}
+
+func TestAddFakes(t *testing.T) {
+	t.Parallel()
+
 	alice, err := NewSecretKey(rand.Reader)
 	if err != nil {
-		b.Fatal(err)
+		t.Fatal(err)
 	}
 
 	bob, err := NewSecretKey(rand.Reader)
 	if err != nil {
-		b.Fatal(err)
+		t.Fatal(err)
 	}
 
-	message := make([]byte, 1024*10)
+	all, err := AddFakes(rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()}, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	for i := 0; i < b.N; i++ {
-		_, err = alice.Encrypt(rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()}, message, 1024, 40)
-		if err != nil {
-			b.Fatal(err)
+	assert.Equal(t, "total count", 22, len(all))
+
+	alices, bobs, others := 0, 0, 0
+
+	for _, pk := range all {
+		switch {
+		case pk.Equals(alice.PublicKey()):
+			alices++
+		case pk.Equals(bob.PublicKey()):
+			bobs++
+		default:
+			others++
 		}
 	}
-}
 
-func BenchmarkVeilDecrypt(b *testing.B) {
-	alice, err := NewSecretKey(rand.Reader)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	bob, err := NewSecretKey(rand.Reader)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	message := make([]byte, 1024*10)
-
-	ciphertext, err := alice.Encrypt(rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()}, message, 1024, 40)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	for i := 0; i < b.N; i++ {
-		_, _, err = bob.Decrypt([]*PublicKey{alice.PublicKey()}, ciphertext)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func corrupt(b []byte) []byte {
-	c := make([]byte, len(b))
-	copy(c, b)
-
-	for bytes.Equal(b, c) {
-		//nolint:gosec // Don't need cryptographic security for tests.
-		c[rand2.Intn(len(c))] ^= byte(1 << uint(rand2.Intn(7)))
-	}
-
-	return c
+	assert.Equal(t, "alice count", 1, alices)
+	assert.Equal(t, "bob count", 1, bobs)
+	assert.Equal(t, "other count", 20, others)
 }

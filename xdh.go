@@ -6,6 +6,10 @@ import (
 
 	"github.com/bwesterb/go-ristretto"
 	"github.com/bwesterb/go-ristretto/edwards25519"
+	"golang.org/x/crypto/chacha20poly1305"
+	"golang.org/x/crypto/hkdf"
+	"golang.org/x/crypto/poly1305"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -133,4 +137,103 @@ func ephemeralKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Sc
 		// Otherwise, return the values.
 		return
 	}
+}
+
+const (
+	// The length of an Elligator2 representative for a Ristretto255 public key.
+	kemPublicKeyLen = 32
+	kemOverhead     = kemPublicKeyLen + poly1305.TagSize // Total overhead of KEM envelope.
+)
+
+// kemSend generates an ephemeral Elligator2 representative, a symmetric key, and a nonce given the
+// sender's secret key, the sender's public key, and the recipient's public key. Also includes
+// any authenticated data.
+func kemSend(
+	rand io.Reader, skS *ristretto.Scalar, pkS, pkR *ristretto.Point, data []byte,
+) ([]byte, []byte, []byte, error) {
+	// Generate an ephemeral Ristretto255/DH key pair.
+	_, rkE, skE, err := ephemeralKeys(rand)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Calculate the Ristretto255/DH shared secret between the ephemeral secret key and the
+	// recipient's Ristretto255/DH public key.
+	zzE, err := xdh(&skE, pkR)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Calculate the Ristretto255/DH shared secret between the sender's secret key and the
+	// recipient's Ristretto255/DH public key.
+	zzS, err := xdh(skS, pkR)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Concatenate the two to form the shared secret.
+	zz := append(zzE, zzS...)
+
+	// Derive the key and nonce from the shared secret, the authenticated data, the ephemeral public
+	// key's Elligator2 representative, and the public keys of both the recipient and the sender.
+	key, nonce := kdf(zz, data, rkE, pkR, pkS)
+
+	return rkE, key, nonce, nil
+}
+
+// kemReceive generates a symmetric key and a nonce given the recipient's secret key, the
+// recipient's public key, the sender's public key, the ephemeral Elligator2 representative, and
+// any authenticated data.
+func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []byte) ([]byte, []byte, error) {
+	// Convert the embedded Elligator2 representative to a Ristretto255/DH public key.
+	pkE := rk2pk(rkE)
+
+	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the
+	// ephemeral public key.
+	zzE, err := xdh(skR, &pkE)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the
+	// sender's public key.
+	zzS, err := xdh(skR, pkS)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Concatenate the two to form the shared secret.
+	zz := append(zzE, zzS...)
+
+	// Derive the key from the shared secret, the authenticated data, the ephemeral public key's
+	// Elligator2 representative, and the public keys of both the recipient and sender.
+	key, nonce := kdf(zz, data, rkE, pkR, pkS)
+
+	return key, nonce, nil
+}
+
+// kdf returns a ChaCha20Poly1305 key and nonce derived from the given initial keying material, the
+// authenticated data, the Elligator2 representative of the ephemeral key, the recipient's public
+// key, and the sender's public key.
+func kdf(ikm, data, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte) {
+	// Create a salt consisting of the Elligator2 representative of the ephemeral key, the
+	// recipient's public key, and the sender's public key.
+	salt := make([]byte, 0, len(rkE)*3)
+	salt = append(salt, rkE...)
+	salt = append(salt, pkR.Bytes()...)
+	salt = append(salt, pkS.Bytes()...)
+
+	// Create an HKDF-SHA-256 instance from the initial keying material, the salt, and the
+	// authenticated data.
+	h := hkdf.New(sha3.New512, ikm, salt, data)
+
+	// Derive the key from the HKDF output.
+	key := make([]byte, chacha20poly1305.KeySize)
+	_, _ = io.ReadFull(h, key)
+
+	// Derive the nonce from the HKDF output.
+	nonce := make([]byte, chacha20poly1305.NonceSize)
+	_, _ = io.ReadFull(h, nonce)
+
+	return key, nonce
 }

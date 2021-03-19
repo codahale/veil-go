@@ -16,8 +16,8 @@ true length, and fake recipients can be added to disguise their true number from
 ## Algorithms & Constructions
 
 Veil uses ChaCha20Poly1305 for authenticated encryption, Ristretto255/XDH for key agreement and
-authentication, Elligator2 for indistinguishable public key encoding, and HKDF-SHA3-512 for key
-derivation.
+authentication, Elligator2 for indistinguishable public key encoding, HKDF-SHA3-512 for key
+derivation, and the STREAM construction for authenticated encryption of streaming data.
 
 * ChaCha20Poly1305 is fast, well-studied, and requires no padding. It is vulnerable to nonce misuse,
   but both keys and nonces are derived from random data, making collisions very improbable.
@@ -29,19 +29,20 @@ derivation.
 * Elligator2 allows us to map Ristretto255/DH public keys to random strings, making ephemeral
   Diffie-Hellman indistinguishable from random noise. Elligator2 is constant-time.
 * HKDF-SHA3-512 is fast, standardized, constant-time, and very well-studied.
+* STREAM is simple and provides strong security.
 
 ### Key Encapsulation Mechanism (KEM)
 
-Veil headers and messages are encrypted using a Key Encapsulation Mechanism:
+Veil messages are encrypted using a Key Encapsulation Mechanism:
 
 1. An ephemeral Ristretto255/DH key pair is generated.
 2. The Ristretto255/DH shared secret is calculated for the recipient's public key and the ephemeral
    secret key.
-3. The Ristretto255/DH shared secret is calculated for the recipient's public key and the
-   initiator's secret key.
+3. The Ristretto255/DH shared secret is calculated for the recipient's public key and the sender's 
+   secret key.
 4. The two shared secrets are concatenated and used as the initial keying material for
    HKDF-SHA3-512, with the ephemeral public key's Elligator2 representative, the recipient's public 
-   key,and the initiator's public key as the salt parameter and the authenticated data as the
+   key, and the sender's public key as the salt parameter and the authenticated data as the
    information parameter.
 5. The first 32 bytes from the HKDF output are used as a ChaCha20Poly1305 key.
 6. The next 12 bytes from the HKDF output as used as a ChaCha20Poly1305 nonce.
@@ -64,24 +65,21 @@ indistinguishable from random noise.
 Encrypting a Veil message uses the following process:
 
 1. An ephemeral Ristretto255/DH key pair is generated.
-2. A plaintext header is generated, containing the ephemeral secret key, the total length of
-   encrypted headers, and the length of the plaintext message bytes.
-3. For each recipient, a copy of the header is encrypted using the initiator's secret key and the
-   recipient's public key, and written as output. Fake recipients may be added by writing random
-   data instead of an encrypted header.
-4. The plaintext message has random padding bytes appended to it, and is encrypted using the
-   initiator's secret key, the ephemeral public key, and the encrypted headers as authenticated
-   data.
-5. The encrypted headers and encrypted, padded message are returned.
+2. A plaintext header is generated, containing the ephemeral secret key and the total length of
+   encrypted headers.
+3. For each recipient, a copy of the header is encrypted using the sender's secret key and the
+   recipient's public key, and written as output.
+4. The plaintext message is encrypted using the sender's secret key, the ephemeral public key, and 
+   the encrypted headers as authenticated data, using STREAM to encrypt the plaintext in blocks.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable header
 using the shared secret between the ephemeral public key and recipient's secret key. When a header
-is successfully decrypted, the ephemeral secret key is used to decrypt the encrypted message, and
-the padding is removed.
+is successfully decrypted, the ephemeral secret key and the sender's public key is used to re-derive
+the shared secret, and the message is decrypted.
 
 ### Password-Based Encryption
 
-To safely store secret keys, Argon2id is used with a 32-byte random salt to derive a
+To safely store secret keys, Argon2id is used with a 16-byte random salt to derive a
 ChaCha20Poly1305 key and nonce. The secret key is encrypted with ChaCha20Poly1305, using the
 Argon2id parameters as authenticated data.
 
@@ -98,3 +96,4 @@ Argon2id parameters as authenticated data.
 6. The number of recipients in a Veil message can be obscured from recipients by adding blocks of
    random noise instead of encrypted headers.
 7. Veil messages are non-repudiable.
+8. Veil messages can be arbitrarily big.
