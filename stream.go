@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
 // aeadStream encrypts and decrypts streams of data using Rogaway's AEAD STREAM construction.
@@ -12,6 +14,20 @@ import (
 type aeadStream struct {
 	aead cipher.AEAD
 	nonceSequence
+}
+
+func newAEADStream(key, nonce []byte) *aeadStream {
+	aead, err := chacha20poly1305.New(key)
+	if err != nil {
+		panic(err)
+	}
+
+	return &aeadStream{
+		aead: aead,
+		nonceSequence: nonceSequence{
+			nonce: nonce,
+		},
+	}
 }
 
 func (as *aeadStream) encrypt(dst io.Writer, src io.Reader, ad []byte, blockSize int) (int, error) {

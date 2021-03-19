@@ -161,13 +161,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 	}
 
 	// Initialize an AEAD stream with the key and nonce.
-	aead, _ := chacha20poly1305.New(key)
-	stream := aeadStream{
-		aead: aead,
-		nonceSequence: nonceSequence{
-			nonce: nonce,
-		},
-	}
+	stream := newAEADStream(key, nonce)
 
 	// Encrypt the plaintext as a stream.
 	bn, err := stream.encrypt(dst, src, nil, blockSize)
@@ -204,13 +198,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	}
 
 	// Initialize an AEAD stream with the key and nonce.
-	aead, _ := chacha20poly1305.New(key)
-	stream := aeadStream{
-		aead: aead,
-		nonceSequence: nonceSequence{
-			nonce: nonce,
-		},
-	}
+	stream := newAEADStream(key, nonce)
 
 	// Decrypt the original stream.
 	n, err := stream.decrypt(dst, src, nil, blockSize)
@@ -280,12 +268,15 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 			return nil, nil, 0, err
 		}
 
-		// Use the key and nonce to attempt to decrypt the header.
-		aead, _ := chacha20poly1305.New(key)
-		header, err := aead.Open(nil, nonce, ciphertext, nil)
+		// Use the key and nonce with ChaCha20Poly1305.
+		aead, err := chacha20poly1305.New(key)
+		if err != nil {
+			panic(err)
+		}
 
-		// If the header cannot be decrypted, it means the header wasn't encrypted for us by this
-		// possible sender. Continue to the next possible sender.
+		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
+		// encrypted for us by this possible sender. Continue to the next possible sender.
+		header, err := aead.Open(nil, nonce, ciphertext, nil)
 		if err != nil {
 			continue
 		}
@@ -315,8 +306,13 @@ func (sk *SecretKey) encryptHeaders(rand io.Reader, header []byte, publicKeys []
 			return nil, err
 		}
 
+		// Use the key and nonce with ChaCha20Poly1305.
+		aead, err := chacha20poly1305.New(key)
+		if err != nil {
+			panic(err)
+		}
+
 		// Encrypt the header for the recipient.
-		aead, _ := chacha20poly1305.New(key)
 		b := aead.Seal(nil, nonce, header, nil)
 
 		// Write the ephemeral Elligator2 representative and the ciphertext.
