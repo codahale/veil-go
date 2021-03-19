@@ -31,8 +31,7 @@ func Example() {
 
 	// Alice creates a list of recipients -- her and Bob -- but adds 98 fake recipients so Bob won't
 	// know the true number of recipients.
-	recipients := []*PublicKey{alice.PublicKey(), bob.PublicKey()}
-	recipients, err = AddFakes(rand.Reader, recipients, 98)
+	recipients, err := AddFakes(rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()}, 98)
 	if err != nil {
 		panic(err)
 	}
@@ -185,6 +184,7 @@ func TestPad(t *testing.T) {
 	assert.Equal(t, "padded length", 55, len(padded))
 
 	unpadded := bytes.NewBuffer(nil)
+
 	n, err := io.Copy(Unpad(unpadded), bytes.NewReader(padded))
 	if err != nil {
 		t.Fatal(err)

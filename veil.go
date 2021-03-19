@@ -375,6 +375,7 @@ func (u *unpadWriter) Write(p []byte) (n int, err error) {
 		n, err = u.dst.Write(p[u.padding:])
 		n += u.padding
 		u.padding = 0
+
 		return n, err
 	}
 
@@ -384,6 +385,7 @@ func (u *unpadWriter) Write(p []byte) (n int, err error) {
 	// If we have enough buffered bytes to parse the padding, do so and replay the buffered writes.
 	if len(u.buf) >= 4 {
 		u.padding = int(binary.BigEndian.Uint32(u.buf))
+
 		n, err = u.Write(u.buf[4:])
 		if err != nil {
 			return n + 4, err
