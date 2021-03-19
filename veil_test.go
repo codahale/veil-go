@@ -29,8 +29,19 @@ func Example() {
 	message := bytes.NewReader([]byte("one two three four I declare a thumb war"))
 	encrypted := bytes.NewBuffer(nil)
 
-	// Alice encrypts the message for her and Bob.
-	_, err = alice.Encrypt(encrypted, message, rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()})
+	// Alice creates a list of recipients -- her and Bob -- but adds 98 fake recipients so Bob won't
+	// know the true number of recipients.
+	recipients := []*PublicKey{alice.PublicKey(), bob.PublicKey()}
+	recipients, err = AddFakes(rand.Reader, recipients, 98)
+	if err != nil {
+		panic(err)
+	}
+
+	// Alice pads the message with random data to disguise its true length.
+	padded := Pad(message, rand.Reader, 4829)
+
+	// Alice encrypts the message for her, Bob, and the 98 fakes.
+	_, err = alice.Encrypt(encrypted, padded, rand.Reader, recipients)
 	if err != nil {
 		panic(err)
 	}
@@ -39,18 +50,20 @@ func Example() {
 	received := bytes.NewReader(encrypted.Bytes())
 	decrypted := bytes.NewBuffer(nil)
 
-	// Bob decrypts the message and sees that it was encrypted by Alice.
-	pk, _, err := bob.Decrypt(decrypted, received, []*PublicKey{bob.PublicKey(), alice.PublicKey()})
+	// Bob decrypts the message, removing the random padding.
+	pk, _, err := bob.Decrypt(Unpad(decrypted), received, []*PublicKey{bob.PublicKey(), alice.PublicKey()})
 	if err != nil {
 		panic(err)
 	}
 
+	// Bob checks that the sender of the message was indeed Alice.
 	if alice.PublicKey().Equals(pk) {
 		fmt.Println("sent by A")
 	} else {
 		fmt.Println("sent by B")
 	}
 
+	// Bob views the decrypted message.
 	fmt.Println(decrypted.String())
 	// Output:
 	// sent by A
@@ -171,17 +184,14 @@ func TestPad(t *testing.T) {
 
 	assert.Equal(t, "padded length", 55, len(padded))
 
-	r := bytes.NewReader(padded)
-	if err := Unpad(r); err != nil {
-		t.Fatal(err)
-	}
-
-	unpadded, err := io.ReadAll(r)
+	unpadded := bytes.NewBuffer(nil)
+	n, err := io.Copy(Unpad(unpadded), bytes.NewReader(padded))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "unpadded value", s, string(unpadded))
+	assert.Equal(t, "written bytes", int64(len(padded)), n)
+	assert.Equal(t, "unpadded value", s, unpadded.String())
 }
 
 func TestAddFakes(t *testing.T) {

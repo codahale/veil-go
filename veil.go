@@ -334,23 +334,63 @@ func Pad(src, rand io.Reader, n int) io.Reader {
 	return io.MultiReader(bytes.NewReader(buf), io.LimitReader(rand, int64(n)), src)
 }
 
-// Unpad removes all random padding from the given io.Reader.
-func Unpad(src io.Reader) error {
-	// Read the padding count.
-	buf := make([]byte, 4)
-	if _, err := io.ReadFull(src, buf); err != nil {
-		return err
+// Unpad returns an io.Writer which will remove the random padding from incoming data before writing
+// it to dst.
+func Unpad(dst io.Writer) io.Writer {
+	return &unpadWriter{
+		dst:     dst,
+		padding: -1,
 	}
+}
 
-	// Decode the padding count.
-	padding := binary.BigEndian.Uint32(buf)
+type unpadWriter struct {
+	dst     io.Writer
+	buf     []byte
+	padding int
+}
 
-	// Discard the padding.
-	if _, err := io.Copy(io.Discard, io.LimitReader(src, int64(padding))); err != nil {
-		return err
+func (u *unpadWriter) Close() error {
+	if wc, ok := u.dst.(io.Closer); ok {
+		return wc.Close()
 	}
 
 	return nil
+}
+
+func (u *unpadWriter) Write(p []byte) (n int, err error) {
+	// If we've already unpadded the input, write directly to dst.
+	if u.padding == 0 {
+		return u.dst.Write(p)
+	}
+
+	// If we have padding remaining to discard, handle that.
+	if u.padding > 0 {
+		// If this write is all padding, discard it.
+		if len(p) <= u.padding {
+			u.padding -= len(p)
+			return len(p), err
+		}
+
+		// If this write is part padding, discard the padding and write the rest.
+		n, err = u.dst.Write(p[u.padding:])
+		n += u.padding
+		u.padding = 0
+		return n, err
+	}
+
+	// Append the current write to the buffered writes.
+	u.buf = append(u.buf, p...)
+
+	// If we have enough buffered bytes to parse the padding, do so and replay the buffered writes.
+	if len(u.buf) >= 4 {
+		u.padding = int(binary.BigEndian.Uint32(u.buf))
+		n, err = u.Write(u.buf[4:])
+		if err != nil {
+			return n + 4, err
+		}
+	}
+
+	return len(p), nil
 }
 
 // AddFakes adds n randomly-generated public keys to the given set of public keys, shuffles the
