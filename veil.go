@@ -115,9 +115,9 @@ func NewSecretKey(rand io.Reader) (*SecretKey, error) {
 var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 
 const (
-	headerLen          = kemPublicKeyLen + 4
+	blockSize          = 1024 * 1024         // 1MiB
+	headerLen          = kemPublicKeyLen + 4 // 4 bytes for message offset
 	encryptedHeaderLen = headerLen + kemOverhead
-	blockSize          = 1024
 )
 
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
