@@ -342,18 +342,11 @@ func Unpad(dst io.Writer) io.Writer {
 	}
 }
 
+// unpadWriter encapsulates the state required to unpad writes to an io.Writer.
 type unpadWriter struct {
 	dst     io.Writer
 	buf     []byte
 	padding int
-}
-
-func (u *unpadWriter) Close() error {
-	if wc, ok := u.dst.(io.Closer); ok {
-		return wc.Close()
-	}
-
-	return nil
 }
 
 func (u *unpadWriter) Write(p []byte) (n int, err error) {
@@ -389,6 +382,8 @@ func (u *unpadWriter) Write(p []byte) (n int, err error) {
 		if err != nil {
 			return n + 4, err
 		}
+
+		u.buf = nil
 	}
 
 	return len(p), nil
