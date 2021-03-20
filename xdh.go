@@ -149,6 +149,7 @@ func kemSend(
 	// sender.
 	key, nonce := kdf(zzE, zzS, data, rkE, pkR, pkS)
 
+	// Return the ephemeral public key's Elligator2 representative, the key, and the nonce.
 	return rkE, key, nonce, nil
 }
 
