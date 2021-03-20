@@ -35,8 +35,8 @@ func TestRepresentativeTransform(t *testing.T) {
 	pk := sk2pk(&sk)
 
 	rk := pk2rk(&pk)
-	if rk != nil {
-		t.Skipf("%s has no representative", sk.Bytes())
+	if rk == nil {
+		t.Skipf("%s has no representative", sk)
 	}
 
 	pk2 := rk2pk(rk)
