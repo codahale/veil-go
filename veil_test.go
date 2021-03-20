@@ -6,7 +6,6 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"io"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -169,65 +168,4 @@ func TestSecretKey_String(t *testing.T) {
 	}
 
 	assert.Equal(t, "string representation", sk.PublicKey().String(), sk.String())
-}
-
-func TestPad(t *testing.T) {
-	t.Parallel()
-
-	s := "this is a value"
-
-	padded, err := io.ReadAll(Pad(bytes.NewBufferString(s), rand.Reader, 40))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, "padded length", 55, len(padded))
-
-	unpadded := bytes.NewBuffer(nil)
-
-	n, err := io.Copy(Unpad(unpadded), bytes.NewReader(padded))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, "written bytes", int64(len(padded)), n)
-	assert.Equal(t, "unpadded value", s, unpadded.String())
-}
-
-func TestAddFakes(t *testing.T) {
-	t.Parallel()
-
-	alice, err := NewSecretKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bob, err := NewSecretKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	all, err := AddFakes(rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()}, 20)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, "total count", 22, len(all))
-
-	alices, bobs, others := 0, 0, 0
-
-	for _, pk := range all {
-		switch {
-		case pk.Equals(alice.PublicKey()):
-			alices++
-		case pk.Equals(bob.PublicKey()):
-			bobs++
-		default:
-			others++
-		}
-	}
-
-	assert.Equal(t, "alice count", 1, alices)
-	assert.Equal(t, "bob count", 1, bobs)
-	assert.Equal(t, "other count", 20, others)
 }
