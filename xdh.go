@@ -1,7 +1,6 @@
 package veil
 
 import (
-	"bytes"
 	"io"
 
 	"github.com/bwesterb/go-ristretto"
@@ -187,7 +186,7 @@ func kdf(zzE, zzS, data, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte)
 
 	// Create a salt consisting of the Elligator2 representative of the ephemeral key, the
 	// recipient's public key, and the sender's public key.
-	salt := bytes.Join([][]byte{rkE, pkR.Bytes(), pkS.Bytes()}, nil)
+	salt := append(rkE, append(pkR.Bytes(), pkS.Bytes()...)...)
 
 	// Create an HKDF-SHA3-512 instance from the initial keying material, the salt, and the
 	// authenticated data.
