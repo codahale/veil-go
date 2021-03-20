@@ -101,7 +101,7 @@ var _ fmt.Stringer = &SecretKey{}
 // NewSecretKey creates a new Ristretto255/DH secret key.
 func NewSecretKey(rand io.Reader) (*SecretKey, error) {
 	// Always generate a key with a possible Elligator2 representative.
-	q, rk, s, err := ephemeralKeys(rand)
+	q, rk, s, err := generateKeys(rand)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 	r := bufio.NewReader(src)
 
 	// Generate an ephemeral Ristretto255/DH key pair.
-	pkE, _, skE, err := ephemeralKeys(rand)
+	pkE, _, skE, err := generateKeys(rand)
 	if err != nil {
 		return 0, err
 	}

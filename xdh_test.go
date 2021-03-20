@@ -47,12 +47,12 @@ func TestRepresentativeTransform(t *testing.T) {
 func TestKemExchange(t *testing.T) {
 	t.Parallel()
 
-	pkA, _, skA, err := ephemeralKeys(rand.Reader)
+	pkA, _, skA, err := generateKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pkB, _, skB, err := ephemeralKeys(rand.Reader)
+	pkB, _, skB, err := generateKeys(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestKemExchange(t *testing.T) {
 	assert.Equal(t, "nonce", nonceA, nonceB)
 }
 
-func BenchmarkEphemeralKeys(b *testing.B) {
+func BenchmarkGenerateKeys(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _, _, _ = ephemeralKeys(rand.Reader)
 	}

@@ -16,7 +16,7 @@ func AddFakes(rand io.Reader, keys []*PublicKey, n int) ([]*PublicKey, error) {
 
 	// Add n randomly generated keys to the end.
 	for i := 0; i < n; i++ {
-		q, rk, _, err := ephemeralKeys(rand)
+		q, rk, _, err := generateKeys(rand)
 		if err != nil {
 			return nil, err
 		}
