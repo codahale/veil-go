@@ -25,7 +25,7 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-// PublicKey is an Ristretto255/DH public key.
+// PublicKey is a Ristretto255 public key.
 type PublicKey struct {
 	rk []byte
 	q  ristretto.Point
@@ -81,7 +81,7 @@ var (
 	_ fmt.Stringer               = &PublicKey{}
 )
 
-// SecretKey is an Ristretto255/DH secret key.
+// SecretKey is a Ristretto255 secret key.
 type SecretKey struct {
 	pk PublicKey
 	s  ristretto.Scalar
@@ -98,9 +98,8 @@ func (sk *SecretKey) PublicKey() *PublicKey {
 
 var _ fmt.Stringer = &SecretKey{}
 
-// NewSecretKey creates a new Ristretto255/DH secret key.
+// NewSecretKey creates a new secret key.
 func NewSecretKey(rand io.Reader) (*SecretKey, error) {
-	// Always generate a key with a possible Elligator2 representative.
 	q, rk, s, err := generateKeys(rand)
 	if err != nil {
 		return nil, err
@@ -125,7 +124,7 @@ const (
 func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*PublicKey) (int, error) {
 	r := bufio.NewReader(src)
 
-	// Generate an ephemeral Ristretto255/DH key pair.
+	// Generate an ephemeral key pair.
 	pkE, _, skE, err := generateKeys(rand)
 	if err != nil {
 		return 0, err
@@ -189,10 +188,10 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 		return nil, 0, err
 	}
 
-	// Re-derive the ephemeral Ristretto255/DH public key.
+	// Re-derive the ephemeral public key.
 	sk2pk(&pkE, skE)
 
-	// Read the ephemeral Elligator2 representative.
+	// Read the ephemeral representative.
 	rkW := make([]byte, kemPublicKeyLen)
 	if _, err := io.ReadFull(r, rkW); err != nil {
 		return nil, 0, err
@@ -261,7 +260,7 @@ func (sk *SecretKey) findHeader(
 func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*PublicKey, *ristretto.Scalar, int) {
 	var skE ristretto.Scalar
 
-	// Separate the Elligator2 representative from the ciphertext.
+	// Separate the representative from the ciphertext.
 	rkE, ciphertext := header[:kemPublicKeyLen], header[kemPublicKeyLen:]
 
 	// Iterate through all possible senders.
@@ -316,7 +315,7 @@ func (sk *SecretKey) encryptHeaders(rand io.Reader, header []byte, publicKeys []
 		// Encrypt the header for the recipient.
 		b := aead.Seal(nil, nonce, header, nil)
 
-		// Write the ephemeral Elligator2 representative and the ciphertext.
+		// Write the ephemeral representative and the ciphertext.
 		_, _ = buf.Write(rkE)
 		_, _ = buf.Write(b)
 	}

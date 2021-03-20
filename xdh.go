@@ -29,7 +29,7 @@ func xdh(s *ristretto.Scalar, q *ristretto.Point) []byte {
 	return x.Bytes()
 }
 
-// rk2pk converts an Elligator2 representative to a public key.
+// rk2pk converts a representative to a public key.
 func rk2pk(q *ristretto.Point, rk []byte) {
 	var (
 		buf [32]byte
@@ -44,7 +44,7 @@ func rk2pk(q *ristretto.Point, rk []byte) {
 	// Convert it to a field element.
 	fe.SetBytes(&buf)
 
-	// Convert the Elligator field element to a completed point.
+	// Convert the Elligator2 field element to a completed point.
 	cp.SetRistrettoElligator2(&fe)
 
 	// Convert the completed point to an extended point.
@@ -66,7 +66,7 @@ func pk2rk(q *ristretto.Point) []byte {
 
 	// Iterate through the possible representatives.
 	for i := 0; i < 8; i++ {
-		// Skip those possibilities which are unrepresentable.
+		// Skip those possibilities don't exist.
 		if ((1 << uint(i)) & mask) == 0 {
 			continue
 		}
@@ -74,11 +74,11 @@ func pk2rk(q *ristretto.Point) []byte {
 		// Convert the first representative to bytes.
 		rk := fes[i].Bytes()
 
-		// Return the public key and its representative.
+		// Return the first representative.
 		return rk[:]
 	}
 
-	// If no representative was generated, return nil.
+	// If no representative could be created, return nil.
 	return nil
 }
 
@@ -88,8 +88,8 @@ func sk2pk(q *ristretto.Point, s *ristretto.Scalar) {
 	q.ScalarMultBase(s)
 }
 
-// generateKeys generates a Ristretto255/DH key pair and returns the public key, the Elligator2
-// representative of the public key, and the secret key.
+// generateKeys generates a key pair and returns the public key, the public key's representative,
+// and the secret key.
 func generateKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Scalar, err error) {
 	var buf [64]byte
 
@@ -100,62 +100,61 @@ func generateKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Sca
 			return
 		}
 
-		// Convert to a Ristretto255/DH secret key.
+		// Convert to a secret key.
 		s.SetReduced(&buf)
 
 		// Generate the corresponding public key.
 		sk2pk(&q, &s)
 
-		// Calculate the public key's Elligator2 representative, if any.
+		// Calculate the public key's representative, if any.
 		rk = pk2rk(&q)
 	}
 
-	// We generated a secret key whose public key has an Elligator2 representative, so return them.
+	// We generated a secret key whose public key has a representative, so return them.
 	return
 }
 
 const (
-	// The length of an Elligator2 representative for a Ristretto255 public key.
+	// The length of an Elligator2 representative for a public key.
 	kemPublicKeyLen = 32
 	kemOverhead     = kemPublicKeyLen + poly1305.TagSize // Total overhead of KEM envelope.
 )
 
-// kemSend generates an ephemeral Elligator2 representative, a symmetric key, and a nonce given the
-// sender's secret key, the sender's public key, and the recipient's public key. Also includes
-// any authenticated data.
+// kemSend generates an ephemeral representative, a symmetric key, and a nonce given the sender's
+// secret key, the sender's public key, and the recipient's public key. Also includes any
+// authenticated data.
 func kemSend(
 	rand io.Reader, skS *ristretto.Scalar, pkS, pkR *ristretto.Point, data []byte,
 ) ([]byte, []byte, []byte, error) {
-	// Generate an ephemeral Ristretto255/DH key pair.
+	// Generate an ephemeral key pair.
 	_, rkE, skE, err := generateKeys(rand)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	// Calculate the ephemeral shared secret between the ephemeral secret key and the recipient's
-	// Ristretto255/DH public key.
+	// public key.
 	zzE := xdh(&skE, pkR)
 
 	// Calculate the static shared secret between the sender's secret key and the recipient's
-	// Ristretto255/DH public key.
+	// public key.
 	zzS := xdh(skS, pkR)
 
 	// Derive the key and nonce from the shared secrets, the authenticated data, the ephemeral
-	// public key's Elligator2 representative, and the public keys of both the recipient and the
-	// sender.
+	// public key's representative, and the public keys of both the recipient and the sender.
 	key, nonce := kdf(zzE, zzS, data, rkE, pkR, pkS)
 
-	// Return the ephemeral public key's Elligator2 representative, the key, and the nonce.
+	// Return the ephemeral public key's representative, the key, and the nonce.
 	return rkE, key, nonce, nil
 }
 
 // kemReceive generates a symmetric key and a nonce given the recipient's secret key, the
-// recipient's public key, the sender's public key, the ephemeral Elligator2 representative, and
-// any authenticated data.
+// recipient's public key, the sender's public key, the ephemeral representative, and any
+// authenticated data.
 func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []byte) ([]byte, []byte) {
 	var pkE ristretto.Point
 
-	// Convert the embedded Elligator2 representative to a Ristretto255/DH public key.
+	// Convert the embedded representative to a public key.
 	rk2pk(&pkE, rkE)
 
 	// Calculate the ephemeral shared secret between the recipient's secret key and the ephemeral
@@ -167,7 +166,7 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []by
 	zzS := xdh(skR, pkS)
 
 	// Derive the key and nonce from the shared secrets, the authenticated data, the ephemeral
-	// public key's Elligator2 representative, and the public keys of both the recipient and sender.
+	// public key's representative, and the public keys of both the recipient and sender.
 	return kdf(zzE, zzS, data, rkE, pkR, pkS)
 }
 
@@ -175,14 +174,14 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []by
 const kdfLen = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
 
 // kdf returns a ChaCha20Poly1305 key and nonce derived from the given ephemeral shared secret,
-// static shared secret, authenticated data, the Elligator2 representative of the ephemeral key, the
+// static shared secret, authenticated data, the ephemeral public key's representative, the
 // recipient's public key, and the sender's public key.
 func kdf(zzE, zzS, data, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte) {
 	// Concatenate the ephemeral and static shared secrets to form the initial keying material.
 	ikm := append(zzE, zzS...)
 
-	// Create a salt consisting of the Elligator2 representative of the ephemeral key, the
-	// recipient's public key, and the sender's public key.
+	// Create a salt consisting of the ephemeral public key's representative, the recipient's public
+	// key, and the sender's public key.
 	salt := append(rkE, append(pkR.Bytes(), pkS.Bytes()...)...)
 
 	// Create an HKDF-SHA3-512 instance from the initial keying material, the salt, and the

@@ -42,7 +42,7 @@ func (as *aeadStream) encrypt(dst io.Writer, src *bufio.Reader, ad []byte, block
 			return wn, err
 		}
 
-		// Encrypt the block.
+		// Encrypt the block using the next nonce in the sequence.
 		block = as.aead.Seal(block[:0], as.next(final), block, ad)
 
 		// Write the encrypted block.
@@ -72,7 +72,7 @@ func (as *aeadStream) decrypt(dst io.Writer, src *bufio.Reader, ad []byte, block
 			return wn, err
 		}
 
-		// Decrypt the block.
+		// Decrypt the block using the next nonce in the sequence.
 		block, err = as.aead.Open(block[:0], as.next(final), block, ad)
 		if err != nil {
 			return wn, err
