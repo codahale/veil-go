@@ -42,7 +42,7 @@ func (pk *PublicKey) MarshalBinary() ([]byte, error) {
 
 func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 	pk.rk = data
-	rk2pk(data, &pk.q)
+	rk2pk(&pk.q, data)
 
 	return nil
 }
@@ -190,7 +190,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	}
 
 	// Re-derive the ephemeral Ristretto255/DH public key.
-	sk2pk(skE, &pkE)
+	sk2pk(&pkE, skE)
 
 	// Read the ephemeral Elligator2 representative.
 	rkW := make([]byte, kemPublicKeyLen)

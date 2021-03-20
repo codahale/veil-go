@@ -187,7 +187,7 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	}
 
 	// Derive the public key.
-	sk2pk(&s, &q)
+	sk2pk(&q, &s)
 
 	// Derive its Elligator2 representative.
 	rk := pk2rk(&q)

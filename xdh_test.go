@@ -19,8 +19,8 @@ func TestXDH(t *testing.T) {
 	skA.Rand()
 	skB.Rand()
 
-	sk2pk(&skA, &pkA)
-	sk2pk(&skB, &pkB)
+	sk2pk(&pkA, &skA)
+	sk2pk(&pkB, &skB)
 
 	xA := xdh(&skA, &pkB)
 	xB := xdh(&skB, &pkA)
@@ -37,14 +37,14 @@ func TestRepresentativeTransform(t *testing.T) {
 	)
 
 	sk.Rand()
-	sk2pk(&sk, &pk)
+	sk2pk(&pk, &sk)
 
 	rk := pk2rk(&pk)
 	if rk == nil {
 		t.Skipf("%s has no representative", sk)
 	}
 
-	rk2pk(rk, &pk2)
+	rk2pk(&pk2, rk)
 
 	assert.Equal(t, "public key", pk.Bytes(), pk2.Bytes())
 }
