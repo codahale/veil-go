@@ -263,9 +263,9 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 	rkE, ciphertext := header[:kemPublicKeyLen], header[kemPublicKeyLen:]
 
 	// Iterate through all possible senders.
-	for _, pkR := range senders {
+	for _, pkS := range senders {
 		// Re-derive the KEM key and nonce between the sender and recipient.
-		key, nonce := kemReceive(&sk.s, &sk.pk.q, &pkR.q, rkE, nil)
+		key, nonce := kemReceive(&sk.s, &sk.pk.q, &pkS.q, rkE, nil)
 
 		// Use the key and nonce with ChaCha20Poly1305.
 		aead, err := chacha20poly1305.New(key)
@@ -285,7 +285,7 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 		_ = skE.UnmarshalBinary(header[:kemPublicKeyLen])
 		offset := binary.BigEndian.Uint32(header[kemPublicKeyLen:])
 
-		return pkR, &skE, int(offset)
+		return pkS, &skE, int(offset)
 	}
 
 	return nil, nil, 0
