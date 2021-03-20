@@ -98,17 +98,17 @@ func sk2pk(s *ristretto.Scalar) ristretto.Point {
 // ephemeralKeys generate an Ristretto255/DH key pair and returns the public key, the Elligator2
 // representative of the public key, and the secret key.
 func ephemeralKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Scalar, err error) {
-	var buf [32]byte
+	var buf [64]byte
 
 	// Not all key pairs can be represented by Elligator2, so try until we find one.
 	for {
-		// Generate 32 random bytes.
+		// Generate 64 random bytes.
 		if _, err = io.ReadFull(rand, buf[:]); err != nil {
 			return
 		}
 
 		// Convert to a Ristretto255/DH secret key.
-		s.SetBytes(&buf)
+		s.SetReduced(&buf)
 
 		// Generate the corresponding public key.
 		q = sk2pk(&s)
