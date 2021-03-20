@@ -154,6 +154,7 @@ func (br *blockReader) read() ([]byte, bool, error) {
 
 	// If we read a full block, ignore the last byte.
 	if n > br.blockSize {
+		// Pretend we didn't see it.
 		n--
 
 		// And back up the input by one byte.
