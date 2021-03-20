@@ -181,6 +181,7 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []by
 	return key, nonce
 }
 
+// kdfLen is the number of bytes of KDF output required to derive a ChaCha20Poly1305 key and nonce.
 const kdfLen = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
 
 // kdf returns a ChaCha20Poly1305 key and nonce derived from the given shared secret, the
