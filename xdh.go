@@ -183,17 +183,17 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []by
 
 const kdfLen = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
 
-// kdf returns a ChaCha20Poly1305 key and nonce derived from the given initial keying material, the
+// kdf returns a ChaCha20Poly1305 key and nonce derived from the given shared secret, the
 // authenticated data, the Elligator2 representative of the ephemeral key, the recipient's public
 // key, and the sender's public key.
-func kdf(ikm, data, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte) {
+func kdf(zz, data, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte) {
 	// Create a salt consisting of the Elligator2 representative of the ephemeral key, the
 	// recipient's public key, and the sender's public key.
 	salt := bytes.Join([][]byte{rkE, pkR.Bytes(), pkS.Bytes()}, nil)
 
 	// Create an HKDF-SHA-256 instance from the initial keying material, the salt, and the
 	// authenticated data.
-	h := hkdf.New(sha3.New512, ikm, salt, data)
+	h := hkdf.New(sha3.New512, zz, salt, data)
 
 	// Derive the key and nonce from the HKDF output.
 	kn := make([]byte, kdfLen)
