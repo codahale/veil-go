@@ -94,7 +94,7 @@ func generateKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Sca
 	var buf [64]byte
 
 	// Not all key pairs can be represented by Elligator2, so try until we find one.
-	for {
+	for rk == nil {
 		// Generate 64 random bytes.
 		if _, err = io.ReadFull(rand, buf[:]); err != nil {
 			return
@@ -107,14 +107,11 @@ func generateKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Sca
 		sk2pk(&q, &s)
 
 		// Calculate the public key's Elligator2 representative, if any.
-		if rk = pk2rk(&q); rk == nil {
-			// If the public key doesn't have an Elligator2 representative, try again.
-			continue
-		}
-
-		// Otherwise, return the values.
-		return
+		rk = pk2rk(&q)
 	}
+
+	// We generated a secret key whose public key has an Elligator2 representative, so return them.
+	return
 }
 
 const (
