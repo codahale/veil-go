@@ -42,7 +42,7 @@ func (pk *PublicKey) MarshalBinary() ([]byte, error) {
 
 func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 	pk.rk = data
-	pk.q = rk2pk(data)
+	rk2pk(data, &pk.q)
 
 	return nil
 }
@@ -179,6 +179,8 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 // the sender's public key, the number of decrypted bytes written, and the first reported error, if
 // any.
 func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey) (*PublicKey, int, error) {
+	var pkE ristretto.Point
+
 	r := bufio.NewReader(src)
 
 	// Find a decryptable header and recover the ephemeral secret key.
@@ -188,7 +190,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	}
 
 	// Re-derive the ephemeral Ristretto255/DH public key.
-	pkE := sk2pk(skE)
+	sk2pk(skE, &pkE)
 
 	// Read the ephemeral Elligator2 representative.
 	rkW := make([]byte, kemPublicKeyLen)

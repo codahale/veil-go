@@ -30,7 +30,7 @@ func xdh(s *ristretto.Scalar, q *ristretto.Point) []byte {
 }
 
 // rk2pk converts an Elligator2 representative to a public key.
-func rk2pk(rk []byte) ristretto.Point {
+func rk2pk(rk []byte, q *ristretto.Point) {
 	var (
 		buf [32]byte
 		fe  edwards25519.FieldElement
@@ -50,11 +50,8 @@ func rk2pk(rk []byte) ristretto.Point {
 	// Convert the completed point to an extended point.
 	ep.SetCompleted(&cp)
 
-	// Cast the extended point as a result point.
-	q := ristretto.Point(ep)
-
-	// Return the public key.
-	return q
+	// Cast the extended point as a regular point.
+	*q = (ristretto.Point)(ep)
 }
 
 // pk2rk converts a public key to an Elligator2 representative, if possible.
@@ -86,13 +83,9 @@ func pk2rk(q *ristretto.Point) []byte {
 }
 
 // sk2pk converts a secret key to a public key.
-func sk2pk(s *ristretto.Scalar) ristretto.Point {
-	var q ristretto.Point
-
+func sk2pk(s *ristretto.Scalar, q *ristretto.Point) {
 	// Multiply the scalar by the curve base to produce the public key.
 	q.ScalarMultBase(s)
-
-	return q
 }
 
 // generateKeys generates a Ristretto255/DH key pair and returns the public key, the Elligator2
@@ -111,7 +104,7 @@ func generateKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Sca
 		s.SetReduced(&buf)
 
 		// Generate the corresponding public key.
-		q = sk2pk(&s)
+		sk2pk(&s, &q)
 
 		// Calculate the public key's Elligator2 representative, if any.
 		if rk = pk2rk(&q); rk == nil {
@@ -164,8 +157,10 @@ func kemSend(
 // recipient's public key, the sender's public key, the ephemeral Elligator2 representative, and
 // any authenticated data.
 func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []byte) ([]byte, []byte) {
+	var pkE ristretto.Point
+
 	// Convert the embedded Elligator2 representative to a Ristretto255/DH public key.
-	pkE := rk2pk(rkE)
+	rk2pk(rkE, &pkE)
 
 	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the
 	// ephemeral public key.

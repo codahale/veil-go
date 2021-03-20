@@ -166,6 +166,11 @@ func NewEncryptedSecretKey(
 // Decrypt uses the given password to decrypt the key pair. Returns an error if the password is
 // incorrect or if the encrypted key pair has been modified.
 func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
+	var (
+		s ristretto.Scalar
+		q ristretto.Point
+	)
+
 	// Use Argon2id to derive a key and nonce from the password and salt.
 	key, nonce := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
 	aead, _ := chacha20poly1305.New(key)
@@ -177,13 +182,12 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	}
 
 	// Decode the secret key.
-	var s ristretto.Scalar
 	if err := s.UnmarshalBinary(plaintext); err != nil {
 		return nil, err
 	}
 
 	// Derive the public key.
-	q := sk2pk(&s)
+	sk2pk(&s, &q)
 
 	// Derive its Elligator2 representative.
 	rk := pk2rk(&q)

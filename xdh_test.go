@@ -11,13 +11,16 @@ import (
 func TestXDH(t *testing.T) {
 	t.Parallel()
 
-	var skA, skB ristretto.Scalar
+	var (
+		skA, skB ristretto.Scalar
+		pkA, pkB ristretto.Point
+	)
 
 	skA.Rand()
 	skB.Rand()
 
-	pkA := sk2pk(&skA)
-	pkB := sk2pk(&skB)
+	sk2pk(&skA, &pkA)
+	sk2pk(&skB, &pkB)
 
 	xA := xdh(&skA, &pkB)
 	xB := xdh(&skB, &pkA)
@@ -28,18 +31,20 @@ func TestXDH(t *testing.T) {
 func TestRepresentativeTransform(t *testing.T) {
 	t.Parallel()
 
-	var sk ristretto.Scalar
+	var (
+		sk      ristretto.Scalar
+		pk, pk2 ristretto.Point
+	)
 
 	sk.Rand()
-
-	pk := sk2pk(&sk)
+	sk2pk(&sk, &pk)
 
 	rk := pk2rk(&pk)
 	if rk == nil {
 		t.Skipf("%s has no representative", sk)
 	}
 
-	pk2 := rk2pk(rk)
+	rk2pk(rk, &pk2)
 
 	assert.Equal(t, "public key", pk.Bytes(), pk2.Bytes())
 }
@@ -72,6 +77,6 @@ func TestKemExchange(t *testing.T) {
 
 func BenchmarkGenerateKeys(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _, _, _ = ephemeralKeys(rand.Reader)
+		_, _, _, _ = generateKeys(rand.Reader)
 	}
 }
