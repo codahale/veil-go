@@ -148,15 +148,12 @@ func NewEncryptedSecretKey(
 		return nil, err
 	}
 
-	// Encode the Argon2id parameters as authenticated data.
-	data, _ := params.MarshalBinary()
-
 	// Use Argon2id to derive a key and nonce from the password and salt.
 	key, nonce := pbeKDF(password, salt, params)
 
 	// Encrypt the secret key.
 	aead, _ := chacha20poly1305.New(key)
-	ciphertext := aead.Seal(nil, nonce, sk.s.Bytes(), data)
+	ciphertext := aead.Seal(nil, nonce, sk.s.Bytes(), nil)
 
 	// Return the salt, ciphertext, and parameters.
 	return &EncryptedSecretKey{
@@ -169,15 +166,12 @@ func NewEncryptedSecretKey(
 // Decrypt uses the given password to decrypt the key pair. Returns an error if the password is
 // incorrect or if the encrypted key pair has been modified.
 func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
-	// Encode the Argon parameters as authenticated data.
-	data, _ := esk.Argon2idParams.MarshalBinary()
-
 	// Use Argon2id to derive a key and nonce from the password and salt.
 	key, nonce := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
 	aead, _ := chacha20poly1305.New(key)
 
 	// Decrypt the secret key.
-	plaintext, err := aead.Open(nil, nonce, esk.Ciphertext, data)
+	plaintext, err := aead.Open(nil, nonce, esk.Ciphertext, nil)
 	if err != nil {
 		return nil, err
 	}
