@@ -136,20 +136,18 @@ func kemSend(
 		return nil, nil, nil, err
 	}
 
-	// Calculate the Ristretto255/DH shared secret between the ephemeral secret key and the
-	// recipient's Ristretto255/DH public key.
+	// Calculate the ephemeral shared secret between the ephemeral secret key and the recipient's
+	// Ristretto255/DH public key.
 	zzE := xdh(&skE, pkR)
 
-	// Calculate the Ristretto255/DH shared secret between the sender's secret key and the
-	// recipient's Ristretto255/DH public key.
+	// Calculate the static shared secret between the sender's secret key and the recipient's
+	// Ristretto255/DH public key.
 	zzS := xdh(skS, pkR)
 
-	// Concatenate the two to form the shared secret.
-	zz := append(zzE, zzS...)
-
-	// Derive the key and nonce from the shared secret, the authenticated data, the ephemeral public
-	// key's Elligator2 representative, and the public keys of both the recipient and the sender.
-	key, nonce := kdf(zz, data, rkE, pkR, pkS)
+	// Derive the key and nonce from the shared secrets, the authenticated data, the ephemeral
+	// public key's Elligator2 representative, and the public keys of both the recipient and the
+	// sender.
+	key, nonce := kdf(zzE, zzS, data, rkE, pkR, pkS)
 
 	return rkE, key, nonce, nil
 }
@@ -163,36 +161,36 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []by
 	// Convert the embedded Elligator2 representative to a Ristretto255/DH public key.
 	rk2pk(rkE, &pkE)
 
-	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the
-	// ephemeral public key.
+	// Calculate the ephemeral shared secret between the recipient's secret key and the ephemeral
+	// public key.
 	zzE := xdh(skR, &pkE)
 
-	// Calculate the Ristretto255/DH shared secret between the recipient's secret key and the
-	// sender's public key.
+	// Calculate the static shared secret between the recipient's secret key and the sender's public
+	// key.
 	zzS := xdh(skR, pkS)
 
-	// Concatenate the two to form the shared secret.
-	zz := append(zzE, zzS...)
-
-	// Derive the key and nonce from the shared secret, the authenticated data, the ephemeral public
-	// key's Elligator2 representative, and the public keys of both the recipient and sender.
-	return kdf(zz, data, rkE, pkR, pkS)
+	// Derive the key and nonce from the shared secrets, the authenticated data, the ephemeral
+	// public key's Elligator2 representative, and the public keys of both the recipient and sender.
+	return kdf(zzE, zzS, data, rkE, pkR, pkS)
 }
 
 // kdfLen is the number of bytes of KDF output required to derive a ChaCha20Poly1305 key and nonce.
 const kdfLen = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
 
-// kdf returns a ChaCha20Poly1305 key and nonce derived from the given shared secret, the
-// authenticated data, the Elligator2 representative of the ephemeral key, the recipient's public
-// key, and the sender's public key.
-func kdf(zz, data, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte) {
+// kdf returns a ChaCha20Poly1305 key and nonce derived from the given ephemeral shared secret,
+// static shared secret, authenticated data, the Elligator2 representative of the ephemeral key, the
+// recipient's public key, and the sender's public key.
+func kdf(zzE, zzS, data, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte) {
+	// Concatenate the ephemeral and static shared secrets to form the initial keying material.
+	ikm := append(zzE, zzS...)
+
 	// Create a salt consisting of the Elligator2 representative of the ephemeral key, the
 	// recipient's public key, and the sender's public key.
 	salt := bytes.Join([][]byte{rkE, pkR.Bytes(), pkS.Bytes()}, nil)
 
 	// Create an HKDF-SHA-256 instance from the initial keying material, the salt, and the
 	// authenticated data.
-	h := hkdf.New(sha3.New512, zz, salt, data)
+	h := hkdf.New(sha3.New512, ikm, salt, data)
 
 	// Derive the key and nonce from the HKDF output.
 	kn := make([]byte, kdfLen)
