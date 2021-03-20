@@ -161,7 +161,9 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 		return n + an, err
 	}
 
-	// Initialize an AEAD stream with the key and nonce.
+	// Initialize an AEAD stream with the key and nonce. Technically, the last five bytes of this
+	// nonce are overwritten with the counter and finalization bytes, but the overhead of those
+	// extra KDF bytes is negligible.
 	stream := newAEADStream(key, nonce)
 
 	// Encrypt the plaintext as a stream.
