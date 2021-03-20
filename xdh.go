@@ -189,7 +189,7 @@ func kdf(zzE, zzS, data, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte)
 	// recipient's public key, and the sender's public key.
 	salt := bytes.Join([][]byte{rkE, pkR.Bytes(), pkS.Bytes()}, nil)
 
-	// Create an HKDF-SHA-256 instance from the initial keying material, the salt, and the
+	// Create an HKDF-SHA3-512 instance from the initial keying material, the salt, and the
 	// authenticated data.
 	h := hkdf.New(sha3.New512, ikm, salt, data)
 
