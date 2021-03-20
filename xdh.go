@@ -174,11 +174,9 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []by
 	// Concatenate the two to form the shared secret.
 	zz := append(zzE, zzS...)
 
-	// Derive the key from the shared secret, the authenticated data, the ephemeral public key's
-	// Elligator2 representative, and the public keys of both the recipient and sender.
-	key, nonce := kdf(zz, data, rkE, pkR, pkS)
-
-	return key, nonce
+	// Derive the key and nonce from the shared secret, the authenticated data, the ephemeral public
+	// key's Elligator2 representative, and the public keys of both the recipient and sender.
+	return kdf(zz, data, rkE, pkR, pkS)
 }
 
 // kdfLen is the number of bytes of KDF output required to derive a ChaCha20Poly1305 key and nonce.
