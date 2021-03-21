@@ -82,7 +82,7 @@ func TestRoundTrip(t *testing.T) {
 
 	message := []byte("one two three four I declare a thumb war")
 	enc := bytes.NewBuffer(nil)
-
+	dec := bytes.NewBuffer(nil)
 	publicKeys := []*PublicKey{a.PublicKey(), b.PublicKey()}
 
 	eb, err := a.Encrypt(enc, bytes.NewReader(message), publicKeys)
@@ -90,10 +90,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	enc = bytes.NewBuffer(enc.Bytes())
-	dec := bytes.NewBuffer(nil)
-
-	pk, db, err := b.Decrypt(dec, bytes.NewBuffer(enc.Bytes()), publicKeys)
+	pk, db, err := b.Decrypt(dec, enc, publicKeys)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,11 +104,13 @@ func TestRoundTrip(t *testing.T) {
 func TestPublicKey_Text(t *testing.T) {
 	t.Parallel()
 
-	// Make a fake, constant public key.
-	var pk PublicKey
+	pk := PublicKey{}
+	pk2 := PublicKey{}
 
+	// Make a fake, constant public key.
 	pk.q.Derive([]byte("ok yeah"))
 
+	// Re-derive the representative.
 	pk.rk = pk2rk(&pk.q)
 
 	j, err := json.Marshal(&pk)
@@ -122,7 +121,6 @@ func TestPublicKey_Text(t *testing.T) {
 	assert.Equal(t, "text representation",
 		`"3H7PDhB1yaW_eNYMApqRRjWiO2PakBpodGNahRBmoBU"`, string(j))
 
-	var pk2 PublicKey
 	if err := json.Unmarshal(j, &pk2); err != nil {
 		t.Fatal(err)
 	}
@@ -135,25 +133,22 @@ func TestPublicKey_Text(t *testing.T) {
 func TestPublicKey_Binary(t *testing.T) {
 	t.Parallel()
 
-	// Make a fake, constant public key.
-	var pk PublicKey
+	pk := PublicKey{}
+	pk2 := PublicKey{}
+	buf := bytes.NewBuffer(nil)
 
+	// Make a fake, constant public key.
 	pk.q.Derive([]byte("ok yeah"))
 
+	// Re-derive the representative.
 	pk.rk = pk2rk(&pk.q)
 
-	w := bytes.NewBuffer(nil)
-	e := gob.NewEncoder(w)
-
+	e := gob.NewEncoder(buf)
 	if err := e.Encode(&pk); err != nil {
 		t.Fatal(err)
 	}
 
-	var pk2 PublicKey
-
-	r := bytes.NewReader(w.Bytes())
-	d := gob.NewDecoder(r)
-
+	d := gob.NewDecoder(buf)
 	if err := d.Decode(&pk2); err != nil {
 		t.Fatal(err)
 	}
