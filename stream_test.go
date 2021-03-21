@@ -88,7 +88,7 @@ func TestNonceSequence(t *testing.T) {
 
 	var ns nonceSequence
 
-	copy(ns.init[:], "abcdefghijkl")
+	copy(ns.mask[:], "abcdefghijkl")
 
 	n1 := ns.next(false)
 	assert.Equal(t, "nonce sequence",
@@ -101,6 +101,23 @@ func TestNonceSequence(t *testing.T) {
 	n3 := ns.next(true)
 	assert.Equal(t, "nonce sequence",
 		[]byte{0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x68, 0x01}, n3)
+}
+
+func TestNonceSequence_Overflow(t *testing.T) {
+	t.Parallel()
+
+	var ns nonceSequence
+	ns.ctr = [chacha20poly1305.NonceSize - 1]byte{
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	}
+
+	defer func() {
+		if recover() == nil {
+			t.Fatal("should have panicked but didn't")
+		}
+	}()
+
+	ns.next(false)
 }
 
 func TestBlockReader_Exact(t *testing.T) {

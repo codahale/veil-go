@@ -26,7 +26,7 @@ func newAEADStream(key, nonce []byte) *aeadStream {
 		aead: aead,
 	}
 
-	copy(stream.init[:], nonce)
+	copy(stream.mask[:], nonce)
 
 	return &stream
 }
@@ -99,25 +99,24 @@ func (as *aeadStream) decrypt(dst io.Writer, src *bufio.Reader, ad []byte, block
 }
 
 type nonceSequence struct {
-	init, nonce [chacha20poly1305.NonceSize]byte
-	ctr         [chacha20poly1305.NonceSize - 1]byte
+	mask, nonce [chacha20poly1305.NonceSize]byte
+	ctr         [chacha20poly1305.NonceSize - 1]byte // One byte short for finalization.
 }
 
 func (ns *nonceSequence) next(final bool) []byte {
-	// Increment the counter.
-	for i := len(ns.ctr) - 1; i >= 0; i-- {
+	// Increment the counter. If the counter overflows, we'll end up trying to increment element -1
+	// and panic. That's OK, since we shouldn't be trying to encrypt 2^96 blocks with the same key.
+	for i := len(ns.ctr) - 1; true; i-- {
 		ns.ctr[i]++
 
-		if i == 0 && ns.ctr[i] == 0 {
-			panic("counter overflow")
-		} else if ns.ctr[i] != 0 {
+		if ns.ctr[i] != 0 {
 			break
 		}
 	}
 
-	// XOR the initial nonce with the counter, ignoring the last byte.
+	// XOR the nonce mask with the counter.
 	for i, v := range ns.ctr {
-		ns.nonce[i] = ns.init[i] ^ v
+		ns.nonce[i] = v ^ ns.mask[i]
 	}
 
 	// If this is the last block, set the finalization byte to 1.
