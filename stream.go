@@ -75,7 +75,7 @@ func (as *aeadStream) decrypt(dst io.Writer, src *bufio.Reader, ad []byte, block
 			// not discarded.
 			n, _ := io.WriteString(dst, "\nINVALID CIPHERTEXT\nDO NOT TRUST")
 
-			return wn + n, err
+			return wn + n, ErrInvalidCiphertext
 		}
 
 		// Write the decrypted block.

@@ -178,7 +178,7 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	// Decrypt the secret key.
 	plaintext, err := aead.Open(nil, zeroNonce[:], esk.Ciphertext, nil)
 	if err != nil {
-		return nil, err
+		return nil, ErrInvalidCiphertext
 	}
 
 	// Decode the secret key.
