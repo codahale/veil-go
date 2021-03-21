@@ -101,10 +101,11 @@ Argon2id parameters as authenticated data.
    message's content or metadata without possessing the sender's secret key.
 3. Veil messages are tamper-proof. If a single bit of the entire message is changed, all the
    recipients will know.
-4. Veil messages are indistinguishable from random noise, revealing no metadata about recipients'
+4. Veil messages are non-repudiable: if the message is decryptable, it is guaranteed to have come
+   from the possessor of the sender's secret key.
+5. Veil messages are indistinguishable from random noise, revealing no metadata about recipients'
    identities, number of recipients, etc.
-5. Veil messages can be padded, obscuring a message's actual length.
-6. The number of recipients in a Veil message can be obscured from recipients by adding fake keys
+6. Veil messages can be padded, obscuring a message's actual length.
+7. The number of recipients in a Veil message can be obscured from recipients by adding fake keys
    to the recipients list.
-7. Veil messages are non-repudiable.
 8. Veil messages can be arbitrarily big and both encrypted and decrypted in a single pass.
