@@ -113,8 +113,8 @@ func NewSecretKey(rand io.Reader) (*SecretKey, error) {
 var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 
 const (
-	blockSize          = 1024 * 1024         // 1MiB
-	headerLen          = kemPublicKeyLen + 4 // 4 bytes for message offset
+	blockSize          = 1024 * 1024   // 1MiB
+	headerLen          = kemRepLen + 4 // 4 bytes for message offset
 	encryptedHeaderLen = headerLen + kemOverhead
 )
 
@@ -134,7 +134,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 	offset := encryptedHeaderLen * len(recipients)
 	header := make([]byte, headerLen)
 	copy(header, skE.Bytes())
-	binary.BigEndian.PutUint32(header[kemPublicKeyLen:], uint32(offset))
+	binary.BigEndian.PutUint32(header[kemRepLen:], uint32(offset))
 
 	// Encrypt copies of the header for each recipient.
 	headers, err := sk.encryptHeaders(rand, header, recipients)
@@ -193,7 +193,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	sk2pk(&pkE, skE)
 
 	// Read the ephemeral representative.
-	rkW := make([]byte, kemPublicKeyLen)
+	rkW := make([]byte, kemRepLen)
 	if _, err := io.ReadFull(r, rkW); err != nil {
 		return nil, 0, err
 	}
@@ -262,7 +262,7 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 	var skE ristretto.Scalar
 
 	// Separate the representative from the ciphertext.
-	rkE, ciphertext := header[:kemPublicKeyLen], header[kemPublicKeyLen:]
+	rkE, ciphertext := header[:kemRepLen], header[kemRepLen:]
 
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
@@ -284,8 +284,8 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 
 		// If the header wss successful decrypted, decode the ephemeral secret key and message
 		// offset and return them.
-		_ = skE.UnmarshalBinary(header[:kemPublicKeyLen])
-		offset := binary.BigEndian.Uint32(header[kemPublicKeyLen:])
+		_ = skE.UnmarshalBinary(header[:kemRepLen])
+		offset := binary.BigEndian.Uint32(header[kemRepLen:])
 
 		return pkS, &skE, int(offset)
 	}

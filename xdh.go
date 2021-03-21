@@ -35,7 +35,7 @@ func xdh(s *ristretto.Scalar, q *ristretto.Point) []byte {
 // rk2pk converts a representative to a public key.
 func rk2pk(q *ristretto.Point, rk []byte) {
 	var (
-		buf [32]byte
+		buf [kemRepLen]byte
 		fe  edwards25519.FieldElement
 		cp  edwards25519.CompletedPoint
 		ep  edwards25519.ExtendedPoint
@@ -118,9 +118,8 @@ func generateKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Sca
 }
 
 const (
-	// The length of an Elligator2 representative for a public key.
-	kemPublicKeyLen = 32
-	kemOverhead     = kemPublicKeyLen + poly1305.TagSize // Total overhead of KEM envelope.
+	kemRepLen   = 32                           // The length of an Elligator2 representative.
+	kemOverhead = kemRepLen + poly1305.TagSize // Total overhead of KEM envelope.
 )
 
 // kemSend generates an ephemeral representative and a symmetric key given the sender's secret key,
