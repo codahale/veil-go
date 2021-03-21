@@ -3,7 +3,6 @@ package veil
 import (
 	"bufio"
 	"crypto/cipher"
-	"encoding/binary"
 	"errors"
 	"io"
 
@@ -17,7 +16,7 @@ type aeadStream struct {
 	nonceSequence
 }
 
-func newAEADStream(key, nonce []byte) *aeadStream {
+func newAEADStream(key []byte) *aeadStream {
 	aead, err := chacha20poly1305.New(key)
 	if err != nil {
 		panic(err)
@@ -25,9 +24,6 @@ func newAEADStream(key, nonce []byte) *aeadStream {
 
 	return &aeadStream{
 		aead: aead,
-		nonceSequence: nonceSequence{
-			nonce: nonce,
-		},
 	}
 }
 
@@ -99,31 +95,27 @@ func (as *aeadStream) decrypt(dst io.Writer, src *bufio.Reader, ad []byte, block
 }
 
 type nonceSequence struct {
-	nonce   []byte
-	counter uint32
+	ctr [chacha20poly1305.NonceSize]byte
 }
 
 func (ns *nonceSequence) next(final bool) []byte {
-	// Increment the counter, checking for overflows.
-	ns.counter++
-	if ns.counter == 0 {
-		panic("stream counter overflow")
+	for i := len(ns.ctr) - 2; i >= 0; i-- {
+		ns.ctr[i]++
+
+		if i == 0 && ns.ctr[i] == 0 {
+			panic("counter overflow")
+		} else if ns.ctr[i] != 0 {
+			break
+		}
 	}
 
-	// Append the counter value to the nonce prefix.
-	binary.BigEndian.PutUint32(ns.nonce[len(ns.nonce)-5:], ns.counter)
-
-	// Determine the continuation byte.
-	var continuation byte
+	// Set the continuation byte, if needed.
 	if final {
-		continuation = 1
+		ns.ctr[chacha20poly1305.NonceSize-1] = 1
 	}
-
-	// Set the continuation byte.
-	ns.nonce[len(ns.nonce)-1] = continuation
 
 	// Return the new nonce.
-	return ns.nonce
+	return ns.ctr[:]
 }
 
 type blockReader struct {
