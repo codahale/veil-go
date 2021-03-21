@@ -19,7 +19,8 @@ func TestAEADStream(t *testing.T) {
 	dst := bytes.NewBuffer(nil)
 
 	// Create an AEAD STREAM.
-	stream := newAEADStream(make([]byte, chacha20poly1305.KeySize))
+	stream := newAEADStream(make([]byte, chacha20poly1305.KeySize),
+		make([]byte, chacha20poly1305.NonceSize))
 
 	// Encrypt the input using a block size of three bytes.
 	eb, err := stream.encrypt(dst, src, []byte("ad"), 3)
@@ -30,7 +31,8 @@ func TestAEADStream(t *testing.T) {
 	assert.Equal(t, "encrypted bytes written", 131, eb)
 
 	// Reset the stream and swap inputs and outputs.
-	stream = newAEADStream(make([]byte, chacha20poly1305.KeySize))
+	stream = newAEADStream(make([]byte, chacha20poly1305.KeySize),
+		make([]byte, chacha20poly1305.NonceSize))
 	src = bufio.NewReader(bytes.NewBuffer(dst.Bytes()))
 	dst = bytes.NewBuffer(nil)
 
@@ -53,7 +55,8 @@ func TestAEADStream_Invalid(t *testing.T) {
 	dst := bytes.NewBuffer(nil)
 
 	// Create an AEAD STREAM.
-	stream := newAEADStream(make([]byte, chacha20poly1305.KeySize))
+	stream := newAEADStream(make([]byte, chacha20poly1305.KeySize),
+		make([]byte, chacha20poly1305.NonceSize))
 
 	// Encrypt the input using a block size of three bytes.
 	if _, err := stream.encrypt(dst, src, []byte("ad"), 3); err != nil {
@@ -64,7 +67,8 @@ func TestAEADStream_Invalid(t *testing.T) {
 	_, _ = dst.WriteString("bogus")
 
 	// Reset the stream and swap inputs and outputs.
-	stream = newAEADStream(make([]byte, chacha20poly1305.KeySize))
+	stream = newAEADStream(make([]byte, chacha20poly1305.KeySize),
+		make([]byte, chacha20poly1305.NonceSize))
 	src = bufio.NewReader(bytes.NewBuffer(dst.Bytes()))
 	dst = bytes.NewBuffer(nil)
 
@@ -84,17 +88,19 @@ func TestNonceSequence(t *testing.T) {
 
 	var ns nonceSequence
 
+	copy(ns.init[:], "abcdefghijkl")
+
 	n1 := ns.next(false)
 	assert.Equal(t, "nonce sequence",
-		[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00}, n1)
+		[]byte{0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6a, 0x00}, n1)
 
 	n2 := ns.next(false)
 	assert.Equal(t, "nonce sequence",
-		[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00}, n2)
+		[]byte{0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x69, 0x00}, n2)
 
 	n3 := ns.next(true)
 	assert.Equal(t, "nonce sequence",
-		[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x01}, n3)
+		[]byte{0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x68, 0x01}, n3)
 }
 
 func TestBlockReader_Exact(t *testing.T) {

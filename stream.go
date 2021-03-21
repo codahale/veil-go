@@ -16,15 +16,19 @@ type aeadStream struct {
 	nonceSequence
 }
 
-func newAEADStream(key []byte) *aeadStream {
+func newAEADStream(key, nonce []byte) *aeadStream {
 	aead, err := chacha20poly1305.New(key)
 	if err != nil {
 		panic(err)
 	}
 
-	return &aeadStream{
+	stream := aeadStream{
 		aead: aead,
 	}
+
+	copy(stream.init[:], nonce)
+
+	return &stream
 }
 
 func (as *aeadStream) encrypt(dst io.Writer, src *bufio.Reader, ad []byte, blockSize int) (int, error) {
@@ -95,11 +99,13 @@ func (as *aeadStream) decrypt(dst io.Writer, src *bufio.Reader, ad []byte, block
 }
 
 type nonceSequence struct {
-	ctr [chacha20poly1305.NonceSize]byte
+	init, nonce [chacha20poly1305.NonceSize]byte
+	ctr         [chacha20poly1305.NonceSize - 1]byte
 }
 
 func (ns *nonceSequence) next(final bool) []byte {
-	for i := len(ns.ctr) - 2; i >= 0; i-- {
+	// Increment the counter.
+	for i := len(ns.ctr) - 1; i >= 0; i-- {
 		ns.ctr[i]++
 
 		if i == 0 && ns.ctr[i] == 0 {
@@ -109,13 +115,18 @@ func (ns *nonceSequence) next(final bool) []byte {
 		}
 	}
 
-	// Set the continuation byte, if needed.
+	// XOR the initial nonce with the counter, ignoring the last byte.
+	for i, v := range ns.ctr {
+		ns.nonce[i] = ns.init[i] ^ v
+	}
+
+	// If this is the last block, set the finalization byte to 1.
 	if final {
-		ns.ctr[chacha20poly1305.NonceSize-1] = 1
+		ns.nonce[chacha20poly1305.NonceSize-1] = 1
 	}
 
 	// Return the new nonce.
-	return ns.ctr[:]
+	return ns.nonce[:]
 }
 
 type blockReader struct {

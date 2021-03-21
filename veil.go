@@ -148,8 +148,8 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 		return n, err
 	}
 
-	// Generate a shared key between the sender and the ephemeral key.
-	rkW, key, err := kemSend(rand, &sk.s, &sk.pk.q, &pkE, headers)
+	// Generate a shared key and nonce between the sender and the ephemeral key.
+	rkW, key, nonce, err := kemSend(rand, &sk.s, &sk.pk.q, &pkE, headers)
 	if err != nil {
 		return n, err
 	}
@@ -160,8 +160,8 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 		return n + an, err
 	}
 
-	// Initialize an AEAD stream with the key.
-	stream := newAEADStream(key)
+	// Initialize an AEAD stream with the key and nonce.
+	stream := newAEADStream(key, nonce)
 
 	// Encrypt the plaintext as a stream.
 	bn, err := stream.encrypt(dst, r, nil, blockSize)
@@ -198,11 +198,11 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 		return nil, 0, err
 	}
 
-	// Derive the shared key between the sender and the ephemeral key.
-	key := kemReceive(skE, &pkE, &pkS.q, rkW, headers)
+	// Derive the shared key and nonce between the sender and the ephemeral key.
+	key, nonce := kemReceive(skE, &pkE, &pkS.q, rkW, headers)
 
-	// Initialize an AEAD stream with the key.
-	stream := newAEADStream(key)
+	// Initialize an AEAD stream with the key and nonce.
+	stream := newAEADStream(key, nonce)
 
 	// Decrypt the original stream.
 	n, err := stream.decrypt(dst, r, nil, blockSize)
@@ -266,8 +266,8 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
-		// Re-derive the KEM key between the sender and recipient.
-		key := kemReceive(&sk.s, &sk.pk.q, &pkS.q, rkE, nil)
+		// Re-derive the KEM key and nonce between the sender and recipient.
+		key, nonce := kemReceive(&sk.s, &sk.pk.q, &pkS.q, rkE, nil)
 
 		// Use the key with ChaCha20Poly1305.
 		aead, err := chacha20poly1305.New(key)
@@ -277,7 +277,7 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.
-		header, err := aead.Open(nil, zeroNonce[:], ciphertext, nil)
+		header, err := aead.Open(nil, nonce, ciphertext, nil)
 		if err != nil {
 			continue
 		}
@@ -302,7 +302,7 @@ func (sk *SecretKey) encryptHeaders(rand io.Reader, header []byte, publicKeys []
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate KEM keys for the recipient.
-		rkE, key, err := kemSend(rand, &sk.s, &sk.pk.q, &pkR.q, nil)
+		rkE, key, nonce, err := kemSend(rand, &sk.s, &sk.pk.q, &pkR.q, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -314,7 +314,7 @@ func (sk *SecretKey) encryptHeaders(rand io.Reader, header []byte, publicKeys []
 		}
 
 		// Encrypt the header for the recipient.
-		b := aead.Seal(nil, zeroNonce[:], header, nil)
+		b := aead.Seal(nil, nonce, header, nil)
 
 		// Write the ephemeral representative and the ciphertext.
 		_, _ = buf.Write(rkE)

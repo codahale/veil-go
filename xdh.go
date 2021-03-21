@@ -14,7 +14,6 @@ import (
 //nolint:gochecknoglobals // constants
 var (
 	zeroPoint = (&ristretto.Point{}).SetZero() // Zero in the ristretto255 group.
-	zeroNonce [chacha20poly1305.NonceSize]byte // The all-zero nonce.
 )
 
 // xdh performs a Diffie-Hellman key exchange using the given secret key and public key.
@@ -123,15 +122,16 @@ const (
 	kemOverhead = kemRepLen + poly1305.TagSize // Total overhead of KEM envelope.
 )
 
-// kemSend generates an ephemeral representative and a symmetric key given the sender's secret key,
-// the sender's public key, and the recipient's public key. Also includes any authenticated data.
+// kemSend generates an ephemeral representative, a symmetric key, and a nonce given the sender's
+// secret key, the sender's public key, and the recipient's public key. Also includes any
+// authenticated data.
 func kemSend(
 	rand io.Reader, skS *ristretto.Scalar, pkS, pkR *ristretto.Point, data []byte,
-) ([]byte, []byte, error) {
+) ([]byte, []byte, []byte, error) {
 	// Generate an ephemeral key pair.
 	_, rkE, skE, err := generateKeys(rand)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Calculate the ephemeral shared secret between the ephemeral secret key and the recipient's
@@ -142,17 +142,17 @@ func kemSend(
 	// public key.
 	zzS := xdh(skS, pkR)
 
-	// Derive the key from the shared secrets, the authenticated data, the ephemeral public key's
-	// representative, and the public keys of both the recipient and the sender.
-	key := kdf(zzE, zzS, data, rkE, pkR, pkS)
+	// Derive the key and nonce from the shared secrets, the authenticated data, the ephemeral
+	// public key's representative, and the public keys of both the recipient and the sender.
+	key, nonce := kdf(zzE, zzS, data, rkE, pkR, pkS)
 
-	// Return the ephemeral public key's representative and the symmetric key.
-	return rkE, key, nil
+	// Return the ephemeral public key's representative, the symmetric key, and the nonce.
+	return rkE, key, nonce, nil
 }
 
-// kemReceive generates a symmetric key given the recipient's secret key, the recipient's public
-// key, the sender's public key, the ephemeral representative, and any authenticated data.
-func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []byte) []byte {
+// kemReceive generates a symmetric key and nonce given the recipient's secret key, the recipient's
+// public key, the sender's public key, the ephemeral representative, and any authenticated data.
+func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []byte) ([]byte, []byte) {
 	var pkE ristretto.Point
 
 	// Convert the embedded representative to a public key.
@@ -171,10 +171,12 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE, data []by
 	return kdf(zzE, zzS, data, rkE, pkR, pkS)
 }
 
-// kdf returns a ChaCha20Poly1305 key derived from the given ephemeral shared secret, static shared
-// secret, authenticated data, the ephemeral public key's representative, the recipient's public
-// key, and the sender's public key.
-func kdf(zzE, zzS, data, rkE []byte, pkR, pkS *ristretto.Point) []byte {
+const chachaKDFLen = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
+
+// kdf returns a ChaCha20Poly1305 key and nonce derived from the given ephemeral shared secret,
+// static shared secret, authenticated data, the ephemeral public key's representative, the
+// recipient's public key, and the sender's public key.
+func kdf(zzE, zzS, data, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte) {
 	// Concatenate the ephemeral and static shared secrets to form the initial keying material.
 	ikm := append(zzE, zzS...)
 
@@ -187,8 +189,8 @@ func kdf(zzE, zzS, data, rkE []byte, pkR, pkS *ristretto.Point) []byte {
 	h := hkdf.New(sha3.New512, ikm, salt, data)
 
 	// Derive the key from the HKDF output.
-	key := make([]byte, chacha20poly1305.KeySize)
-	_, _ = io.ReadFull(h, key)
+	kn := make([]byte, chachaKDFLen)
+	_, _ = io.ReadFull(h, kn)
 
-	return key
+	return kn[:chacha20poly1305.KeySize], kn[chacha20poly1305.KeySize:]
 }

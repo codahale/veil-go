@@ -64,14 +64,15 @@ func TestKemExchange(t *testing.T) {
 
 	data := []byte("ok")
 
-	rkW, keyA, err := kemSend(rand.Reader, &skA, &pkA, &pkB, data)
+	rkW, keyA, nonceA, err := kemSend(rand.Reader, &skA, &pkA, &pkB, data)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	keyB := kemReceive(&skB, &pkB, &pkA, rkW, data)
+	keyB, nonceB := kemReceive(&skB, &pkB, &pkA, rkW, data)
 
 	assert.Equal(t, "key", keyA, keyB)
+	assert.Equal(t, "nonce", nonceA, nonceB)
 }
 
 func BenchmarkGenerateKeys(b *testing.B) {

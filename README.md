@@ -17,11 +17,11 @@ true length, and fake recipients can be added to disguise their true number from
 
 Veil uses ChaCha20Poly1305 for authenticated encryption, ristretto255/XDH for key agreement and
 authentication, Elligator2 for indistinguishable public key encoding, HKDF-SHA3-512 for key
-derivation, and the STREAM construction for authenticated encryption of streaming data.
+derivation, and a TLS 1.3/STREAM-style construction for authenticated encryption of streaming data.
 
 * ChaCha20Poly1305 is fast, well-studied, and requires no padding. It is vulnerable to nonce misuse,
-  but all keys are derived from random data, making collisions very improbable. Constant-time
-  implementations are easy to implement without hardware support.
+  but all keys and nonces are derived from random data, making collisions very improbable.
+  Constant-time implementations are easy to implement without hardware support.
 * The [ristretto255](https://ristretto.group) group uses a
   [safe curve](https://safecurves.cr.yp.to) (Curve25519), has no curve cofactor, has non-malleable
   encodings, and provides ~128-bit security, which roughly maps to the security levels of the other
@@ -46,19 +46,30 @@ Veil messages are encrypted using a Key Encapsulation Mechanism:
    the sender's public key as the salt parameter and the authenticated data as the information
    parameter.
 5. The first 32 bytes from the HKDF output are used as a ChaCha20Poly1305 key.
-6. The plaintext is encrypted with ChaCha20Poly1305 using the derived key, a zero nonce, and the 
-   authenticated data.
+6. The next 12 bytes from the HKDF output are used as a ChaCha20Poly1305 nonce.
+7. The plaintext is encrypted with ChaCha20Poly1305 using the derived key, the derived nonce, and
+   the authenticated data.
 8. The ephemeral public key's Elligator2 representative and the ChaCha20Poly1305 ciphertext and tag
    are transmitted.
 
 As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
 KEM provides assurance that the message was encrypted by the holder of the sender's secret key. XDH
 mutability issues are mitigated by the inclusion of both the ephemeral public key's Elligator2
-representative and the recipient's public key in the HKDF inputs. Deriving the key from the
-ephemeral shared secret eliminates the possibility of nonce misuse, allows for the usage of ChaCha20
-vs XChaCha20, and results in a shorter ciphertext by eliding the nonce. Finally, encoding the
-ephemeral public key with Elligator2 ensures the final bytestring is indistinguishable from random
-noise.
+representative and the recipient's public key in the HKDF inputs. Deriving the key and nonce from
+the ephemeral shared secret eliminates the possibility of nonce misuse, allows for the usage of
+ChaCha20 vs XChaCha20, and results in a shorter ciphertext by eliding the nonce. Finally, encoding
+the ephemeral public key with Elligator2 ensures the final bytestring is indistinguishable from
+random noise.
+
+### Streaming Encryption
+
+To allow for both authenticated encryption _and_ arbitrarily-sized messages, Veil breaks up
+plaintexts into blocks, which are encrypted with the derived key and a sequence of nonces. Veil uses
+a nonce sequence similar to TLS 1.3, where an initial derived nonce is XORed with a counter to
+provide random-looking nonces guaranteed to be unique for each block. To prevent ciphertext
+modification, Veil borrows the finalization concept from Rogaway et al's STREAM construction, which
+sets the last byte of the nonce to 0 if additional blocks are expected and 1 if the current block is
+the final block.
 
 ### Messages
 
@@ -80,8 +91,8 @@ the shared secret, and the message is decrypted.
 ### Password-Based Encryption
 
 To safely store secret keys, Argon2id is used with a 16-byte random salt to derive a
-ChaCha20Poly1305 key. The secret key is encrypted with ChaCha20Poly1305, using the Argon2id
-parameters as authenticated data.
+ChaCha20Poly1305 key and nonce. The secret key is encrypted with ChaCha20Poly1305, using the
+Argon2id parameters as authenticated data.
 
 ## What's the point
 

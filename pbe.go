@@ -148,12 +148,12 @@ func NewEncryptedSecretKey(
 		return nil, err
 	}
 
-	// Use Argon2id to derive a key from the password and salt.
-	key := pbeKDF(password, salt, params)
+	// Use Argon2id to derive a key and nonce from the password and salt.
+	key, nonce := pbeKDF(password, salt, params)
 
 	// Encrypt the secret key.
 	aead, _ := chacha20poly1305.New(key)
-	ciphertext := aead.Seal(nil, zeroNonce[:], sk.s.Bytes(), nil)
+	ciphertext := aead.Seal(nil, nonce, sk.s.Bytes(), nil)
 
 	// Return the salt, ciphertext, and parameters.
 	return &EncryptedSecretKey{
@@ -171,12 +171,12 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 		q ristretto.Point
 	)
 
-	// Use Argon2id to derive a key from the password and salt.
-	key := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
+	// Use Argon2id to derive a key and nonce from the password and salt.
+	key, nonce := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
 	aead, _ := chacha20poly1305.New(key)
 
 	// Decrypt the secret key.
-	plaintext, err := aead.Open(nil, zeroNonce[:], esk.Ciphertext, nil)
+	plaintext, err := aead.Open(nil, nonce, esk.Ciphertext, nil)
 	if err != nil {
 		return nil, ErrInvalidCiphertext
 	}
@@ -195,7 +195,9 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	return &SecretKey{s: s, pk: PublicKey{q: q, rk: rk}}, err
 }
 
-// pbeKDF uses Argon2id to derive a ChaCha20 key from the password, salt, and parameters.
-func pbeKDF(password, salt []byte, params *Argon2idParams) []byte {
-	return argon2.IDKey(password, salt, params.Time, params.Memory, params.Parallelism, chacha20poly1305.KeySize)
+// pbeKDF uses Argon2id to derive a ChaCha20 key and nonce from the password, salt, and parameters.
+func pbeKDF(password, salt []byte, params *Argon2idParams) ([]byte, []byte) {
+	kn := argon2.IDKey(password, salt, params.Time, params.Memory, params.Parallelism, chachaKDFLen)
+
+	return kn[:chacha20poly1305.KeySize], kn[chacha20poly1305.KeySize:]
 }
