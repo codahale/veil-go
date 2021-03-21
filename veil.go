@@ -177,6 +177,9 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 // Decrypt decrypts the data in src if originally encrypted by any of the given public keys. Returns
 // the sender's public key, the number of decrypted bytes written, and the first reported error, if
 // any.
+// N.B.: Because Veil messages are streamed, it is possible that this may write some decrypted data
+// to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
+// output written to dst should be discarded, as it cannot be ascertained to be authentic.
 func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey) (*PublicKey, int, error) {
 	var pkE ristretto.Point
 

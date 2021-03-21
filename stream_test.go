@@ -56,6 +56,51 @@ func TestAEADStream(t *testing.T) {
 	assert.Equal(t, "decrypted message", "welcome to paradise", dst.String())
 }
 
+func TestAEADStream_Invalid(t *testing.T) {
+	t.Parallel()
+
+	// Set up inputs and outputs.
+	src := bufio.NewReader(bytes.NewBufferString("welcome to paradise"))
+	dst := bytes.NewBuffer(nil)
+
+	// Create an AEAD.
+	aead, err := chacha20poly1305.New(make([]byte, chacha20poly1305.KeySize))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create an AEAD STREAM.
+	stream := &aeadStream{
+		aead: aead,
+		nonceSequence: nonceSequence{
+			nonce: make([]byte, chacha20poly1305.NonceSize),
+		},
+	}
+
+	// Encrypt the input using a block size of three bytes.
+	if _, err = stream.encrypt(dst, src, []byte("ad"), 3); err != nil {
+		t.Fatal(err)
+	}
+
+	// Corrupt the ciphertext.
+	_, _ = dst.WriteString("bogus")
+
+	// Reset the stream and swap inputs and outputs.
+	stream.counter = 0
+	src = bufio.NewReader(bytes.NewBuffer(dst.Bytes()))
+	dst = bytes.NewBuffer(nil)
+
+	// Decrypt the output using the same block size.
+	_, err = stream.decrypt(dst, src, []byte("ad"), 3)
+	if err == nil {
+		t.Error("should have returned an error but didn't")
+	}
+
+	// Ensure that the output is spoiled.
+	assert.Equal(t, "decrypted message",
+		"welcome to paradis\nINVALID CIPHERTEXT\nDO NOT TRUST", dst.String())
+}
+
 func TestNonceSequence(t *testing.T) {
 	t.Parallel()
 

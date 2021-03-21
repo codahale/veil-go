@@ -75,7 +75,11 @@ func (as *aeadStream) decrypt(dst io.Writer, src *bufio.Reader, ad []byte, block
 		// Decrypt the block using the next nonce in the sequence.
 		block, err = as.aead.Open(block[:0], as.next(final), block, ad)
 		if err != nil {
-			return wn, err
+			// If the block is invalid, spoil the output to ensure it's not trusted, even if it's
+			// not discarded.
+			n, _ := io.WriteString(dst, "\nINVALID CIPHERTEXT\nDO NOT TRUST")
+
+			return wn + n, err
 		}
 
 		// Write the decrypted block.
