@@ -13,7 +13,7 @@ import (
 
 //nolint:gochecknoglobals // constants
 var (
-	zeroPoint = (&ristretto.Point{}).SetZero() // Zero on the Ristretto255 curve.
+	zeroPoint = (&ristretto.Point{}).SetZero() // Zero in the ristretto255 group.
 	zeroNonce [chacha20poly1305.NonceSize]byte // The all-zero nonce.
 )
 
@@ -96,7 +96,8 @@ func sk2pk(q *ristretto.Point, s *ristretto.Scalar) {
 func generateKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Scalar, err error) {
 	var buf [64]byte
 
-	// Not all key pairs can be represented by Elligator2, so try until we find one.
+	// Not all key pairs have public keys which can be represented by Elligator2, so try until we
+	// find one.
 	for rk == nil {
 		// Generate 64 random bytes.
 		if _, err = io.ReadFull(rand, buf[:]); err != nil {

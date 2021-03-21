@@ -25,7 +25,7 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-// PublicKey is a Ristretto255 public key.
+// PublicKey is a ristretto255/XDH public key.
 type PublicKey struct {
 	rk []byte
 	q  ristretto.Point
@@ -81,7 +81,7 @@ var (
 	_ fmt.Stringer               = &PublicKey{}
 )
 
-// SecretKey is a Ristretto255 secret key.
+// SecretKey is a ristretto255/XDH secret key.
 type SecretKey struct {
 	pk PublicKey
 	s  ristretto.Scalar

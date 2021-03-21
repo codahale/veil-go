@@ -15,18 +15,19 @@ true length, and fake recipients can be added to disguise their true number from
 
 ## Algorithms & Constructions
 
-Veil uses ChaCha20Poly1305 for authenticated encryption, Ristretto255/XDH for key agreement and
+Veil uses ChaCha20Poly1305 for authenticated encryption, ristretto255/XDH for key agreement and
 authentication, Elligator2 for indistinguishable public key encoding, HKDF-SHA3-512 for key
 derivation, and the STREAM construction for authenticated encryption of streaming data.
 
 * ChaCha20Poly1305 is fast, well-studied, and requires no padding. It is vulnerable to nonce misuse,
-  but all keys are derived from random data, making collisions very improbable.
-  Constant-time implementations are easy to implement without hardware support.
-* [Ristretto255/DH](https://ristretto.group) uses a [safe curve](https://safecurves.cr.yp.to), has
-  no curve cofactor, and provides ~128-bit security, which roughly maps to the security levels of
-  the other algorithms and constructions. Constant-time implementations are common and certainly
-  easier to make than other EC curves.
-* Elligator2 allows us to map Ristretto255/DH public keys to random strings, making ephemeral
+  but all keys are derived from random data, making collisions very improbable. Constant-time
+  implementations are easy to implement without hardware support.
+* The [ristretto255](https://ristretto.group) group uses a
+  [safe curve](https://safecurves.cr.yp.to) (Curve25519), has no curve cofactor, has non-malleable
+  encodings, and provides ~128-bit security, which roughly maps to the security levels of the other
+  algorithms and constructions. Constant-time implementations are common and certainly easier to
+  make than other EC curves.
+* Elligator2 allows us to map ristretto255/XDH public keys to random strings, making ephemeral
   Diffie-Hellman indistinguishable from random noise. Elligator2 is constant-time.
 * HKDF-SHA3-512 is fast, standardized, constant-time, and very well-studied.
 * STREAM is simple and provides strong security.
