@@ -1,7 +1,6 @@
 package veil
 
 import (
-	"crypto/rand"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -10,12 +9,12 @@ import (
 func TestPBE(t *testing.T) {
 	t.Parallel()
 
-	sk, err := NewSecretKey(rand.Reader)
+	sk, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	esk, err := NewEncryptedSecretKey(rand.Reader, sk, []byte("this is magic"), nil)
+	esk, err := NewEncryptedSecretKey(sk, []byte("this is magic"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,7 +1,6 @@
 package veil
 
 import (
-	"crypto/rand"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -10,17 +9,17 @@ import (
 func TestAddFakes(t *testing.T) {
 	t.Parallel()
 
-	alice, err := NewSecretKey(rand.Reader)
+	alice, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	bob, err := NewSecretKey(rand.Reader)
+	bob, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	all, err := AddFakes(rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()}, 20)
+	all, err := AddFakes([]*PublicKey{alice.PublicKey(), bob.PublicKey()}, 20)
 	if err != nil {
 		t.Fatal(err)
 	}

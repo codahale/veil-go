@@ -2,7 +2,6 @@ package veil
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
@@ -13,13 +12,13 @@ import (
 
 func Example() {
 	// Alice generates a secret key and shares her public key with Bob.
-	alice, err := NewSecretKey(rand.Reader)
+	alice, err := NewSecretKey()
 	if err != nil {
 		panic(err)
 	}
 
 	// Bob generates a key pair and shares his public key with Alice.
-	bob, err := NewSecretKey(rand.Reader)
+	bob, err := NewSecretKey()
 	if err != nil {
 		panic(err)
 	}
@@ -30,16 +29,16 @@ func Example() {
 
 	// Alice creates a list of recipients -- her and Bob -- but adds 98 fake recipients so Bob won't
 	// know the true number of recipients.
-	recipients, err := AddFakes(rand.Reader, []*PublicKey{alice.PublicKey(), bob.PublicKey()}, 98)
+	recipients, err := AddFakes([]*PublicKey{alice.PublicKey(), bob.PublicKey()}, 98)
 	if err != nil {
 		panic(err)
 	}
 
 	// Alice pads the message with random data to disguise its true length.
-	padded := Pad(message, rand.Reader, 4829)
+	padded := Pad(message, 4829)
 
 	// Alice encrypts the message for her, Bob, and the 98 fakes.
-	_, err = alice.Encrypt(encrypted, padded, rand.Reader, recipients)
+	_, err = alice.Encrypt(encrypted, padded, recipients)
 	if err != nil {
 		panic(err)
 	}
@@ -71,12 +70,12 @@ func Example() {
 func TestRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	a, err := NewSecretKey(rand.Reader)
+	a, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b, err := NewSecretKey(rand.Reader)
+	b, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +85,7 @@ func TestRoundTrip(t *testing.T) {
 
 	publicKeys := []*PublicKey{a.PublicKey(), b.PublicKey()}
 
-	eb, err := a.Encrypt(enc, bytes.NewReader(message), rand.Reader, publicKeys)
+	eb, err := a.Encrypt(enc, bytes.NewReader(message), publicKeys)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,24 +107,27 @@ func TestRoundTrip(t *testing.T) {
 func TestPublicKey_Text(t *testing.T) {
 	t.Parallel()
 
-	sk, err := NewSecretKey(bytes.NewReader(make([]byte, 10*1024)))
+	// Make a fake, constant public key.
+	var pk PublicKey
+
+	pk.q.Derive([]byte("ok yeah"))
+
+	pk.rk = pk2rk(&pk.q)
+
+	j, err := json.Marshal(&pk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	j, err := json.Marshal(&sk.pk)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, "text representation", `"qBtcSssqMHWqbeoOLam8zRVu63OZVDR1l-t79FhVswU"`, string(j))
+	assert.Equal(t, "text representation",
+		`"3H7PDhB1yaW_eNYMApqRRjWiO2PakBpodGNahRBmoBU"`, string(j))
 
 	var pk2 PublicKey
 	if err := json.Unmarshal(j, &pk2); err != nil {
 		t.Fatal(err)
 	}
 
-	if !sk.pk.q.Equals(&pk2.q) || !bytes.Equal(sk.pk.rk, pk2.rk) {
+	if !pk.q.Equals(&pk2.q) || !bytes.Equal(pk.rk, pk2.rk) {
 		t.Error("bad round trip")
 	}
 }
@@ -133,15 +135,17 @@ func TestPublicKey_Text(t *testing.T) {
 func TestPublicKey_Binary(t *testing.T) {
 	t.Parallel()
 
-	sk, err := NewSecretKey(bytes.NewReader(make([]byte, 10*1024)))
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Make a fake, constant public key.
+	var pk PublicKey
+
+	pk.q.Derive([]byte("ok yeah"))
+
+	pk.rk = pk2rk(&pk.q)
 
 	w := bytes.NewBuffer(nil)
 	e := gob.NewEncoder(w)
 
-	if err := e.Encode(&sk.pk); err != nil {
+	if err := e.Encode(&pk); err != nil {
 		t.Fatal(err)
 	}
 
@@ -154,7 +158,7 @@ func TestPublicKey_Binary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !sk.pk.q.Equals(&pk2.q) || !bytes.Equal(sk.pk.rk, pk2.rk) {
+	if !pk.q.Equals(&pk2.q) || !bytes.Equal(pk.rk, pk2.rk) {
 		t.Error("bad round trip")
 	}
 }
@@ -162,7 +166,7 @@ func TestPublicKey_Binary(t *testing.T) {
 func TestSecretKey_String(t *testing.T) {
 	t.Parallel()
 
-	sk, err := NewSecretKey(rand.Reader)
+	sk, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}

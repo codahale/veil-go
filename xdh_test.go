@@ -1,7 +1,6 @@
 package veil
 
 import (
-	"crypto/rand"
 	"testing"
 
 	"github.com/bwesterb/go-ristretto"
@@ -52,19 +51,19 @@ func TestRepresentativeTransform(t *testing.T) {
 func TestKemExchange(t *testing.T) {
 	t.Parallel()
 
-	pkA, _, skA, err := generateKeys(rand.Reader)
+	pkA, _, skA, err := generateKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pkB, _, skB, err := generateKeys(rand.Reader)
+	pkB, _, skB, err := generateKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	data := []byte("ok")
 
-	rkW, keyA, nonceA, err := kemSend(rand.Reader, &skA, &pkA, &pkB, data)
+	rkW, keyA, nonceA, err := kemSend(&skA, &pkA, &pkB, data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,6 +76,6 @@ func TestKemExchange(t *testing.T) {
 
 func BenchmarkGenerateKeys(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _, _, _ = generateKeys(rand.Reader)
+		_, _, _, _ = generateKeys()
 	}
 }

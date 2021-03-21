@@ -1,6 +1,7 @@
 package veil
 
 import (
+	"crypto/rand"
 	"io"
 
 	"github.com/bwesterb/go-ristretto"
@@ -92,14 +93,14 @@ func sk2pk(q *ristretto.Point, s *ristretto.Scalar) {
 
 // generateKeys generates a key pair and returns the public key, the public key's representative,
 // and the secret key.
-func generateKeys(rand io.Reader) (q ristretto.Point, rk []byte, s ristretto.Scalar, err error) {
+func generateKeys() (q ristretto.Point, rk []byte, s ristretto.Scalar, err error) {
 	var buf [64]byte
 
 	// Not all key pairs have public keys which can be represented by Elligator2, so try until we
 	// find one.
 	for rk == nil {
 		// Generate 64 random bytes.
-		if _, err = io.ReadFull(rand, buf[:]); err != nil {
+		if _, err = rand.Read(buf[:]); err != nil {
 			return
 		}
 
@@ -125,11 +126,9 @@ const (
 // kemSend generates an ephemeral representative, a symmetric key, and a nonce given the sender's
 // secret key, the sender's public key, and the recipient's public key. Also includes any
 // authenticated data.
-func kemSend(
-	rand io.Reader, skS *ristretto.Scalar, pkS, pkR *ristretto.Point, data []byte,
-) ([]byte, []byte, []byte, error) {
+func kemSend(skS *ristretto.Scalar, pkS, pkR *ristretto.Point, data []byte) ([]byte, []byte, []byte, error) {
 	// Generate an ephemeral key pair.
-	_, rkE, skE, err := generateKeys(rand)
+	_, rkE, skE, err := generateKeys()
 	if err != nil {
 		return nil, nil, nil, err
 	}

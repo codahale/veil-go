@@ -2,7 +2,6 @@ package veil
 
 import (
 	"bytes"
-	"crypto/rand"
 	"io"
 	"testing"
 
@@ -14,7 +13,7 @@ func TestPad(t *testing.T) {
 
 	s := "this is a value"
 
-	padded, err := io.ReadAll(Pad(bytes.NewBufferString(s), rand.Reader, 40))
+	padded, err := io.ReadAll(Pad(bytes.NewBufferString(s), 40))
 	if err != nil {
 		t.Fatal(err)
 	}

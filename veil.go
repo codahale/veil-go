@@ -99,8 +99,8 @@ func (sk *SecretKey) PublicKey() *PublicKey {
 var _ fmt.Stringer = &SecretKey{}
 
 // NewSecretKey creates a new secret key.
-func NewSecretKey(rand io.Reader) (*SecretKey, error) {
-	q, rk, s, err := generateKeys(rand)
+func NewSecretKey() (*SecretKey, error) {
+	q, rk, s, err := generateKeys()
 	if err != nil {
 		return nil, err
 	}
@@ -121,11 +121,11 @@ const (
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
 // authenticate it and writes the results to dst. Returns the number of bytes written and the first
 // error reported while encrypting, if any.
-func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*PublicKey) (int, error) {
+func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey) (int, error) {
 	r := bufio.NewReader(src)
 
 	// Generate an ephemeral key pair.
-	pkE, _, skE, err := generateKeys(rand)
+	pkE, _, skE, err := generateKeys()
 	if err != nil {
 		return 0, err
 	}
@@ -137,7 +137,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 	binary.BigEndian.PutUint32(header[kemRepLen:], uint32(offset))
 
 	// Encrypt copies of the header for each recipient.
-	headers, err := sk.encryptHeaders(rand, header, recipients)
+	headers, err := sk.encryptHeaders(header, recipients)
 	if err != nil {
 		return 0, err
 	}
@@ -149,7 +149,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src, rand io.Reader, recipients []*P
 	}
 
 	// Generate a shared key and nonce between the sender and the ephemeral key.
-	rkW, key, nonce, err := kemSend(rand, &sk.s, &sk.pk.q, &pkE, headers)
+	rkW, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkE, headers)
 	if err != nil {
 		return n, err
 	}
@@ -295,14 +295,14 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
 // fake recipients.
-func (sk *SecretKey) encryptHeaders(rand io.Reader, header []byte, publicKeys []*PublicKey) ([]byte, error) {
+func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey) ([]byte, error) {
 	// Allocate a buffer for the entire header.
 	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
 
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate KEM keys for the recipient.
-		rkE, key, nonce, err := kemSend(rand, &sk.s, &sk.pk.q, &pkR.q, nil)
+		rkE, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkR.q, nil)
 		if err != nil {
 			return nil, err
 		}

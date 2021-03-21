@@ -2,19 +2,20 @@ package veil
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"io"
 )
 
 // Pad returns an io.Reader which adds n bytes of random padding to the source io.Reader.
-func Pad(src, rand io.Reader, n int) io.Reader {
+func Pad(src io.Reader, n int) io.Reader {
 	// Encode the number of random bytes into a buffer.
 	buf := make([]byte, 4)
 	n -= len(buf)
 	binary.BigEndian.PutUint32(buf, uint32(n))
 
 	// Return a multi-reader of the number of random bytes, the random bytes, and then the source.
-	return io.MultiReader(bytes.NewReader(buf), io.LimitReader(rand, int64(n)), src)
+	return io.MultiReader(bytes.NewReader(buf), io.LimitReader(rand.Reader, int64(n)), src)
 }
 
 // Unpad returns an io.Writer which will remove the random padding from incoming data before writing

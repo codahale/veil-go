@@ -1,11 +1,11 @@
 package veil
 
 import (
+	"crypto/rand"
 	"encoding"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/bwesterb/go-ristretto"
 	"golang.org/x/crypto/argon2"
@@ -129,9 +129,7 @@ var (
 )
 
 // NewEncryptedSecretKey encrypts the given key pair with the given password.
-func NewEncryptedSecretKey(
-	rand io.Reader, sk *SecretKey, password []byte, params *Argon2idParams,
-) (*EncryptedSecretKey, error) {
+func NewEncryptedSecretKey(sk *SecretKey, password []byte, params *Argon2idParams) (*EncryptedSecretKey, error) {
 	// Use default parameters if none are provided.
 	if params == nil {
 		// As recommended in https://tools.ietf.org/html/draft-irtf-cfrg-argon2-12#section-7.4.
@@ -144,7 +142,7 @@ func NewEncryptedSecretKey(
 
 	// Generate a random 16-byte salt.
 	salt := make([]byte, 16)
-	if _, err := io.ReadFull(rand, salt); err != nil {
+	if _, err := rand.Read(salt); err != nil {
 		return nil, err
 	}
 
