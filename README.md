@@ -17,7 +17,7 @@ true length, and fake recipients can be added to disguise their true number from
 
 Veil uses ChaCha20Poly1305 for authenticated encryption, ristretto255/XDH for key agreement and
 authentication, Elligator2 for indistinguishable public key encoding, HKDF-SHA3-512 for key
-derivation, and a TLS 1.3/STREAM-style construction for authenticated encryption of streaming data.
+derivation, and Tink's StreamingAEAD construction for authenticated encrypted of streaming data.
 
 * ChaCha20Poly1305 is fast, well-studied, and requires no padding. It is vulnerable to nonce misuse,
   but all keys and nonces are derived from random data, making collisions very improbable.
@@ -30,7 +30,7 @@ derivation, and a TLS 1.3/STREAM-style construction for authenticated encryption
 * Elligator2 allows us to map ristretto255/XDH public keys to random strings, making ephemeral
   Diffie-Hellman indistinguishable from random noise. Elligator2 is constant-time.
 * HKDF-SHA3-512 is fast, standardized, constant-time, and very well-studied.
-* STREAM is simple and provides strong security.
+* StreamingAEAD is well-studied and designed.
 
 ### Key Encapsulation Mechanism (KEM)
 
@@ -60,16 +60,6 @@ the ephemeral shared secret eliminates the possibility of nonce misuse, allows f
 ChaCha20 vs XChaCha20, and results in a shorter ciphertext by eliding the nonce. Finally, encoding
 the ephemeral public key with Elligator2 ensures the final bytestring is indistinguishable from
 random noise.
-
-### Streaming Encryption
-
-To allow for both authenticated encryption _and_ arbitrarily-sized messages, Veil breaks up
-plaintexts into blocks, which are encrypted with the derived key and a sequence of nonces. Veil uses
-a nonce sequence similar to TLS 1.3, where an initial derived nonce is XORed with a counter to
-provide random-looking nonces guaranteed to be unique for each block. To prevent ciphertext
-modification, Veil borrows the finalization concept from Rogaway et al's STREAM construction, which
-sets the last byte of the nonce to 0 if additional blocks are expected and 1 if the current block is
-the final block.
 
 ### Messages
 

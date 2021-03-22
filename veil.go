@@ -12,7 +12,6 @@
 package veil
 
 import (
-	"bufio"
 	"bytes"
 	"encoding"
 	"encoding/base64"
@@ -121,9 +120,7 @@ const (
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
 // authenticate it and writes the results to dst. Returns the number of bytes written and the first
 // error reported while encrypting, if any.
-func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey) (int, error) {
-	r := bufio.NewReader(src)
-
+func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey) (int64, error) {
 	// Generate an ephemeral key pair.
 	pkE, _, skE, err := generateKeys()
 	if err != nil {
@@ -145,31 +142,34 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 	// Write the encrypted headers.
 	n, err := dst.Write(headers)
 	if err != nil {
-		return n, err
+		return int64(n), err
 	}
 
 	// Generate a shared key and nonce between the sender and the ephemeral key.
 	rkW, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkE, headers)
 	if err != nil {
-		return n, err
+		return int64(n), err
 	}
 
 	// Write the wrapper Elligator2 representative.
 	an, err := dst.Write(rkW)
 	if err != nil {
-		return n + an, err
+		return int64(n + an), err
 	}
 
 	// Initialize an AEAD stream with the key and nonce.
-	stream := newAEADStream(key, nonce)
-
-	// Encrypt the plaintext as a stream.
-	bn, err := stream.encrypt(dst, r, nil, blockSize)
+	w, err := newAEADWriter(dst, key, nonce)
 	if err != nil {
-		return n + an + bn, err
+		return int64(n + an), err
 	}
 
-	return n + an + bn, nil
+	// Encrypt the plaintext as a stream.
+	bn, err := io.Copy(w, src)
+	if err != nil {
+		return int64(n + an), err
+	}
+
+	return int64(n+an) + bn, w.Close()
 }
 
 // Decrypt decrypts the data in src if originally encrypted by any of the given public keys. Returns
@@ -178,13 +178,11 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 // N.B.: Because Veil messages are streamed, it is possible that this may write some decrypted data
 // to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
 // output written to dst should be discarded, as it cannot be ascertained to be authentic.
-func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey) (*PublicKey, int, error) {
+func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey) (*PublicKey, int64, error) {
 	var pkE ristretto.Point
 
-	r := bufio.NewReader(src)
-
 	// Find a decryptable header and recover the ephemeral secret key.
-	headers, pkS, skE, err := sk.findHeader(r, senders)
+	headers, pkS, skE, err := sk.findHeader(src, senders)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -194,7 +192,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 
 	// Read the ephemeral representative.
 	rkW := make([]byte, kemRepLen)
-	if _, err := io.ReadFull(r, rkW); err != nil {
+	if _, err := io.ReadFull(src, rkW); err != nil {
 		return nil, 0, err
 	}
 
@@ -202,10 +200,13 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	key, nonce := kemReceive(skE, &pkE, &pkS.q, rkW, headers)
 
 	// Initialize an AEAD stream with the key and nonce.
-	stream := newAEADStream(key, nonce)
+	r, err := newAEADReader(src, key, nonce)
+	if err != nil {
+		return nil, 0, err
+	}
 
-	// Decrypt the original stream.
-	n, err := stream.decrypt(dst, r, nil, blockSize)
+	// Decrypt the plaintext as a stream.
+	n, err := io.Copy(dst, r)
 	if err != nil {
 		return nil, n, err
 	}
@@ -217,23 +218,27 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 // findHeader scans src for header blocks encrypted by any of the given possible senders. Returns
 // the full slice of encrypted headers, the sender's public key, and the ephemeral secret key.
 func (sk *SecretKey) findHeader(
-	src *bufio.Reader, senders []*PublicKey,
+	src io.Reader, senders []*PublicKey,
 ) ([]byte, *PublicKey, *ristretto.Scalar, error) {
 	headers := make([]byte, 0, len(senders)*encryptedHeaderLen) // a guess at initial capacity
-	br := newBlockReader(src, encryptedHeaderLen)
+	buf := make([]byte, encryptedHeaderLen)
 
 	for {
 		// Iterate through src in header-sized blocks.
-		block, final, err := br.read()
-		if err != nil {
+		_, err := io.ReadFull(src, buf)
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			// If we hit an EOF, expected and/or otherwise, this is the final block. We didn't find
+			// a header we could decrypt, so the ciphertext is invalid.
+			return nil, nil, nil, ErrInvalidCiphertext
+		} else if err != nil {
 			return nil, nil, nil, err
 		}
 
 		// Append the current header to the list of encrypted headers.
-		headers = append(headers, block...)
+		headers = append(headers, buf...)
 
 		// Attempt to decrypt the header.
-		pkS, skE, offset := sk.decryptHeader(block, senders)
+		pkS, skE, offset := sk.decryptHeader(buf, senders)
 
 		// If we successfully decrypt the header, use the message offset to read the remaining
 		// encrypted headers.
@@ -246,12 +251,6 @@ func (sk *SecretKey) findHeader(
 			// Return the full set of encrypted headers, the sender's public key, and the ephemeral
 			// secret key.
 			return append(headers, remaining...), pkS, skE, nil
-		}
-
-		// If we hit the end of src without finding a decryptable header, then the ciphertext is
-		// not valid for the given parameters.
-		if final {
-			return nil, nil, nil, ErrInvalidCiphertext
 		}
 	}
 }
