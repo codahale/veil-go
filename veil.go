@@ -146,7 +146,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 	}
 
 	// Generate a shared key and nonce between the sender and the ephemeral key.
-	rkW, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkE, headers)
+	rkW, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkE)
 	if err != nil {
 		return int64(n), err
 	}
@@ -157,8 +157,9 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 		return int64(n + an), err
 	}
 
-	// Initialize an AEAD stream with the key and nonce.
-	w, err := newAEADWriter(dst, key, nonce, nil)
+	// Initialize an AEAD writer with the key and nonce, using the encrypted headers as
+	// authenticated data.
+	w, err := newAEADWriter(dst, key, nonce, headers)
 	if err != nil {
 		return int64(n + an), err
 	}
@@ -197,10 +198,11 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	}
 
 	// Derive the shared key and nonce between the sender and the ephemeral key.
-	key, nonce := kemReceive(skE, &pkE, &pkS.q, rkW, headers)
+	key, nonce := kemReceive(skE, &pkE, &pkS.q, rkW)
 
-	// Initialize an AEAD stream with the key and nonce.
-	r, err := newAEADReader(src, key, nonce, nil)
+	// Initialize an AEAD reader with the key and nonce, using the encrypted headers as
+	// authenticated data.
+	r, err := newAEADReader(src, key, nonce, headers)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -266,7 +268,7 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
 		// Re-derive the KEM key and nonce between the sender and recipient.
-		key, nonce := kemReceive(&sk.s, &sk.pk.q, &pkS.q, rkE, nil)
+		key, nonce := kemReceive(&sk.s, &sk.pk.q, &pkS.q, rkE)
 
 		// Use the key with ChaCha20Poly1305.
 		aead, err := chacha20poly1305.New(key)
@@ -301,7 +303,7 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey) ([]b
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate KEM keys for the recipient.
-		rkE, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkR.q, nil)
+		rkE, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkR.q)
 		if err != nil {
 			return nil, err
 		}

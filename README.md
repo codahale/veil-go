@@ -43,23 +43,22 @@ Veil messages are encrypted using a Key Encapsulation Mechanism:
    secret key.
 4. The two shared secrets are concatenated and used as the initial keying material for
    HKDF-SHA3-512, with the ephemeral public key's representative, the recipient's public key, and 
-   the sender's public key as the salt parameter and the authenticated data as the information
+   the sender's public key as the salt parameter and the constant `veil` as the information
    parameter.
 5. The first 32 bytes from the HKDF output are used as a ChaCha20Poly1305 key.
 6. The next 12 bytes from the HKDF output are used as a ChaCha20Poly1305 nonce.
 7. The plaintext is encrypted with ChaCha20Poly1305 using the derived key, the derived nonce, and
-   the authenticated data.
+   any authenticated data.
 8. The ephemeral public key's Elligator2 representative and the ChaCha20Poly1305 ciphertext and tag
    are transmitted.
 
 As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
 KEM provides assurance that the message was encrypted by the holder of the sender's secret key. XDH
-mutability issues are mitigated by the inclusion of both the ephemeral public key's Elligator2
-representative and the recipient's public key in the HKDF inputs. Deriving the key and nonce from
-the ephemeral shared secret eliminates the possibility of nonce misuse, allows for the usage of
-ChaCha20 vs XChaCha20, and results in a shorter ciphertext by eliding the nonce. Finally, encoding
-the ephemeral public key with Elligator2 ensures the final bytestring is indistinguishable from
-random noise.
+mutability issues are mitigated by the inclusion of the ephemeral public key representative and the
+recipient's public key in the HKDF inputs. Deriving the key and nonce from the ephemeral shared
+secret eliminates the possibility of nonce misuse, allows for the usage of ChaCha20 vs XChaCha20,
+and results in a shorter ciphertext by eliding the nonce. Finally, encoding the ephemeral public key
+with Elligator2 ensures the final bytestring is indistinguishable from random noise.
 
 ### Messages
 
@@ -67,7 +66,7 @@ Encrypting a Veil message uses the following process:
 
 1. An ephemeral key pair is generated.
 2. A plaintext header is generated, containing the ephemeral secret key and the total length of
-   encrypted headers.
+   the encrypted headers.
 3. For each recipient, a copy of the header is encrypted using the sender's secret key and the
    recipient's public key, and written as output.
 4. The plaintext message is encrypted using the sender's secret key, the ephemeral public key, and 

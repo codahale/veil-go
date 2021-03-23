@@ -61,14 +61,12 @@ func TestKemExchange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	data := []byte("ok")
-
-	rkW, keyA, nonceA, err := kemSend(&skA, &pkA, &pkB, data)
+	rkW, keyA, nonceA, err := kemSend(&skA, &pkA, &pkB)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	keyB, nonceB := kemReceive(&skB, &pkB, &pkA, rkW, data)
+	keyB, nonceB := kemReceive(&skB, &pkB, &pkA, rkW)
 
 	assert.Equal(t, "key", keyA, keyB)
 	assert.Equal(t, "nonce", nonceA, nonceB)
