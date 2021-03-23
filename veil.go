@@ -170,6 +170,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 		return int64(n + an), err
 	}
 
+	// Return the bytes written and flush any buffers.
 	return int64(n+an) + bn, w.Close()
 }
 
@@ -219,9 +220,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 
 // findHeader scans src for header blocks encrypted by any of the given possible senders. Returns
 // the full slice of encrypted headers, the sender's public key, and the ephemeral secret key.
-func (sk *SecretKey) findHeader(
-	src io.Reader, senders []*PublicKey,
-) ([]byte, *PublicKey, *ristretto.Scalar, error) {
+func (sk *SecretKey) findHeader(src io.Reader, senders []*PublicKey) ([]byte, *PublicKey, *ristretto.Scalar, error) {
 	headers := make([]byte, 0, len(senders)*encryptedHeaderSize) // a guess at initial capacity
 	buf := make([]byte, encryptedHeaderSize)
 
@@ -241,10 +240,9 @@ func (sk *SecretKey) findHeader(
 
 		// Attempt to decrypt the header.
 		pkS, skE, offset := sk.decryptHeader(buf, senders)
-
-		// If we successfully decrypt the header, use the message offset to read the remaining
-		// encrypted headers.
 		if pkS != nil {
+			// If we successfully decrypt the header, use the message offset to read the remaining
+			// encrypted headers.
 			remaining := make([]byte, offset-len(headers))
 			if _, err := io.ReadFull(src, remaining); err != nil {
 				return nil, nil, nil, err

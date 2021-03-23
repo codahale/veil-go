@@ -12,21 +12,10 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-//nolint:gochecknoglobals // constants
-var (
-	zeroPoint = (&ristretto.Point{}).SetZero() // Zero in the ristretto255 group.
-)
-
 // xdh performs a Diffie-Hellman key exchange using the given secret key and public key.
 func xdh(s *ristretto.Scalar, q *ristretto.Point) []byte {
 	// Multiply the point by the scalar.
 	x := (&ristretto.Point{}).ScalarMult(q, s)
-
-	// Check to see that the shared secret point is not zero. This should never happen, but it's
-	// better to panic when an invariant is broken than keep chugging, and it's not hard to check.
-	if x.Equals(zeroPoint) {
-		panic("invalid exchange")
-	}
 
 	// Return the shared secret.
 	return x.Bytes()
