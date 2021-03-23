@@ -34,11 +34,9 @@ func Example() {
 		panic(err)
 	}
 
-	// Alice pads the message with random data to disguise its true length.
-	padded := Pad(message, 4829)
-
-	// Alice encrypts the message for her, Bob, and the 98 fakes.
-	_, err = alice.Encrypt(encrypted, padded, recipients)
+	// Alice encrypts the message for her, Bob, and the 98 fakes, adding random padding to disguise
+	// its true length.
+	_, err = alice.Encrypt(encrypted, message, recipients, 4829)
 	if err != nil {
 		panic(err)
 	}
@@ -47,8 +45,8 @@ func Example() {
 	received := bytes.NewReader(encrypted.Bytes())
 	decrypted := bytes.NewBuffer(nil)
 
-	// Bob decrypts the message, removing the random padding.
-	pk, _, err := bob.Decrypt(Unpad(decrypted), received, []*PublicKey{bob.PublicKey(), alice.PublicKey()})
+	// Bob decrypts the message.
+	pk, _, err := bob.Decrypt(decrypted, received, []*PublicKey{bob.PublicKey(), alice.PublicKey()})
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +83,7 @@ func TestRoundTrip(t *testing.T) {
 	dec := bytes.NewBuffer(nil)
 	publicKeys := []*PublicKey{a.PublicKey(), b.PublicKey()}
 
-	eb, err := a.Encrypt(enc, bytes.NewReader(message), publicKeys)
+	eb, err := a.Encrypt(enc, bytes.NewReader(message), publicKeys, 1234)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +95,7 @@ func TestRoundTrip(t *testing.T) {
 
 	assert.Equal(t, "public key", pk.q.Bytes(), a.pk.q.Bytes())
 	assert.Equal(t, "plaintext", message, dec.Bytes())
-	assert.Equal(t, "encrypted bytes", int64(240), eb)
+	assert.Equal(t, "encrypted bytes", int64(240+1234), eb)
 	assert.Equal(t, "decrypted bytes", int64(40), db)
 }
 

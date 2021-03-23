@@ -13,6 +13,7 @@ package veil
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding"
 	"encoding/base64"
 	"encoding/binary"
@@ -120,7 +121,7 @@ const (
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
 // authenticate it and writes the results to dst. Returns the number of bytes written and the first
 // error reported while encrypting, if any.
-func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey) (int64, error) {
+func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
 	// Generate an ephemeral key pair.
 	pkE, _, skE, err := generateKeys()
 	if err != nil {
@@ -128,13 +129,13 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 	}
 
 	// Encode the ephemeral secret key and offset into a header.
-	offset := encryptedHeaderSize * len(recipients)
+	offset := encryptedHeaderSize*len(recipients) + padding
 	header := make([]byte, headerSize)
 	copy(header, skE.Bytes())
 	binary.BigEndian.PutUint32(header[kemRepSize:], uint32(offset))
 
 	// Encrypt copies of the header for each recipient.
-	headers, err := sk.encryptHeaders(header, recipients)
+	headers, err := sk.encryptHeaders(header, recipients, padding)
 	if err != nil {
 		return 0, err
 	}
@@ -294,7 +295,7 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
 // fake recipients.
-func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey) ([]byte, error) {
+func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padding int) ([]byte, error) {
 	// Allocate a buffer for the entire header.
 	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
 
@@ -318,6 +319,13 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey) ([]b
 		// Write the ephemeral representative and the ciphertext.
 		_, _ = buf.Write(rkE)
 		_, _ = buf.Write(b)
+	}
+
+	// Add padding if any is required.
+	if padding > 0 {
+		if _, err := io.CopyN(buf, rand.Reader, int64(padding)); err != nil {
+			return nil, err
+		}
 	}
 
 	return buf.Bytes(), nil
