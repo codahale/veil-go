@@ -114,7 +114,7 @@ const (
 
 // kemSend generates an ephemeral representative, a symmetric key, and a nonce given the sender's
 // secret key, the sender's public key, and the recipient's public key.
-func kemSend(skS *ristretto.Scalar, pkS, pkR *ristretto.Point) ([]byte, []byte, []byte, error) {
+func kemSend(skS *ristretto.Scalar, pkS, pkR *ristretto.Point, header bool) ([]byte, []byte, []byte, error) {
 	// Generate an ephemeral key pair.
 	_, rkE, skE, err := generateKeys()
 	if err != nil {
@@ -131,7 +131,7 @@ func kemSend(skS *ristretto.Scalar, pkS, pkR *ristretto.Point) ([]byte, []byte, 
 
 	// Derive the key and nonce from the shared secrets, the ephemeral public key's representative,
 	// and the public keys of both the recipient and the sender.
-	key, nonce := kdf(zzE, zzS, rkE, pkR, pkS)
+	key, nonce := kdf(zzE, zzS, rkE, pkR, pkS, header)
 
 	// Return the ephemeral public key's representative, the symmetric key, and the nonce.
 	return rkE, key, nonce, nil
@@ -139,7 +139,7 @@ func kemSend(skS *ristretto.Scalar, pkS, pkR *ristretto.Point) ([]byte, []byte, 
 
 // kemReceive generates a symmetric key and nonce given the recipient's secret key, the recipient's
 // public key, the sender's public key, and the ephemeral representative.
-func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE []byte) ([]byte, []byte) {
+func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE []byte, header bool) ([]byte, []byte) {
 	var pkE ristretto.Point
 
 	// Convert the embedded representative to a public key.
@@ -155,7 +155,7 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE []byte) ([
 
 	// Derive the key from the shared secrets, the ephemeral public key's representative, and the
 	// public keys of both the recipient and sender.
-	return kdf(zzE, zzS, rkE, pkR, pkS)
+	return kdf(zzE, zzS, rkE, pkR, pkS, header)
 }
 
 const chachaKDFSize = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
@@ -163,7 +163,7 @@ const chachaKDFSize = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
 // kdf returns a ChaCha20Poly1305 key and nonce derived from the given ephemeral shared secret,
 // static shared secret, the ephemeral public key's representative, the recipient's public key, and
 // the sender's public key.
-func kdf(zzE, zzS, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte) {
+func kdf(zzE, zzS, rkE []byte, pkR, pkS *ristretto.Point, header bool) ([]byte, []byte) {
 	// Concatenate the ephemeral and static shared secrets to form the initial keying material.
 	ikm := append(zzE, zzS...)
 
@@ -171,9 +171,17 @@ func kdf(zzE, zzS, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte) {
 	// key, and the sender's public key.
 	salt := append(rkE, append(pkR.Bytes(), pkS.Bytes()...)...)
 
+	// Differentiate between keys derived for encrypting headers and those for encrypting messages.
+	var info []byte
+	if header {
+		info = []byte("header")
+	} else {
+		info = []byte("message")
+	}
+
 	// Create an HKDF-SHA3-512 instance from the initial keying material and the salt, using the
 	// constant "veil" as authenticated data.
-	h := hkdf.New(sha3.New512, ikm, salt, []byte("veil"))
+	h := hkdf.New(sha3.New512, ikm, salt, info)
 
 	// Derive the key from the HKDF output.
 	kn := make([]byte, chachaKDFSize)

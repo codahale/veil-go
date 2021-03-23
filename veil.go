@@ -146,7 +146,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 	}
 
 	// Generate a shared key and nonce between the sender and the ephemeral key.
-	rkW, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkE)
+	rkW, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkE, false)
 	if err != nil {
 		return int64(n), err
 	}
@@ -199,7 +199,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	}
 
 	// Derive the shared key and nonce between the sender and the ephemeral key.
-	key, nonce := kemReceive(skE, &pkE, &pkS.q, rkW)
+	key, nonce := kemReceive(skE, &pkE, &pkS.q, rkW, false)
 
 	// Initialize an AEAD reader with the key and nonce, using the encrypted headers as
 	// authenticated data.
@@ -266,7 +266,7 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
 		// Re-derive the KEM key and nonce between the sender and recipient.
-		key, nonce := kemReceive(&sk.s, &sk.pk.q, &pkS.q, rkE)
+		key, nonce := kemReceive(&sk.s, &sk.pk.q, &pkS.q, rkE, true)
 
 		// Use the key with ChaCha20Poly1305.
 		aead, err := chacha20poly1305.New(key)
@@ -301,7 +301,7 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey) ([]b
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate KEM keys for the recipient.
-		rkE, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkR.q)
+		rkE, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkR.q, true)
 		if err != nil {
 			return nil, err
 		}
