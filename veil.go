@@ -158,7 +158,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 	}
 
 	// Initialize an AEAD stream with the key and nonce.
-	w, err := newAEADWriter(dst, key, nonce)
+	w, err := newAEADWriter(dst, key, nonce, nil)
 	if err != nil {
 		return int64(n + an), err
 	}
@@ -200,7 +200,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	key, nonce := kemReceive(skE, &pkE, &pkS.q, rkW, headers)
 
 	// Initialize an AEAD stream with the key and nonce.
-	r, err := newAEADReader(src, key, nonce)
+	r, err := newAEADReader(src, key, nonce, nil)
 	if err != nil {
 		return nil, 0, err
 	}

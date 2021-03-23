@@ -15,13 +15,14 @@ func TestAEADStream(t *testing.T) {
 	// Constants.
 	key := make([]byte, chacha20poly1305.KeySize)
 	nonce := make([]byte, chacha20poly1305.NonceSize)
+	ad := make([]byte, 19)
 
 	// Set up inputs and outputs.
 	src := bytes.NewBufferString("welcome to paradise")
 	dst := bytes.NewBuffer(nil)
 
 	// Create an AEAD writer.
-	w, err := newAEADWriter(dst, key, nonce)
+	w, err := newAEADWriter(dst, key, nonce, ad)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +46,7 @@ func TestAEADStream(t *testing.T) {
 	dst = bytes.NewBuffer(nil)
 
 	// Create an AEAD reader.
-	r, err := newAEADReader(src, key, nonce)
+	r, err := newAEADReader(src, key, nonce, ad)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,13 +68,14 @@ func TestAEADStream_Invalid(t *testing.T) {
 	// Constants.
 	key := make([]byte, chacha20poly1305.KeySize)
 	nonce := make([]byte, chacha20poly1305.NonceSize)
+	ad := make([]byte, 19)
 
 	// Set up inputs and outputs.
 	src := bytes.NewBufferString("welcome to paradise")
 	dst := bytes.NewBuffer(nil)
 
 	// Create an AEAD writer.
-	w, err := newAEADWriter(dst, key, nonce)
+	w, err := newAEADWriter(dst, key, nonce, ad)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +102,7 @@ func TestAEADStream_Invalid(t *testing.T) {
 	dst = bytes.NewBuffer(nil)
 
 	// Create an AEAD reader.
-	r, err := newAEADReader(src, key, nonce)
+	r, err := newAEADReader(src, key, nonce, ad)
 	if err != nil {
 		t.Fatal(err)
 	}
