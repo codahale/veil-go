@@ -68,7 +68,8 @@ Encrypting a Veil message uses the following process:
 2. A plaintext header is generated, containing the ephemeral secret key and the total length of
    the encrypted headers.
 3. For each recipient, a copy of the header is encrypted using the sender's secret key and the
-   recipient's public key, and written as output.
+   recipient's public key, and written as output. If required, random padding is added to the end
+   of the encrypted headers.
 4. The plaintext message is encrypted using the sender's secret key, the ephemeral public key, and 
    the encrypted headers as authenticated data, using STREAM to encrypt the plaintext in blocks.
 
