@@ -8,7 +8,7 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-const noncePrefixLen = chacha20poly1305.NonceSize - 5
+const noncePrefixSize = chacha20poly1305.NonceSize - 5
 
 // newAEADReader returns an io.Writer which encrypts writes using ChaCha20Poly1305 with the given
 // key and nonce and writes ciphertext to dst.
@@ -22,7 +22,7 @@ func newAEADWriter(dst io.Writer, key, noncePrefix, ad []byte) (io.WriteCloser, 
 		W:                            dst,
 		SegmentEncrypter:             &chachaSegment{aead: aead, ad: ad},
 		NonceSize:                    chacha20poly1305.NonceSize,
-		NoncePrefix:                  noncePrefix[:noncePrefixLen],
+		NoncePrefix:                  noncePrefix[:noncePrefixSize],
 		PlaintextSegmentSize:         blockSize,
 		FirstCiphertextSegmentOffset: 0,
 	})
@@ -40,7 +40,7 @@ func newAEADReader(src io.Reader, key, noncePrefix, ad []byte) (io.Reader, error
 		R:                            src,
 		SegmentDecrypter:             &chachaSegment{aead: aead, ad: ad},
 		NonceSize:                    chacha20poly1305.NonceSize,
-		NoncePrefix:                  noncePrefix[:noncePrefixLen],
+		NoncePrefix:                  noncePrefix[:noncePrefixSize],
 		CiphertextSegmentSize:        blockSize,
 		FirstCiphertextSegmentOffset: 0,
 	})

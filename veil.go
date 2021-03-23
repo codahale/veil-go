@@ -112,9 +112,9 @@ func NewSecretKey() (*SecretKey, error) {
 var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 
 const (
-	blockSize          = 1024 * 1024   // 1MiB
-	headerLen          = kemRepLen + 4 // 4 bytes for message offset
-	encryptedHeaderLen = headerLen + kemOverhead
+	blockSize           = 1024 * 1024    // 1MiB
+	headerSize          = kemRepSize + 4 // 4 bytes for message offset
+	encryptedHeaderSize = headerSize + kemOverhead
 )
 
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
@@ -128,10 +128,10 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 	}
 
 	// Encode the ephemeral secret key and offset into a header.
-	offset := encryptedHeaderLen * len(recipients)
-	header := make([]byte, headerLen)
+	offset := encryptedHeaderSize * len(recipients)
+	header := make([]byte, headerSize)
 	copy(header, skE.Bytes())
-	binary.BigEndian.PutUint32(header[kemRepLen:], uint32(offset))
+	binary.BigEndian.PutUint32(header[kemRepSize:], uint32(offset))
 
 	// Encrypt copies of the header for each recipient.
 	headers, err := sk.encryptHeaders(header, recipients)
@@ -192,7 +192,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	sk2pk(&pkE, skE)
 
 	// Read the ephemeral representative.
-	rkW := make([]byte, kemRepLen)
+	rkW := make([]byte, kemRepSize)
 	if _, err := io.ReadFull(src, rkW); err != nil {
 		return nil, 0, err
 	}
@@ -222,8 +222,8 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 func (sk *SecretKey) findHeader(
 	src io.Reader, senders []*PublicKey,
 ) ([]byte, *PublicKey, *ristretto.Scalar, error) {
-	headers := make([]byte, 0, len(senders)*encryptedHeaderLen) // a guess at initial capacity
-	buf := make([]byte, encryptedHeaderLen)
+	headers := make([]byte, 0, len(senders)*encryptedHeaderSize) // a guess at initial capacity
+	buf := make([]byte, encryptedHeaderSize)
 
 	for {
 		// Iterate through src in header-sized blocks.
@@ -263,7 +263,7 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 	var skE ristretto.Scalar
 
 	// Separate the representative from the ciphertext.
-	rkE, ciphertext := header[:kemRepLen], header[kemRepLen:]
+	rkE, ciphertext := header[:kemRepSize], header[kemRepSize:]
 
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
@@ -285,8 +285,8 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 
 		// If the header wss successful decrypted, decode the ephemeral secret key and message
 		// offset and return them.
-		_ = skE.UnmarshalBinary(header[:kemRepLen])
-		offset := binary.BigEndian.Uint32(header[kemRepLen:])
+		_ = skE.UnmarshalBinary(header[:kemRepSize])
+		offset := binary.BigEndian.Uint32(header[kemRepSize:])
 
 		return pkS, &skE, int(offset)
 	}

@@ -35,7 +35,7 @@ func xdh(s *ristretto.Scalar, q *ristretto.Point) []byte {
 // rk2pk converts a representative to a public key.
 func rk2pk(q *ristretto.Point, rk []byte) {
 	var (
-		buf [kemRepLen]byte
+		buf [kemRepSize]byte
 		fe  edwards25519.FieldElement
 		cp  edwards25519.CompletedPoint
 		ep  edwards25519.ExtendedPoint
@@ -119,8 +119,8 @@ func generateKeys() (q ristretto.Point, rk []byte, s ristretto.Scalar, err error
 }
 
 const (
-	kemRepLen   = 32                           // The length of an Elligator2 representative.
-	kemOverhead = kemRepLen + poly1305.TagSize // Total overhead of KEM envelope.
+	kemRepSize  = 32                            // The length of an Elligator2 representative.
+	kemOverhead = kemRepSize + poly1305.TagSize // Total overhead of KEM envelope.
 )
 
 // kemSend generates an ephemeral representative, a symmetric key, and a nonce given the sender's
@@ -169,7 +169,7 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE []byte) ([
 	return kdf(zzE, zzS, rkE, pkR, pkS)
 }
 
-const chachaKDFLen = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
+const chachaKDFSize = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
 
 // kdf returns a ChaCha20Poly1305 key and nonce derived from the given ephemeral shared secret,
 // static shared secret, the ephemeral public key's representative, the recipient's public key, and
@@ -187,7 +187,7 @@ func kdf(zzE, zzS, rkE []byte, pkR, pkS *ristretto.Point) ([]byte, []byte) {
 	h := hkdf.New(sha3.New512, ikm, salt, []byte("veil"))
 
 	// Derive the key from the HKDF output.
-	kn := make([]byte, chachaKDFLen)
+	kn := make([]byte, chachaKDFSize)
 	_, _ = io.ReadFull(h, kn)
 
 	return kn[:chacha20poly1305.KeySize], kn[chacha20poly1305.KeySize:]

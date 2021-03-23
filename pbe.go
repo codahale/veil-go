@@ -195,7 +195,7 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 
 // pbeKDF uses Argon2id to derive a ChaCha20 key and nonce from the password, salt, and parameters.
 func pbeKDF(password, salt []byte, params *Argon2idParams) ([]byte, []byte) {
-	kn := argon2.IDKey(password, salt, params.Time, params.Memory, params.Parallelism, chachaKDFLen)
+	kn := argon2.IDKey(password, salt, params.Time, params.Memory, params.Parallelism, chachaKDFSize)
 
 	return kn[:chacha20poly1305.KeySize], kn[chacha20poly1305.KeySize:]
 }
