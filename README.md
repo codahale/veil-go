@@ -15,63 +15,63 @@ true length, and fake recipients can be added to disguise their true number from
 
 ## Algorithms & Constructions
 
-Veil uses ChaCha20Poly1305 for authenticated encryption, ristretto255/XDH for key agreement and
-authentication, Elligator2 for indistinguishable public key encoding, HKDF-SHA3-512 for key
-derivation, and Tink's StreamingAEAD construction for authenticated encrypted of streaming data.
+### Key-Committing AEAD
 
-* ChaCha20Poly1305 is fast, well-studied, and requires no padding. It is vulnerable to nonce misuse,
-  but all keys and nonces are derived from random data, making collisions very improbable.
-  Constant-time implementations are easy to implement without hardware support.
-* The [ristretto255](https://ristretto.group) group uses a
-  [safe curve](https://safecurves.cr.yp.to) (Curve25519), has no curve cofactor, has non-malleable
-  encodings, and provides ~128-bit security, which roughly maps to the security levels of the other
-  algorithms and constructions. Constant-time implementations are common and certainly easier to
-  make than other EC curves.
-* Elligator2 allows us to map ristretto255/XDH public keys to random strings, making ephemeral
-  Diffie-Hellman indistinguishable from random noise. Elligator2 is constant-time.
-* HKDF-SHA3-512 is fast, standardized, constant-time, and very well-studied.
-* StreamingAEAD is well-studied and designed.
+Veil uses a simple wrapper AEAD for adding key commitment to existing AEAD constructions. It does
+this by encrypting a message with an underlying AEAD, then using the same key to calculate an HMAC
+of the resulting ciphertext. The HMAC is appended to the ciphertext, and compared before decrypting.
 
-### Key Encapsulation Mechanism (KEM)
+In particular, Veil uses AES-256-GCM+HMAC-SHA2-512/256. AES is very well-studied and well-supported
+in hardware; GCM is fussy but fast; HMAC is as old as the hills and just as durable; SHA2-512/256 is
+a good mix of fast and secure.
 
-Veil messages are encrypted using a Key Encapsulation Mechanism:
+### Symmetric Key Ratcheting And Streaming AEADs
 
-1. An ephemeral key pair is generated.
-2. The ephemeral shared secret is calculated for the recipient's public key and the ephemeral
-   secret key.
-3. The static shared secret is calculated for the recipient's public key and the sender's 
-   secret key.
-4. The two shared secrets are concatenated and used as the initial keying material for
-   HKDF-SHA3-512, with the ephemeral public key's representative, the recipient's public key, and 
-   the sender's public key as the salt parameter and the constant `veil` as the information
-   parameter.
-5. The first 32 bytes from the HKDF output are used as a ChaCha20Poly1305 key.
-6. The next 12 bytes from the HKDF output are used as a ChaCha20Poly1305 nonce.
-7. The plaintext is encrypted with ChaCha20Poly1305 using the derived key, the derived nonce, and
-   any authenticated data.
-8. The ephemeral public key's Elligator2 representative and the ChaCha20Poly1305 ciphertext and tag
-   are transmitted.
+In order to encrypt arbitrarily large messages, Veil uses a streaming AEAD construction based on a
+Signal-style HKDF ratchet. An initial 32-byte chain key is used to create an HKDF-SHA2-512/256
+instance, and the first 32 bytes of its output are used to create a new chain key. The next 32 bytes
+of KDF output are used to create an AES-256 key, and the following 12 bytes are used to create a GCM
+nonce. To prevent attacker appending blocks to a message, the final block of a stream is keyed using
+a different salt, thus permanently forking the chain.
+
+### Key Agreement And Encapsulation
+
+Veil uses ristretto255 for asymmetric cryptography. Each person has a ristretto255/XDH key pair and
+shares their public key with each other. In place of encoded ristretto255 points, Veil encodes all
+public keys using Elligator2, making them indistinguishable from noise.
+
+When sending a message, the sender generates an ephemeral key pair and calculates the ephemeral
+shared secret between the recipient's public key and the ephemeral secret key. They then calculate
+the static shared secret between the recipient's public key and their own secret key. The two shared
+secret points are used as HKDF-SHA2-512/256 initial keying material, with the ephemeral, sender's,
+and recipient's public keys included as a salt. The sender creates a symmetric key and nonce from
+the KDF output and encrypts the message with an AEAD. The sender transmits the ephemeral public key
+and the ciphertext.
+
+To receive a message, the receiver calculates the ephemeral shared secret between the ephemeral
+public key and their own secret key and the static shared secret between the recipient's public key
+and their own secret key. The HKDF-SHA2-512/256 output is re-created, and the message is
+authenticated and decrypted.
 
 As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
 KEM provides assurance that the message was encrypted by the holder of the sender's secret key. XDH
-mutability issues are mitigated by the inclusion of the ephemeral public key representative and the
-recipient's public key in the HKDF inputs. Deriving the key and nonce from the ephemeral shared
-secret eliminates the possibility of nonce misuse, allows for the usage of ChaCha20 vs XChaCha20,
-and results in a shorter ciphertext by eliding the nonce. Finally, encoding the ephemeral public key
-with Elligator2 ensures the final bytestring is indistinguishable from random noise.
+mutability issues are mitigated by the inclusion of the ephemeral public key and the recipient's
+public key in the HKDF inputs. Deriving the key and nonce from the ephemeral shared secret
+eliminates the possibility of nonce misuse, allows for the safe usage of GCM, and results in a
+shorter ciphertext by eliding the nonce.
 
-### Messages
+### Multi-Recipient Messages
 
-Encrypting a Veil message uses the following process:
+A Veil message combines all of these primitives to provide multi-recipient messages.
 
-1. An ephemeral key pair is generated.
-2. A plaintext header is generated, containing the ephemeral secret key and the total length of
-   the encrypted headers.
-3. For each recipient, a copy of the header is encrypted using the sender's secret key and the
-   recipient's public key, and written as output. If required, random padding is added to the end
-   of the encrypted headers.
-4. The plaintext message is encrypted using the sender's secret key, the ephemeral public key, and 
-   the encrypted headers as authenticated data, using STREAM to encrypt the plaintext in blocks.
+First, the sender creates an ephemeral key pair and creates a header block consisting of the
+ephemeral secret key and the total length of all encrypted headers plus padding. For each recipient,
+the sender encrypts a copy of the header using the described KEM and AEAD. Finally, the sender adds
+optional random padding to the end of the encrypted headers.
+
+Second, the sender uses the KEM mechanism to encrypt the message using the ephemeral public key.
+Instead of a single AEAD pass, the derived key is used to begin a KDF key ratchet, and each block of
+the input is encrypted using AES-256-GCM+HMAC-SHA2-512/256 with a new ratchet key and nonce.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable header
 using the shared secret between the ephemeral public key and recipient's secret key. When a header
@@ -80,9 +80,8 @@ the shared secret, and the message is decrypted.
 
 ### Password-Based Encryption
 
-To safely store secret keys, Argon2id is used with a 16-byte random salt to derive a
-ChaCha20Poly1305 key and nonce. The secret key is encrypted with ChaCha20Poly1305, using the
-Argon2id parameters as authenticated data.
+To safely store secret keys, Argon2id is used with a 16-byte random salt to derive a AES-256 key and
+GCM nonce. The secret key is encrypted with AES-256-GCM+HMAC-SHA2-512/256.
 
 ## What's the point
 
@@ -99,3 +98,9 @@ Argon2id parameters as authenticated data.
 7. The number of recipients in a Veil message can be obscured from recipients by adding fake keys
    to the recipients list.
 8. Veil messages can be arbitrarily big and both encrypted and decrypted in a single pass.
+
+## License
+
+Copyright © 2021 Coda Hale
+
+Distributed under the Apache License 2.0.

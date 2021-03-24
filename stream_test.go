@@ -6,15 +6,13 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"golang.org/x/crypto/chacha20poly1305"
 )
 
 func TestAEADStream(t *testing.T) {
 	t.Parallel()
 
 	// Constants.
-	key := make([]byte, chacha20poly1305.KeySize)
-	nonce := make([]byte, chacha20poly1305.NonceSize)
+	key := []byte("this is ok")
 	ad := make([]byte, 19)
 
 	// Set up inputs and outputs.
@@ -22,13 +20,10 @@ func TestAEADStream(t *testing.T) {
 	dst := bytes.NewBuffer(nil)
 
 	// Create an AEAD writer.
-	w, err := newAEADWriter(dst, key, nonce, ad)
-	if err != nil {
-		t.Fatal(err)
-	}
+	w := newAEADWriter(dst, key, ad, 9)
 
 	// Encrypt the input.
-	eb, err := io.Copy(w, src)
+	pn, err := io.Copy(w, src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,76 +34,24 @@ func TestAEADStream(t *testing.T) {
 	}
 
 	// Check to see that we wrote the expected number of bytes.
-	assert.Equal(t, "encrypted bytes written", int64(19), eb)
+	assert.Equal(t, "plaintext bytes written", int64(19), pn)
 
 	// Swap inputs and outputs.
-	src = bytes.NewBuffer(dst.Bytes())
+	src = dst
 	dst = bytes.NewBuffer(nil)
 
-	// Create an AEAD reader.
-	r, err := newAEADReader(src, key, nonce, ad)
+	// Create a reader.
+	r := newAEADReader(src, key, ad, 9)
+
+	// Decrypt the input.
+	cn, err := io.Copy(dst, r)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Decrypt the output.
-	db, err := io.Copy(dst, r)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Check to see that we read the expected number of bytes.
+	assert.Equal(t, "ciphertext bytes written", int64(19), cn)
 
-	// Ensure that the output is the same as the input.
-	assert.Equal(t, "encrypted bytes read", int64(19), db)
-	assert.Equal(t, "decrypted message", "welcome to paradise", dst.String())
-}
-
-func TestAEADStream_Invalid(t *testing.T) {
-	t.Parallel()
-
-	// Constants.
-	key := make([]byte, chacha20poly1305.KeySize)
-	nonce := make([]byte, chacha20poly1305.NonceSize)
-	ad := make([]byte, 19)
-
-	// Set up inputs and outputs.
-	src := bytes.NewBufferString("welcome to paradise")
-	dst := bytes.NewBuffer(nil)
-
-	// Create an AEAD writer.
-	w, err := newAEADWriter(dst, key, nonce, ad)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Encrypt the input.
-	eb, err := io.Copy(w, src)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Close the writer to flush everything.
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Check to see that we wrote the expected number of bytes.
-	assert.Equal(t, "encrypted bytes written", int64(19), eb)
-
-	// Corrupt the ciphertext.
-	_, _ = dst.WriteString("bogus")
-
-	// Swap inputs and outputs.
-	src = bytes.NewBuffer(dst.Bytes())
-	dst = bytes.NewBuffer(nil)
-
-	// Create an AEAD reader.
-	r, err := newAEADReader(src, key, nonce, ad)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Decrypt the output.
-	if _, err = io.Copy(dst, r); err == nil {
-		t.Fatal("should not have decrypted successfully")
-	}
+	// Check to see that we decrypted the original message.
+	assert.Equal(t, "plaintext", "welcome to paradise", dst.String())
 }

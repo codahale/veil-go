@@ -22,7 +22,6 @@ import (
 	"io"
 
 	"github.com/bwesterb/go-ristretto"
-	"golang.org/x/crypto/chacha20poly1305"
 )
 
 // PublicKey is a ristretto255/XDH public key.
@@ -146,8 +145,8 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 		return int64(n), err
 	}
 
-	// Generate a shared key and nonce between the sender and the ephemeral key.
-	rkW, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkE, false)
+	// Generate a shared key between the sender and the ephemeral key.
+	rkW, key, _, err := kemSend(&sk.s, &sk.pk.q, &pkE, false)
 	if err != nil {
 		return int64(n), err
 	}
@@ -160,19 +159,51 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 
 	// Initialize an AEAD writer with the key and nonce, using the encrypted headers as
 	// authenticated data.
-	w, err := newAEADWriter(dst, key, nonce, headers)
-	if err != nil {
-		return int64(n + an), err
-	}
+	w := newAEADWriter(dst, key, headers, blockSize)
 
 	// Encrypt the plaintext as a stream.
 	bn, err := io.Copy(w, src)
 	if err != nil {
-		return int64(n + an), err
+		return bn + int64(n+an), err
 	}
 
 	// Return the bytes written and flush any buffers.
-	return int64(n+an) + bn, w.Close()
+	return bn + int64(n+an), w.Close()
+}
+
+// encryptHeaders encrypts the header for the given set of public keys with the specified number of
+// fake recipients.
+func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padding int) ([]byte, error) {
+	// Allocate a buffer for the entire header.
+	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
+
+	// Encrypt a copy of the header for each recipient.
+	for _, pkR := range publicKeys {
+		// Generate KEM keys for the recipient.
+		rkE, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkR.q, true)
+		if err != nil {
+			return nil, err
+		}
+
+		// Use the key with AES-256-GCM+HMAC-SHA2-512/256.
+		aead := newHMACAEAD(key)
+
+		// Encrypt the header for the recipient.
+		b := aead.Seal(nil, nonce, header, nil)
+
+		// Write the ephemeral representative and the ciphertext.
+		_, _ = buf.Write(rkE)
+		_, _ = buf.Write(b)
+	}
+
+	// Add padding if any is required.
+	if padding > 0 {
+		if _, err := io.CopyN(buf, rand.Reader, int64(padding)); err != nil {
+			return nil, err
+		}
+	}
+
+	return buf.Bytes(), nil
 }
 
 // Decrypt decrypts the data in src if originally encrypted by any of the given public keys. Returns
@@ -199,15 +230,12 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 		return nil, 0, err
 	}
 
-	// Derive the shared key and nonce between the sender and the ephemeral key.
-	key, nonce := kemReceive(skE, &pkE, &pkS.q, rkW, false)
+	// Derive the shared key between the sender and the ephemeral key.
+	key, _ := kemReceive(skE, &pkE, &pkS.q, rkW, false)
 
 	// Initialize an AEAD reader with the key and nonce, using the encrypted headers as
 	// authenticated data.
-	r, err := newAEADReader(src, key, nonce, headers)
-	if err != nil {
-		return nil, 0, err
-	}
+	r := newAEADReader(src, key, headers, blockSize)
 
 	// Decrypt the plaintext as a stream.
 	n, err := io.Copy(dst, r)
@@ -239,8 +267,16 @@ func (sk *SecretKey) findHeader(src io.Reader, senders []*PublicKey) ([]byte, *P
 		// Append the current header to the list of encrypted headers.
 		headers = append(headers, buf...)
 
+		// Copy the ephemeral public key representative.
+		rkE := make([]byte, kemRepSize)
+		copy(rkE, buf)
+
+		// Copy the ciphertext.
+		ciphertext := make([]byte, len(buf)-kemRepSize)
+		copy(ciphertext, buf[kemRepSize:])
+
 		// Attempt to decrypt the header.
-		pkS, skE, offset := sk.decryptHeader(buf, senders)
+		pkS, skE, offset := sk.decryptHeader(rkE, ciphertext, senders)
 		if pkS != nil {
 			// If we successfully decrypt the header, use the message offset to read the remaining
 			// encrypted headers.
@@ -258,22 +294,16 @@ func (sk *SecretKey) findHeader(src io.Reader, senders []*PublicKey) ([]byte, *P
 
 // decryptHeader attempts to decrypt the given header block if sent from any of the given public
 // keys.
-func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*PublicKey, *ristretto.Scalar, int) {
+func (sk *SecretKey) decryptHeader(rkE, ciphertext []byte, senders []*PublicKey) (*PublicKey, *ristretto.Scalar, int) {
 	var skE ristretto.Scalar
-
-	// Separate the representative from the ciphertext.
-	rkE, ciphertext := header[:kemRepSize], header[kemRepSize:]
 
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
 		// Re-derive the KEM key and nonce between the sender and recipient.
 		key, nonce := kemReceive(&sk.s, &sk.pk.q, &pkS.q, rkE, true)
 
-		// Use the key with ChaCha20Poly1305.
-		aead, err := chacha20poly1305.New(key)
-		if err != nil {
-			panic(err)
-		}
+		// Use the key with AES-256-GCM+HMAC-SHA2-512/256.
+		aead := newHMACAEAD(key)
 
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.
@@ -291,42 +321,4 @@ func (sk *SecretKey) decryptHeader(header []byte, senders []*PublicKey) (*Public
 	}
 
 	return nil, nil, 0
-}
-
-// encryptHeaders encrypts the header for the given set of public keys with the specified number of
-// fake recipients.
-func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padding int) ([]byte, error) {
-	// Allocate a buffer for the entire header.
-	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
-
-	// Encrypt a copy of the header for each recipient.
-	for _, pkR := range publicKeys {
-		// Generate KEM keys for the recipient.
-		rkE, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkR.q, true)
-		if err != nil {
-			return nil, err
-		}
-
-		// Use the key with ChaCha20Poly1305.
-		aead, err := chacha20poly1305.New(key)
-		if err != nil {
-			panic(err)
-		}
-
-		// Encrypt the header for the recipient.
-		b := aead.Seal(nil, nonce, header, nil)
-
-		// Write the ephemeral representative and the ciphertext.
-		_, _ = buf.Write(rkE)
-		_, _ = buf.Write(b)
-	}
-
-	// Add padding if any is required.
-	if padding > 0 {
-		if _, err := io.CopyN(buf, rand.Reader, int64(padding)); err != nil {
-			return nil, err
-		}
-	}
-
-	return buf.Bytes(), nil
 }

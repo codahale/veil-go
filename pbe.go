@@ -9,7 +9,6 @@ import (
 
 	"github.com/bwesterb/go-ristretto"
 	"golang.org/x/crypto/argon2"
-	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/cryptobyte"
 )
 
@@ -53,7 +52,7 @@ var (
 type EncryptedSecretKey struct {
 	Argon2idParams
 	Salt       []byte // The random salt used to encrypt the secret key.
-	Ciphertext []byte // The secret key, encrypted with ChaCha20Poly1305.
+	Ciphertext []byte // The secret key, encrypted with AES-256-CBC/HMAC-SHA2-512/256.
 }
 
 func (esk *EncryptedSecretKey) MarshalBinary() ([]byte, error) {
@@ -150,7 +149,7 @@ func NewEncryptedSecretKey(sk *SecretKey, password []byte, params *Argon2idParam
 	key, nonce := pbeKDF(password, salt, params)
 
 	// Encrypt the secret key.
-	aead, _ := chacha20poly1305.New(key)
+	aead := newHMACAEAD(key)
 	ciphertext := aead.Seal(nil, nonce, sk.s.Bytes(), nil)
 
 	// Return the salt, ciphertext, and parameters.
@@ -171,7 +170,7 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 
 	// Use Argon2id to derive a key and nonce from the password and salt.
 	key, nonce := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
-	aead, _ := chacha20poly1305.New(key)
+	aead := newHMACAEAD(key)
 
 	// Decrypt the secret key.
 	plaintext, err := aead.Open(nil, nonce, esk.Ciphertext, nil)
@@ -193,9 +192,11 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	return &SecretKey{s: s, pk: PublicKey{q: q, rk: rk}}, err
 }
 
-// pbeKDF uses Argon2id to derive a ChaCha20 key and nonce from the password, salt, and parameters.
+// pbeKDF uses Argon2id to derive an AES-256 key and GCM nonce from the password, salt, and
+// parameters.
 func pbeKDF(password, salt []byte, params *Argon2idParams) ([]byte, []byte) {
-	kn := argon2.IDKey(password, salt, params.Time, params.Memory, params.Parallelism, chachaKDFSize)
+	kn := argon2.IDKey(password, salt, params.Time, params.Memory, params.Parallelism,
+		aesKeySize+gcmNonceSize)
 
-	return kn[:chacha20poly1305.KeySize], kn[chacha20poly1305.KeySize:]
+	return kn[:aesKeySize], kn[aesKeySize:]
 }

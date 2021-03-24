@@ -2,14 +2,12 @@ package veil
 
 import (
 	"crypto/rand"
+	"crypto/sha512"
 	"io"
 
 	"github.com/bwesterb/go-ristretto"
 	"github.com/bwesterb/go-ristretto/edwards25519"
-	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
-	"golang.org/x/crypto/poly1305"
-	"golang.org/x/crypto/sha3"
 )
 
 // xdh performs a Diffie-Hellman key exchange using the given secret key and public key.
@@ -108,8 +106,8 @@ func generateKeys() (q ristretto.Point, rk []byte, s ristretto.Scalar, err error
 }
 
 const (
-	kemRepSize  = 32                            // The length of an Elligator2 representative.
-	kemOverhead = kemRepSize + poly1305.TagSize // Total overhead of KEM envelope.
+	kemRepSize  = 32                           // The length of an Elligator2 representative.
+	kemOverhead = kemRepSize + gcmHMACOverhead // Total overhead of KEM envelope.
 )
 
 // kemSend generates an ephemeral representative, a symmetric key, and a nonce given the sender's
@@ -158,11 +156,9 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE []byte, he
 	return kdf(zzE, zzS, rkE, pkR, pkS, header)
 }
 
-const chachaKDFSize = chacha20poly1305.KeySize + chacha20poly1305.NonceSize
-
-// kdf returns a ChaCha20Poly1305 key and nonce derived from the given ephemeral shared secret,
-// static shared secret, the ephemeral public key's representative, the recipient's public key, and
-// the sender's public key.
+// kdf returns an AES-256-GCM key and nonce derived from the given ephemeral shared secret, static
+// shared secret, the ephemeral public key's representative, the recipient's public key, and the
+// sender's public key.
 func kdf(zzE, zzS, rkE []byte, pkR, pkS *ristretto.Point, header bool) ([]byte, []byte) {
 	// Concatenate the ephemeral and static shared secrets to form the initial keying material.
 	ikm := append(zzE, zzS...)
@@ -179,13 +175,13 @@ func kdf(zzE, zzS, rkE []byte, pkR, pkS *ristretto.Point, header bool) ([]byte, 
 		info = []byte("message")
 	}
 
-	// Create an HKDF-SHA3-512 instance from the initial keying material and the salt, using the
-	// constant "veil" as authenticated data.
-	h := hkdf.New(sha3.New512, ikm, salt, info)
+	// Create an HKDF-SHA2-512/256 instance from the initial keying material and the salt, using the
+	// domain-specific info parameter to distinguish between header keys and message keys.
+	h := hkdf.New(sha512.New512_256, ikm, salt, info)
 
 	// Derive the key from the HKDF output.
-	kn := make([]byte, chachaKDFSize)
+	kn := make([]byte, aesKeySize+gcmNonceSize)
 	_, _ = io.ReadFull(h, kn)
 
-	return kn[:chacha20poly1305.KeySize], kn[chacha20poly1305.KeySize:]
+	return kn[:aesKeySize], kn[aesKeySize:]
 }
