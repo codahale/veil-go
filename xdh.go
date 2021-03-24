@@ -2,7 +2,7 @@ package veil
 
 import (
 	"crypto/rand"
-	"crypto/sha512"
+	"crypto/sha256"
 	"io"
 
 	"github.com/bwesterb/go-ristretto"
@@ -175,9 +175,9 @@ func kdf(zzE, zzS, rkE []byte, pkR, pkS *ristretto.Point, header bool) ([]byte, 
 		info = []byte("message")
 	}
 
-	// Create an HKDF-SHA2-512/256 instance from the initial keying material and the salt, using the
+	// Create an HKDF-SHA2-256 instance from the initial keying material and the salt, using the
 	// domain-specific info parameter to distinguish between header keys and message keys.
-	h := hkdf.New(sha512.New512_256, ikm, salt, info)
+	h := hkdf.New(sha256.New, ikm, salt, info)
 
 	// Derive the key from the HKDF output.
 	kn := make([]byte, aesKeySize+aeadIVSize)

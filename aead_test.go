@@ -1,6 +1,7 @@
 package veil
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -9,7 +10,7 @@ import (
 func TestHmacAEAD(t *testing.T) {
 	t.Parallel()
 
-	aead := newHMACAEAD([]byte("ayellowsubmarine"))
+	aead := newHMACAEAD(bytes.Repeat([]byte("ayellowsubmarine"), 2))
 
 	assert.Equal(t, "nonce size", 16, aead.NonceSize())
 	assert.Equal(t, "overhead", 32, aead.Overhead())
@@ -21,4 +22,15 @@ func TestHmacAEAD(t *testing.T) {
 
 	assert.Equal(t, "plaintext", message, plaintext)
 	assert.Equal(t, "err", nil, err)
+}
+
+func BenchmarkAEAD_Encrypt(b *testing.B) {
+	aead := newHMACAEAD(bytes.Repeat([]byte("ayellowsubmarine"), 2))
+	nonce := make([]byte, aeadIVSize)
+	plaintext := make([]byte, 1024*1024)
+	data := make([]byte, 4096)
+
+	for i := 0; i < b.N; i++ {
+		aead.Seal(nil, nonce, plaintext, data)
+	}
 }

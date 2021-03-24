@@ -4,7 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
-	"crypto/sha512"
+	"crypto/sha256"
 	"encoding/binary"
 	"hash"
 )
@@ -16,7 +16,7 @@ type aesCTRHMAC struct {
 
 const (
 	aeadIVSize   = aes.BlockSize
-	aeadOverhead = sha512.Size256 // The size of an HMAC-SHA2-512/256 digest.
+	aeadOverhead = sha256.Size // The size of an HMAC-SHA2-256 digest.
 )
 
 func newHMACAEAD(key []byte) cipher.AEAD {
@@ -24,7 +24,7 @@ func newHMACAEAD(key []byte) cipher.AEAD {
 
 	return &aesCTRHMAC{
 		aes:  b,
-		hmac: hmac.New(sha512.New512_256, key),
+		hmac: hmac.New(sha256.New, key),
 	}
 }
 
