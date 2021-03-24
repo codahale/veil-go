@@ -7,7 +7,7 @@ import (
 	"github.com/codahale/gubbins/assert"
 )
 
-func TestHmacAEAD(t *testing.T) {
+func TestAEAD(t *testing.T) {
 	t.Parallel()
 
 	aead := newHMACAEAD(bytes.Repeat([]byte("ayellowsubmarine"), 2))
