@@ -18,10 +18,10 @@ true length, and fake recipients can be added to disguise their true number from
 ### Key-Committing AEAD
 
 Veil uses a sadly non-standard AEAD construction which combines AES-256-CTR and HMAC-SHA2-512/256.
-It encrypts the message using AES-256-CTR, then uses the same key to calculate the
-HMAC-SHA2-512/256 digest of the ciphertext, the authenticated data, the length in bits of the
-ciphertext as a 64-bit big-endian integer, and the length of the authenticated data in bits as a
-64-bit big-endian integer.
+It encrypts the message using AES-256-CTR, then uses the same key to calculate the HMAC-SHA2-512/256
+digest of the IV, the ciphertext, the authenticated data, the length in bits of the ciphertext as a
+64-bit big-endian integer, and the length of the authenticated data in bits as a 64-bit big-endian
+integer.
 
 This provides some significant benefits over more popular constructions like AES-GCM or
 ChaCha20Poly1305:

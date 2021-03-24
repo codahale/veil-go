@@ -44,7 +44,7 @@ func (h *aesCTRHMAC) Seal(dst, iv, plaintext, additionalData []byte) []byte {
 	cipher.NewCTR(h.aes, iv).XORKeyStream(out, plaintext)
 
 	// Calculate the HMAC of the ciphertext and append it.
-	out = h.hash(out[:len(plaintext)], out[:len(plaintext)], additionalData)
+	out = h.hash(out[:len(plaintext)], out[:len(plaintext)], iv, additionalData)
 
 	// Return the output appended to dst.
 	return append(dst, out...)
@@ -58,7 +58,7 @@ func (h *aesCTRHMAC) Open(dst, iv, ciphertext, additionalData []byte) ([]byte, e
 	out := make([]byte, len(in))
 
 	// Verify the HMAC.
-	if !hmac.Equal(mac, h.hash(nil, in, additionalData)) {
+	if !hmac.Equal(mac, h.hash(nil, in, iv, additionalData)) {
 		return nil, ErrInvalidCiphertext
 	}
 
@@ -68,9 +68,12 @@ func (h *aesCTRHMAC) Open(dst, iv, ciphertext, additionalData []byte) ([]byte, e
 	return append(dst, out...), nil
 }
 
-func (h *aesCTRHMAC) hash(dst, ciphertext, data []byte) []byte {
+func (h *aesCTRHMAC) hash(dst, ciphertext, iv, data []byte) []byte {
 	// Always reset the HMAC once the digest is calculated.
 	defer h.hmac.Reset()
+
+	// Hash the IV.
+	_, _ = h.hmac.Write(iv)
 
 	// Hash the ciphertext.
 	_, _ = h.hmac.Write(ciphertext)
