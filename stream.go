@@ -21,11 +21,12 @@ func newAEADReader(src io.Reader, key, additionalData []byte, blockSize int) io.
 		keys:       newKeyRatchet(key),
 		r:          src,
 		ad:         additionalData,
-		ciphertext: make([]byte, blockSize+aeadOverhead+1),
+		ciphertext: make([]byte, blockSize+aeadOverhead+1), // extra byte for determining last block
 	}
 }
 
 func (r *aeadReader) Read(p []byte) (n int, err error) {
+	// If we have buffered plaintext sufficient for this read, return it.
 	if r.plaintextPos < len(r.plaintext) {
 		n := copy(p, r.plaintext[r.plaintextPos:])
 		r.plaintextPos += n
@@ -33,6 +34,7 @@ func (r *aeadReader) Read(p []byte) (n int, err error) {
 		return n, nil
 	}
 
+	// Otherwise, read more ciphertext.
 	r.plaintextPos = 0
 	ctLim := len(r.ciphertext)
 
@@ -41,33 +43,36 @@ func (r *aeadReader) Read(p []byte) (n int, err error) {
 		return 0, err
 	}
 
-	var (
-		lastSegment bool
-		segment     int
-	)
+	// Assume we read a full buffer; pretend we didn't read the last byte.
+	lastSegment := false
+	segment := r.ciphertextPos + n - 1
 
+	// If we got an "unexpected EOF", it's because we read the final block, so don't pretend we
+	// didn't read the last byte.
 	if err != nil {
 		lastSegment = true
 		segment = r.ciphertextPos + n
-	} else {
-		segment = r.ciphertextPos + n - 1
 	}
 
 	if segment < 0 {
 		return 0, io.ErrUnexpectedEOF
 	}
 
+	// Decrypt the block we just read.
 	r.plaintext, err = r.decrypt(r.ciphertext[:segment], lastSegment)
 	if err != nil {
 		return 0, err
 	}
 
+	// If that wasn't the last block, make the last byte visible again so it can be the first byte
+	// of the next block.
 	if !lastSegment {
 		remainderOffset := segment
 		r.ciphertext[0] = r.ciphertext[remainderOffset]
 		r.ciphertextPos = 1
 	}
 
+	// Satisfy the read with the plaintext buffer.
 	n = copy(p, r.plaintext)
 	r.plaintextPos = n
 
@@ -112,17 +117,21 @@ func (w *aeadWriter) Write(p []byte) (n int, err error) {
 	pos := 0
 
 	for {
+		// Copy from the written slice to our plaintext buffer.
 		ptLim := len(w.plaintext)
 		n := copy(w.plaintext[w.plaintextPos:ptLim], p[pos:])
 		w.plaintextPos += n
 		pos += n
 
+		// If we don't have a full buffer, early exit.
 		if pos == len(p) {
 			break
 		}
 
+		// Otherwise, encrypt the plaintext buffer.
 		w.ciphertext = w.encrypt(w.plaintext[:ptLim], false)
 
+		// And write the ciphertext to the underlying writer.
 		if _, err := w.w.Write(w.ciphertext); err != nil {
 			return pos, err
 		}
