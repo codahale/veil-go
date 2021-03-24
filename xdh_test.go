@@ -61,15 +61,15 @@ func TestKemExchange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rkW, keyA, nonceA, err := kemSend(&skA, &pkA, &pkB, true)
+	rkW, keyA, ivA, err := kemSend(&skA, &pkA, &pkB, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	keyB, nonceB := kemReceive(&skB, &pkB, &pkA, rkW, true)
+	keyB, ivB := kemReceive(&skB, &pkB, &pkA, rkW, true)
 
 	assert.Equal(t, "key", keyA, keyB)
-	assert.Equal(t, "nonce", nonceA, nonceB)
+	assert.Equal(t, "iv", ivA, ivB)
 }
 
 func BenchmarkGenerateKeys(b *testing.B) {

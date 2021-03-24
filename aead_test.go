@@ -11,13 +11,13 @@ func TestHmacAEAD(t *testing.T) {
 
 	aead := newHMACAEAD([]byte("ayellowsubmarine"))
 
-	assert.Equal(t, "nonce size", 12, aead.NonceSize())
-	assert.Equal(t, "overhead", 16+32, aead.Overhead())
+	assert.Equal(t, "nonce size", 16, aead.NonceSize())
+	assert.Equal(t, "overhead", 32, aead.Overhead())
 
 	message := []byte("this is functional")
-	nonce := []byte("happiness is")
-	ciphertext := aead.Seal(nil, nonce, message, []byte("ok"))
-	plaintext, err := aead.Open(nil, nonce, ciphertext, []byte("ok"))
+	iv := []byte("happiness is joy")
+	ciphertext := aead.Seal(nil, iv, message, []byte("ok"))
+	plaintext, err := aead.Open(nil, iv, ciphertext, []byte("ok"))
 
 	assert.Equal(t, "plaintext", message, plaintext)
 	assert.Equal(t, "err", nil, err)

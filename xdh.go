@@ -106,11 +106,11 @@ func generateKeys() (q ristretto.Point, rk []byte, s ristretto.Scalar, err error
 }
 
 const (
-	kemRepSize  = 32                           // The length of an Elligator2 representative.
-	kemOverhead = kemRepSize + gcmHMACOverhead // Total overhead of KEM envelope.
+	kemRepSize  = 32                        // The length of an Elligator2 representative.
+	kemOverhead = kemRepSize + aeadOverhead // Total overhead of KEM envelope.
 )
 
-// kemSend generates an ephemeral representative, a symmetric key, and a nonce given the sender's
+// kemSend generates an ephemeral representative, a symmetric key, and an IV given the sender's
 // secret key, the sender's public key, and the recipient's public key.
 func kemSend(skS *ristretto.Scalar, pkS, pkR *ristretto.Point, header bool) ([]byte, []byte, []byte, error) {
 	// Generate an ephemeral key pair.
@@ -127,15 +127,15 @@ func kemSend(skS *ristretto.Scalar, pkS, pkR *ristretto.Point, header bool) ([]b
 	// public key.
 	zzS := xdh(skS, pkR)
 
-	// Derive the key and nonce from the shared secrets, the ephemeral public key's representative,
-	// and the public keys of both the recipient and the sender.
-	key, nonce := kdf(zzE, zzS, rkE, pkR, pkS, header)
+	// Derive the key and IV from the shared secrets, the ephemeral public key's representative, and
+	// the public keys of both the recipient and the sender.
+	key, iv := kdf(zzE, zzS, rkE, pkR, pkS, header)
 
-	// Return the ephemeral public key's representative, the symmetric key, and the nonce.
-	return rkE, key, nonce, nil
+	// Return the ephemeral public key's representative, the symmetric key, and the IV.
+	return rkE, key, iv, nil
 }
 
-// kemReceive generates a symmetric key and nonce given the recipient's secret key, the recipient's
+// kemReceive generates a symmetric key and IV given the recipient's secret key, the recipient's
 // public key, the sender's public key, and the ephemeral representative.
 func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE []byte, header bool) ([]byte, []byte) {
 	var pkE ristretto.Point
@@ -156,7 +156,7 @@ func kemReceive(skR *ristretto.Scalar, pkR, pkS *ristretto.Point, rkE []byte, he
 	return kdf(zzE, zzS, rkE, pkR, pkS, header)
 }
 
-// kdf returns an AES-256-GCM key and nonce derived from the given ephemeral shared secret, static
+// kdf returns an AES-256 key and CTR IV derived from the given ephemeral shared secret, static
 // shared secret, the ephemeral public key's representative, the recipient's public key, and the
 // sender's public key.
 func kdf(zzE, zzS, rkE []byte, pkR, pkS *ristretto.Point, header bool) ([]byte, []byte) {
@@ -180,7 +180,7 @@ func kdf(zzE, zzS, rkE []byte, pkR, pkS *ristretto.Point, header bool) ([]byte, 
 	h := hkdf.New(sha512.New512_256, ikm, salt, info)
 
 	// Derive the key from the HKDF output.
-	kn := make([]byte, aesKeySize+gcmNonceSize)
+	kn := make([]byte, aesKeySize+aeadIVSize)
 	_, _ = io.ReadFull(h, kn)
 
 	return kn[:aesKeySize], kn[aesKeySize:]

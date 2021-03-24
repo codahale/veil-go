@@ -21,7 +21,7 @@ func newAEADReader(src io.Reader, key, additionalData []byte, blockSize int) io.
 		keys:       newKeyRatchet(key),
 		r:          src,
 		ad:         additionalData,
-		ciphertext: make([]byte, blockSize+gcmHMACOverhead+1),
+		ciphertext: make([]byte, blockSize+aeadOverhead+1),
 	}
 }
 
@@ -75,10 +75,10 @@ func (r *aeadReader) Read(p []byte) (n int, err error) {
 }
 
 func (r *aeadReader) decrypt(ciphertext []byte, final bool) ([]byte, error) {
-	key, nonce := r.keys.ratchet(final)
+	key, iv := r.keys.ratchet(final)
 	aead := newHMACAEAD(key)
 
-	return aead.Open(nil, nonce, ciphertext, r.ad)
+	return aead.Open(nil, iv, ciphertext, r.ad)
 }
 
 var _ io.Reader = &aeadReader{}
@@ -151,10 +151,10 @@ func (w *aeadWriter) Close() error {
 }
 
 func (w *aeadWriter) encrypt(plaintext []byte, final bool) []byte {
-	key, nonce := w.keys.ratchet(final)
+	key, iv := w.keys.ratchet(final)
 	aead := newHMACAEAD(key)
 
-	return aead.Seal(nil, nonce, plaintext, w.ad)
+	return aead.Seal(nil, iv, plaintext, w.ad)
 }
 
 var _ io.WriteCloser = &aeadWriter{}

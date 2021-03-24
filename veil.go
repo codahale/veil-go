@@ -157,8 +157,8 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 		return int64(n + an), err
 	}
 
-	// Initialize an AEAD writer with the key and nonce, using the encrypted headers as
-	// authenticated data.
+	// Initialize an AEAD writer with the key and IV, using the encrypted headers as authenticated
+	// data.
 	w := newAEADWriter(dst, key, headers, blockSize)
 
 	// Encrypt the plaintext as a stream.
@@ -180,16 +180,16 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padd
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate KEM keys for the recipient.
-		rkE, key, nonce, err := kemSend(&sk.s, &sk.pk.q, &pkR.q, true)
+		rkE, key, iv, err := kemSend(&sk.s, &sk.pk.q, &pkR.q, true)
 		if err != nil {
 			return nil, err
 		}
 
-		// Use the key with AES-256-GCM+HMAC-SHA2-512/256.
+		// Use the key with AES-256-CTR+HMAC-SHA2-512/256.
 		aead := newHMACAEAD(key)
 
 		// Encrypt the header for the recipient.
-		b := aead.Seal(nil, nonce, header, nil)
+		b := aead.Seal(nil, iv, header, nil)
 
 		// Write the ephemeral representative and the ciphertext.
 		_, _ = buf.Write(rkE)
@@ -233,8 +233,8 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	// Derive the shared key between the sender and the ephemeral key.
 	key, _ := kemReceive(skE, &pkE, &pkS.q, rkW, false)
 
-	// Initialize an AEAD reader with the key and nonce, using the encrypted headers as
-	// authenticated data.
+	// Initialize an AEAD reader with the key and IV, using the encrypted headers as authenticated
+	// data.
 	r := newAEADReader(src, key, headers, blockSize)
 
 	// Decrypt the plaintext as a stream.
@@ -299,15 +299,15 @@ func (sk *SecretKey) decryptHeader(rkE, ciphertext []byte, senders []*PublicKey)
 
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
-		// Re-derive the KEM key and nonce between the sender and recipient.
-		key, nonce := kemReceive(&sk.s, &sk.pk.q, &pkS.q, rkE, true)
+		// Re-derive the KEM key and IV between the sender and recipient.
+		key, iv := kemReceive(&sk.s, &sk.pk.q, &pkS.q, rkE, true)
 
-		// Use the key with AES-256-GCM+HMAC-SHA2-512/256.
+		// Use the key with AES-256-CTR+HMAC-SHA2-512/256.
 		aead := newHMACAEAD(key)
 
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.
-		header, err := aead.Open(nil, nonce, ciphertext, nil)
+		header, err := aead.Open(nil, iv, ciphertext, nil)
 		if err != nil {
 			continue
 		}

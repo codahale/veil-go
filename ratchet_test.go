@@ -10,15 +10,15 @@ import (
 func TestKeyRatchet(t *testing.T) {
 	t.Parallel()
 
-	var keys, nonces []string
+	var keys, ivs []string
 
 	kr := newKeyRatchet([]byte("this is ok"))
 
 	for i := 0; i < 4; i++ {
-		key, nonce := kr.ratchet(i == 3)
+		key, iv := kr.ratchet(i == 3)
 
 		keys = append(keys, hex.EncodeToString(key))
-		nonces = append(nonces, hex.EncodeToString(nonce))
+		ivs = append(ivs, hex.EncodeToString(iv))
 	}
 
 	assert.Equal(t, "keys", []string{
@@ -28,10 +28,10 @@ func TestKeyRatchet(t *testing.T) {
 		"1d530be366cb0a838528b7ca5e451d5d857840ba45f80748c6321c890937c832",
 	}, keys)
 
-	assert.Equal(t, "nonces", []string{
-		"521c99f5e044a700dbeb5df9",
-		"71d53847abefd510334bb373",
-		"05a0a3c77491ba1d21e5571a",
-		"5027419289a43760c661ef8f",
-	}, nonces)
+	assert.Equal(t, "ivs", []string{
+		"521c99f5e044a700dbeb5df97c32328c",
+		"71d53847abefd510334bb373e2b1841f",
+		"05a0a3c77491ba1d21e5571a59cd0a62",
+		"5027419289a43760c661ef8f7be35f5a",
+	}, ivs)
 }

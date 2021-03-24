@@ -11,7 +11,7 @@ import (
 type keyRatchet struct {
 	chainKey  []byte
 	outputKey []byte
-	nonce     []byte
+	iv        []byte
 }
 
 const (
@@ -26,19 +26,19 @@ func newKeyRatchet(key []byte) *keyRatchet {
 	return &keyRatchet{
 		chainKey:  chainKey,
 		outputKey: make([]byte, aesKeySize),
-		nonce:     make([]byte, gcmNonceSize),
+		iv:        make([]byte, aeadIVSize),
 	}
 }
 
-// ratchet returns the next key and nonce in the sequence. The previous chain key is used to create
-// a new HKDF-SHA2-512/256 instance with a domain-specific information parameter. If this is the
-// final key in the sequence, a salt of "last" is used; otherwise, a salt of "next" is used. The
-// first N bytes of KDF output are used to create a new chain key; the next 32 and 12 bytes of KDF
-// output are returned as the next key and nonce, respectively.
+// ratchet returns the next key and IV in the sequence. The previous chain key is used to create a
+// new HKDF-SHA2-512/256 instance with a domain-specific information parameter. If this is the final
+// key in the sequence, a salt of "last" is used; otherwise, a salt of "next" is used. The first N
+// bytes of KDF output are used to create a new chain key; the next 32 and 16 bytes of KDF output
+// are returned as the next key and IV, respectively.
 func (kr *keyRatchet) ratchet(final bool) ([]byte, []byte) {
 	salt := []byte("next")
 	if final {
-		// If this is the final key/nonce in the sequence, use a different salt.
+		// If this is the final key/IV in the sequence, use a different salt.
 		salt = []byte("last")
 	}
 
@@ -52,9 +52,9 @@ func (kr *keyRatchet) ratchet(final bool) ([]byte, []byte) {
 	// After that, use 32 bytes as the next encryption key.
 	_, _ = io.ReadFull(kdf, kr.outputKey)
 
-	// After that, use 12 bytes as the next encryption nonce.
-	_, _ = io.ReadFull(kdf, kr.nonce)
+	// After that, use 16 bytes as the next encryption IV.
+	_, _ = io.ReadFull(kdf, kr.iv)
 
-	// Return the new key and nonce.
-	return kr.outputKey, kr.nonce
+	// Return the new key and IV.
+	return kr.outputKey, kr.iv
 }

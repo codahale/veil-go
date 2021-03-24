@@ -145,12 +145,12 @@ func NewEncryptedSecretKey(sk *SecretKey, password []byte, params *Argon2idParam
 		return nil, err
 	}
 
-	// Use Argon2id to derive a key and nonce from the password and salt.
-	key, nonce := pbeKDF(password, salt, params)
+	// Use Argon2id to derive a key and IV from the password and salt.
+	key, iv := pbeKDF(password, salt, params)
 
 	// Encrypt the secret key.
 	aead := newHMACAEAD(key)
-	ciphertext := aead.Seal(nil, nonce, sk.s.Bytes(), nil)
+	ciphertext := aead.Seal(nil, iv, sk.s.Bytes(), nil)
 
 	// Return the salt, ciphertext, and parameters.
 	return &EncryptedSecretKey{
@@ -168,12 +168,12 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 		q ristretto.Point
 	)
 
-	// Use Argon2id to derive a key and nonce from the password and salt.
-	key, nonce := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
+	// Use Argon2id to derive a key and IV from the password and salt.
+	key, iv := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
 	aead := newHMACAEAD(key)
 
 	// Decrypt the secret key.
-	plaintext, err := aead.Open(nil, nonce, esk.Ciphertext, nil)
+	plaintext, err := aead.Open(nil, iv, esk.Ciphertext, nil)
 	if err != nil {
 		return nil, ErrInvalidCiphertext
 	}
@@ -192,11 +192,10 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	return &SecretKey{s: s, pk: PublicKey{q: q, rk: rk}}, err
 }
 
-// pbeKDF uses Argon2id to derive an AES-256 key and GCM nonce from the password, salt, and
-// parameters.
+// pbeKDF uses Argon2id to derive an AES-256 key and CTR IV from the password, salt, and parameters.
 func pbeKDF(password, salt []byte, params *Argon2idParams) ([]byte, []byte) {
 	kn := argon2.IDKey(password, salt, params.Time, params.Memory, params.Parallelism,
-		aesKeySize+gcmNonceSize)
+		aesKeySize+aeadIVSize)
 
 	return kn[:aesKeySize], kn[aesKeySize:]
 }
