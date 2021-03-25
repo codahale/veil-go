@@ -69,16 +69,14 @@ func BenchmarkStreamEncrypt(b *testing.B) {
 
 		b.Run(fmt.Sprintf("%d bytes", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				for i := 0; i < b.N; i++ {
-					w := newAEADWriter(io.Discard, key, ad, blockSize)
+				w := newAEADWriter(io.Discard, key, ad, blockSize)
 
-					if _, err := io.CopyN(w, &fakeReader{}, size); err != nil {
-						b.Fatal(err)
-					}
+				if _, err := io.CopyN(w, &fakeReader{}, size); err != nil {
+					b.Fatal(err)
+				}
 
-					if err := w.Close(); err != nil {
-						b.Fatal(err)
-					}
+				if err := w.Close(); err != nil {
+					b.Fatal(err)
 				}
 			}
 		})
