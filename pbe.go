@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/bwesterb/go-ristretto"
+	"github.com/codahale/veil/internal/ctrhmac"
 	"github.com/codahale/veil/internal/xdh"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/cryptobyte"
@@ -150,7 +151,7 @@ func NewEncryptedSecretKey(sk *SecretKey, password []byte, params *Argon2idParam
 	key, iv := pbeKDF(password, salt, params)
 
 	// Encrypt the secret key.
-	aead := newHMACAEAD(key)
+	aead := ctrhmac.New(key)
 	ciphertext := aead.Seal(nil, iv, sk.s.Bytes(), nil)
 
 	// Return the salt, ciphertext, and parameters.
@@ -171,7 +172,7 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 
 	// Use Argon2id to derive a key and IV from the password and salt.
 	key, iv := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
-	aead := newHMACAEAD(key)
+	aead := ctrhmac.New(key)
 
 	// Decrypt the secret key.
 	plaintext, err := aead.Open(nil, iv, esk.Ciphertext, nil)
@@ -196,7 +197,7 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 // pbeKDF uses Argon2id to derive an AES-256 key and CTR IV from the password, salt, and parameters.
 func pbeKDF(password, salt []byte, params *Argon2idParams) ([]byte, []byte) {
 	kn := argon2.IDKey(password, salt, params.Time, params.Memory, params.Parallelism,
-		aeadKeySize+aeadIVSize)
+		ctrhmac.KeySize+ctrhmac.IVSize)
 
-	return kn[:aeadKeySize], kn[aeadKeySize:]
+	return kn[:ctrhmac.KeySize], kn[ctrhmac.KeySize:]
 }

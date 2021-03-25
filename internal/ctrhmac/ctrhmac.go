@@ -1,4 +1,4 @@
-package veil
+package ctrhmac
 
 import (
 	"crypto/aes"
@@ -6,40 +6,45 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"hash"
 )
 
-type aesCTRHMAC struct {
+// ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an
+// incorrect key or tampering.
+var ErrInvalidCiphertext = errors.New("invalid ciphertext")
+
+type aesSHA256 struct {
 	aes  cipher.Block
 	hmac hash.Hash
 }
 
 const (
-	aeadKeySize  = 32
-	aeadIVSize   = aes.BlockSize
-	aeadOverhead = sha256.Size // The size of an HMAC-SHA2-256 digest.
+	KeySize  = 32            // The size of an AES-256 key.
+	IVSize   = aes.BlockSize // The size of an AES-CTR IV.
+	Overhead = sha256.Size   // The size of an HMAC-SHA2-256 digest.
 )
 
-func newHMACAEAD(key []byte) cipher.AEAD {
+func New(key []byte) cipher.AEAD {
 	b, _ := aes.NewCipher(key)
 
-	return &aesCTRHMAC{
+	return &aesSHA256{
 		aes:  b,
 		hmac: hmac.New(sha256.New, key),
 	}
 }
 
-func (h *aesCTRHMAC) NonceSize() int {
-	return aeadIVSize
+func (h *aesSHA256) NonceSize() int {
+	return IVSize
 }
 
-func (h *aesCTRHMAC) Overhead() int {
-	return aeadOverhead
+func (h *aesSHA256) Overhead() int {
+	return Overhead
 }
 
-func (h *aesCTRHMAC) Seal(dst, iv, plaintext, additionalData []byte) []byte {
+func (h *aesSHA256) Seal(dst, iv, plaintext, additionalData []byte) []byte {
 	// Create a buffer for the output.
-	out := make([]byte, len(plaintext)+aeadOverhead)
+	out := make([]byte, len(plaintext)+Overhead)
 
 	// Encrypt the plaintext with AES-CTR.
 	cipher.NewCTR(h.aes, iv).XORKeyStream(out, plaintext)
@@ -51,7 +56,7 @@ func (h *aesCTRHMAC) Seal(dst, iv, plaintext, additionalData []byte) []byte {
 	return append(dst, out...)
 }
 
-func (h *aesCTRHMAC) Open(dst, iv, ciphertext, additionalData []byte) ([]byte, error) {
+func (h *aesSHA256) Open(dst, iv, ciphertext, additionalData []byte) ([]byte, error) {
 	// Separate the HMAC and the ciphertext.
 	n := len(ciphertext) - h.hmac.Size()
 	mac := ciphertext[n:]
@@ -69,7 +74,7 @@ func (h *aesCTRHMAC) Open(dst, iv, ciphertext, additionalData []byte) ([]byte, e
 	return append(dst, out...), nil
 }
 
-func (h *aesCTRHMAC) hash(dst, ciphertext, iv, data []byte) []byte {
+func (h *aesSHA256) hash(dst, ciphertext, iv, data []byte) []byte {
 	// Always reset the HMAC once the digest is calculated.
 	defer h.hmac.Reset()
 
@@ -90,4 +95,4 @@ func (h *aesCTRHMAC) hash(dst, ciphertext, iv, data []byte) []byte {
 	return h.hmac.Sum(dst)
 }
 
-var _ cipher.AEAD = &aesCTRHMAC{}
+var _ cipher.AEAD = &aesSHA256{}

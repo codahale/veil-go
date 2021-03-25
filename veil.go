@@ -22,6 +22,7 @@ import (
 	"io"
 
 	"github.com/bwesterb/go-ristretto"
+	"github.com/codahale/veil/internal/ctrhmac"
 	"github.com/codahale/veil/internal/kem"
 	"github.com/codahale/veil/internal/ratchet"
 	"github.com/codahale/veil/internal/xdh"
@@ -117,7 +118,7 @@ var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 const (
 	blockSize           = 1024 * 1024           // 1MiB
 	headerSize          = xdh.PublicKeySize + 4 // 4 bytes for message offset
-	encryptedHeaderSize = xdh.PublicKeySize + headerSize + aeadOverhead
+	encryptedHeaderSize = xdh.PublicKeySize + headerSize + ctrhmac.Overhead
 )
 
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
@@ -183,16 +184,16 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padd
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate KEM secret for the recipient.
-		rkE, secret, err := kem.Send(&sk.s, &sk.pk.q, &pkR.q, []byte("header"), aeadKeySize+aeadIVSize)
+		rkE, secret, err := kem.Send(&sk.s, &sk.pk.q, &pkR.q, []byte("header"), ctrhmac.KeySize+ctrhmac.IVSize)
 		if err != nil {
 			return nil, err
 		}
 
 		// Use the key with AES-256-CTR+HMAC-SHA2-256.
-		aead := newHMACAEAD(secret[:aeadKeySize])
+		aead := ctrhmac.New(secret[:ctrhmac.KeySize])
 
 		// Encrypt the header for the recipient.
-		b := aead.Seal(nil, secret[aeadKeySize:], header, nil)
+		b := aead.Seal(nil, secret[ctrhmac.KeySize:], header, nil)
 
 		// Write the ephemeral representative and the ciphertext.
 		_, _ = buf.Write(rkE)
@@ -303,14 +304,14 @@ func (sk *SecretKey) decryptHeader(rkE, ciphertext []byte, senders []*PublicKey)
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
 		// Re-derive the KEM secret between the sender and recipient.
-		secret := kem.Receive(&sk.s, &sk.pk.q, &pkS.q, rkE, []byte("header"), aeadKeySize+aeadIVSize)
+		secret := kem.Receive(&sk.s, &sk.pk.q, &pkS.q, rkE, []byte("header"), ctrhmac.KeySize+ctrhmac.IVSize)
 
 		// Use the key with AES-256-CTR+HMAC-SHA2-256.
-		aead := newHMACAEAD(secret[:aeadKeySize])
+		aead := ctrhmac.New(secret[:ctrhmac.KeySize])
 
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.
-		header, err := aead.Open(nil, secret[aeadKeySize:], ciphertext, nil)
+		header, err := aead.Open(nil, secret[ctrhmac.KeySize:], ciphertext, nil)
 		if err != nil {
 			continue
 		}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/codahale/veil/internal/ctrhmac"
 	"github.com/codahale/veil/internal/ratchet"
 )
 
@@ -20,10 +21,10 @@ type aeadReader struct {
 
 func newAEADReader(src io.Reader, key, additionalData []byte, blockSize int) io.Reader {
 	return &aeadReader{
-		keys:       ratchet.New(key, aeadKeySize+aeadIVSize),
+		keys:       ratchet.New(key, ctrhmac.KeySize+ctrhmac.IVSize),
 		r:          src,
 		ad:         additionalData,
-		ciphertext: make([]byte, blockSize+aeadOverhead+1), // extra byte for determining last block
+		ciphertext: make([]byte, blockSize+ctrhmac.Overhead+1), // extra byte for determining last block
 	}
 }
 
@@ -83,9 +84,9 @@ func (r *aeadReader) Read(p []byte) (n int, err error) {
 
 func (r *aeadReader) decrypt(ciphertext []byte, final bool) ([]byte, error) {
 	key := r.keys.Next(final)
-	aead := newHMACAEAD(key[:aeadKeySize])
+	aead := ctrhmac.New(key[:ctrhmac.KeySize])
 
-	return aead.Open(nil, key[aeadKeySize:], ciphertext, r.ad)
+	return aead.Open(nil, key[ctrhmac.KeySize:], ciphertext, r.ad)
 }
 
 var _ io.Reader = &aeadReader{}
@@ -103,7 +104,7 @@ type aeadWriter struct {
 
 func newAEADWriter(dst io.Writer, key, additionalData []byte, blockSize int) io.WriteCloser {
 	return &aeadWriter{
-		keys:      ratchet.New(key, aeadKeySize+aeadIVSize),
+		keys:      ratchet.New(key, ctrhmac.KeySize+ctrhmac.IVSize),
 		w:         dst,
 		ad:        additionalData,
 		plaintext: make([]byte, blockSize),
@@ -163,9 +164,9 @@ func (w *aeadWriter) Close() error {
 
 func (w *aeadWriter) encrypt(plaintext []byte, final bool) []byte {
 	key := w.keys.Next(final)
-	aead := newHMACAEAD(key[:aeadKeySize])
+	aead := ctrhmac.New(key[:ctrhmac.KeySize])
 
-	return aead.Seal(nil, key[aeadKeySize:], plaintext, w.ad)
+	return aead.Seal(nil, key[ctrhmac.KeySize:], plaintext, w.ad)
 }
 
 var _ io.WriteCloser = &aeadWriter{}

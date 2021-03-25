@@ -1,4 +1,4 @@
-package veil
+package ctrhmac
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 func TestAEAD(t *testing.T) {
 	t.Parallel()
 
-	aead := newHMACAEAD(bytes.Repeat([]byte("ayellowsubmarine"), 2))
+	aead := New(bytes.Repeat([]byte("ayellowsubmarine"), 2))
 
 	assert.Equal(t, "nonce size", 16, aead.NonceSize())
 	assert.Equal(t, "overhead", 32, aead.Overhead())
@@ -25,8 +25,8 @@ func TestAEAD(t *testing.T) {
 }
 
 func BenchmarkAEAD_Encrypt(b *testing.B) {
-	aead := newHMACAEAD(bytes.Repeat([]byte("ayellowsubmarine"), 2))
-	nonce := make([]byte, aeadIVSize)
+	aead := New(bytes.Repeat([]byte("ayellowsubmarine"), 2))
+	nonce := make([]byte, aead.NonceSize())
 	plaintext := make([]byte, 1024*1024)
 	data := make([]byte, 4096)
 
