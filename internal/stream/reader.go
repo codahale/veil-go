@@ -4,8 +4,10 @@ import (
 	"errors"
 	"io"
 
-	"github.com/codahale/veil/internal/ctrhmac"
 	"github.com/codahale/veil/internal/ratchet"
+	"golang.org/x/crypto/chacha20"
+	"golang.org/x/crypto/chacha20poly1305"
+	"golang.org/x/crypto/poly1305"
 )
 
 // reader reads blocks of AEAD-encrypted data and decrypts them using a ratcheting key.
@@ -21,10 +23,10 @@ type reader struct {
 
 func NewReader(src io.Reader, key, additionalData []byte, blockSize int) io.Reader {
 	return &reader{
-		keys:       ratchet.New(key, ctrhmac.KeySize+ctrhmac.IVSize),
+		keys:       ratchet.New(key, chacha20.KeySize+chacha20.NonceSize),
 		r:          src,
 		ad:         additionalData,
-		ciphertext: make([]byte, blockSize+ctrhmac.Overhead+1), // extra byte for determining last block
+		ciphertext: make([]byte, blockSize+poly1305.TagSize+1), // extra byte for determining last block
 	}
 }
 
@@ -84,9 +86,13 @@ func (r *reader) Read(p []byte) (n int, err error) {
 
 func (r *reader) decrypt(ciphertext []byte, final bool) ([]byte, error) {
 	key := r.keys.Next(final)
-	aead := ctrhmac.New(key[:ctrhmac.KeySize])
 
-	return aead.Open(nil, key[ctrhmac.KeySize:], ciphertext, r.ad)
+	aead, err := chacha20poly1305.New(key[:chacha20.KeySize])
+	if err != nil {
+		panic(err)
+	}
+
+	return aead.Open(nil, key[chacha20.KeySize:], ciphertext, r.ad)
 }
 
 var _ io.Reader = &reader{}

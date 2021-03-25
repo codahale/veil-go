@@ -6,12 +6,17 @@ import (
 	"io"
 
 	"github.com/bwesterb/go-ristretto"
-	"github.com/codahale/veil/internal/ctrhmac"
 	"github.com/codahale/veil/internal/kem"
 	"github.com/codahale/veil/internal/ratchet"
 	"github.com/codahale/veil/internal/stream"
 	"github.com/codahale/veil/internal/xdh"
+	"golang.org/x/crypto/chacha20"
+	"golang.org/x/crypto/chacha20poly1305"
 )
+
+// ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an
+// incorrect key or tampering.
+var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 
 // Decrypt decrypts the data in src if originally encrypted by any of the given public keys. Returns
 // the sender's public key, the number of decrypted bytes written, and the first reported error, if
@@ -40,7 +45,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	// Derive the shared ratchet key between the sender and the ephemeral key.
 	key := kem.Receive(skE, &pkE, &pkS.q, rkW, []byte("message"), ratchet.KeySize)
 
-	// Initialize an AEAD reader with the key and IV, using the encrypted headers as authenticated
+	// Initialize an AEAD reader with the ratchey key, using the encrypted headers as authenticated
 	// data.
 	r := stream.NewReader(src, key, headers, blockSize)
 
@@ -66,7 +71,7 @@ func (sk *SecretKey) findHeader(src io.Reader, senders []*PublicKey) ([]byte, *P
 		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 			// If we hit an EOF, expected and/or otherwise, this is the final block. We didn't find
 			// a header we could decrypt, so the ciphertext is invalid.
-			return nil, nil, nil, ctrhmac.ErrInvalidCiphertext
+			return nil, nil, nil, ErrInvalidCiphertext
 		} else if err != nil {
 			return nil, nil, nil, err
 		}
@@ -107,14 +112,17 @@ func (sk *SecretKey) decryptHeader(rkE, ciphertext []byte, senders []*PublicKey)
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
 		// Re-derive the KEM secret between the sender and recipient.
-		secret := kem.Receive(&sk.s, &sk.pk.q, &pkS.q, rkE, []byte("header"), ctrhmac.KeySize+ctrhmac.IVSize)
+		secret := kem.Receive(&sk.s, &sk.pk.q, &pkS.q, rkE, []byte("header"), chacha20.KeySize+chacha20.NonceSize)
 
-		// Use the key with AES-256-CTR+HMAC-SHA256.
-		aead := ctrhmac.New(secret[:ctrhmac.KeySize])
+		// Initialize a ChaCha20Poly1305 AEAD.
+		aead, err := chacha20poly1305.New(secret[:chacha20.KeySize])
+		if err != nil {
+			panic(err)
+		}
 
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.
-		header, err := aead.Open(nil, secret[ctrhmac.KeySize:], ciphertext, nil)
+		header, err := aead.Open(nil, secret[chacha20.KeySize:], ciphertext, nil)
 		if err != nil {
 			continue
 		}

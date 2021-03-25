@@ -6,11 +6,13 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/codahale/veil/internal/ctrhmac"
 	"github.com/codahale/veil/internal/kem"
 	"github.com/codahale/veil/internal/ratchet"
 	"github.com/codahale/veil/internal/stream"
 	"github.com/codahale/veil/internal/xdh"
+	"golang.org/x/crypto/chacha20"
+	"golang.org/x/crypto/chacha20poly1305"
+	"golang.org/x/crypto/poly1305"
 )
 
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
@@ -53,7 +55,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 		return int64(n + an), err
 	}
 
-	// Initialize an AEAD writer with the key and IV, using the encrypted headers as authenticated
+	// Initialize an AEAD writer with the ratchet key, using the encrypted headers as authenticated
 	// data.
 	w := stream.NewWriter(dst, key, headers, blockSize)
 
@@ -76,16 +78,19 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padd
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate KEM secret for the recipient.
-		rkE, secret, err := kem.Send(&sk.s, &sk.pk.q, &pkR.q, []byte("header"), ctrhmac.KeySize+ctrhmac.IVSize)
+		rkE, secret, err := kem.Send(&sk.s, &sk.pk.q, &pkR.q, []byte("header"), chacha20.KeySize+chacha20.NonceSize)
 		if err != nil {
 			return nil, err
 		}
 
-		// Use the key with AES-256-CTR+HMAC-SHA256.
-		aead := ctrhmac.New(secret[:ctrhmac.KeySize])
+		// Initialize a ChaCha20Poly1305 AEAD.
+		aead, err := chacha20poly1305.New(secret[:chacha20.KeySize])
+		if err != nil {
+			panic(err)
+		}
 
 		// Encrypt the header for the recipient.
-		b := aead.Seal(nil, secret[ctrhmac.KeySize:], header, nil)
+		b := aead.Seal(nil, secret[chacha20.KeySize:], header, nil)
 
 		// Write the ephemeral representative and the ciphertext.
 		_, _ = buf.Write(rkE)
@@ -105,5 +110,5 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padd
 const (
 	blockSize           = 1024 * 1024           // 1MiB
 	headerSize          = xdh.PublicKeySize + 4 // 4 bytes for message offset
-	encryptedHeaderSize = xdh.PublicKeySize + headerSize + ctrhmac.Overhead
+	encryptedHeaderSize = xdh.PublicKeySize + headerSize + poly1305.TagSize
 )

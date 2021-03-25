@@ -37,7 +37,7 @@ func New(key []byte, n int) *Sequence {
 func (kr *Sequence) Next(final bool) []byte {
 	salt := []byte("next")
 	if final {
-		// If this is the final key/IV in the sequence, use a different salt.
+		// If this is the final key in the sequence, use a different salt.
 		salt = []byte("last")
 	}
 

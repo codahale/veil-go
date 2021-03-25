@@ -32,7 +32,7 @@ func Send(skS *ristretto.Scalar, pkS, pkR *ristretto.Point, info []byte, n int) 
 	// secret in bytes.
 	secret := kdf(zzE, zzS, rkE, pkR, pkS, info, n)
 
-	// Return the ephemeral public key's representative, the symmetric key, and the IV.
+	// Return the ephemeral public key's representative, and the shared secret.
 	return rkE, secret, nil
 }
 

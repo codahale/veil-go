@@ -8,9 +8,10 @@ import (
 	"fmt"
 
 	"github.com/bwesterb/go-ristretto"
-	"github.com/codahale/veil/internal/ctrhmac"
 	"github.com/codahale/veil/internal/xdh"
 	"golang.org/x/crypto/argon2"
+	"golang.org/x/crypto/chacha20"
+	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/cryptobyte"
 )
 
@@ -54,7 +55,7 @@ var (
 type EncryptedSecretKey struct {
 	Argon2idParams
 	Salt       []byte // The random salt used to encrypt the secret key.
-	Ciphertext []byte // The secret key, encrypted with AES-256-CTR+HMAC-SHA256.
+	Ciphertext []byte // The secret key, encrypted with ChaCha20Poly1305.
 }
 
 func (esk *EncryptedSecretKey) MarshalBinary() ([]byte, error) {
@@ -147,12 +148,17 @@ func NewEncryptedSecretKey(sk *SecretKey, password []byte, params *Argon2idParam
 		return nil, err
 	}
 
-	// Use Argon2id to derive a key and IV from the password and salt.
-	key, iv := pbeKDF(password, salt, params)
+	// Use Argon2id to derive a key and nonce from the password and salt.
+	key, nonce := pbeKDF(password, salt, params)
+
+	// Initialize a ChaCha20Poly1305 AEAD.
+	aead, err := chacha20poly1305.New(key)
+	if err != nil {
+		panic(err)
+	}
 
 	// Encrypt the secret key.
-	aead := ctrhmac.New(key)
-	ciphertext := aead.Seal(nil, iv, sk.s.Bytes(), nil)
+	ciphertext := aead.Seal(nil, nonce, sk.s.Bytes(), nil)
 
 	// Return the salt, ciphertext, and parameters.
 	return &EncryptedSecretKey{
@@ -170,12 +176,17 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 		q ristretto.Point
 	)
 
-	// Use Argon2id to derive a key and IV from the password and salt.
-	key, iv := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
-	aead := ctrhmac.New(key)
+	// Use Argon2id to derive a key and nonce from the password and salt.
+	key, nonce := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
+
+	// Initialize a ChaCha20Poly1305 AEAD.
+	aead, err := chacha20poly1305.New(key)
+	if err != nil {
+		panic(err)
+	}
 
 	// Decrypt the secret key.
-	plaintext, err := aead.Open(nil, iv, esk.Ciphertext, nil)
+	plaintext, err := aead.Open(nil, nonce, esk.Ciphertext, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -194,10 +205,11 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	return &SecretKey{s: s, pk: PublicKey{q: q, rk: rk}}, err
 }
 
-// pbeKDF uses Argon2id to derive an AES-256 key and CTR IV from the password, salt, and parameters.
+// pbeKDF uses Argon2id to derive a ChaCha20Poly1305 key and nonce from the password, salt, and
+// parameters.
 func pbeKDF(password, salt []byte, params *Argon2idParams) ([]byte, []byte) {
 	kn := argon2.IDKey(password, salt, params.Time, params.Memory, params.Parallelism,
-		ctrhmac.KeySize+ctrhmac.IVSize)
+		chacha20.KeySize+chacha20.NonceSize)
 
-	return kn[:ctrhmac.KeySize], kn[ctrhmac.KeySize:]
+	return kn[:chacha20.KeySize], kn[chacha20.KeySize:]
 }

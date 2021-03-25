@@ -3,8 +3,9 @@ package stream
 import (
 	"io"
 
-	"github.com/codahale/veil/internal/ctrhmac"
 	"github.com/codahale/veil/internal/ratchet"
+	"golang.org/x/crypto/chacha20"
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
 // writer writes blocks of AEAD-encrypted data using a ratcheting key.
@@ -20,7 +21,7 @@ type writer struct {
 
 func NewWriter(dst io.Writer, key, additionalData []byte, blockSize int) io.WriteCloser {
 	return &writer{
-		keys:      ratchet.New(key, ctrhmac.KeySize+ctrhmac.IVSize),
+		keys:      ratchet.New(key, chacha20.KeySize+chacha20.NonceSize),
 		w:         dst,
 		ad:        additionalData,
 		plaintext: make([]byte, blockSize),
@@ -80,9 +81,13 @@ func (w *writer) Close() error {
 
 func (w *writer) encrypt(plaintext []byte, final bool) []byte {
 	key := w.keys.Next(final)
-	aead := ctrhmac.New(key[:ctrhmac.KeySize])
 
-	return aead.Seal(nil, key[ctrhmac.KeySize:], plaintext, w.ad)
+	aead, err := chacha20poly1305.New(key[:chacha20.KeySize])
+	if err != nil {
+		panic(err)
+	}
+
+	return aead.Seal(nil, key[chacha20.KeySize:], plaintext, w.ad)
 }
 
 var _ io.WriteCloser = &writer{}

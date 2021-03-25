@@ -15,29 +15,14 @@ true length, and fake recipients can be added to disguise their true number from
 
 ## Algorithms & Constructions
 
-### Key-Committing AEAD
-
-Veil uses a sadly non-standard AEAD construction which combines AES-256-CTR and HMAC-SHA256. It
-encrypts the message using AES-256-CTR, then uses the same key to calculate the HMAC-SHA256 digest
-of the IV, the ciphertext, the authenticated data, the length in bits of the ciphertext as a 64-bit
-big-endian integer, and the length of the authenticated data in bits as a 64-bit big-endian integer.
-
-This provides some significant benefits over more popular constructions like AES-GCM or
-ChaCha20Poly1305:
-
-* It produces output which is known to be indistinguishable from random noise. HMAC and SHA2 are
-  very well-studied and not subject to new developments in mathematics.
-* It is key-committing. A message can only be decrypted with the key with which the message was
-  encrypted.
-
 ### Symmetric Key Ratcheting And Streaming AEADs
 
 In order to encrypt arbitrarily large messages, Veil uses a streaming AEAD construction based on a
 Signal-style HKDF ratchet. An initial 64-byte chain key is used to create an HKDF-SHA256 instance,
 and the first 64 bytes of its output are used to create a new chain key. The next 32 bytes of KDF
-output are used to create an AES-256 key, and the following 16 bytes are used to create a CTR IV. To
-prevent attacker appending blocks to a message, the final block of a stream is keyed using a
-different salt, thus permanently forking the chain.
+output are used to create a ChaCha20Poly1305 key, and the following 12 bytes are used to create a
+nonce. To prevent attacker appending blocks to a message, the final block of a stream is keyed using
+a different salt, thus permanently forking the chain.
 
 ### Key Agreement And Encapsulation
 
@@ -49,9 +34,9 @@ When sending a message, the sender generates an ephemeral key pair and calculate
 shared secret between the recipient's public key and the ephemeral secret key. They then calculate
 the static shared secret between the recipient's public key and their own secret key. The two shared
 secret points are used as HKDF-SHA256 initial keying material, with the ephemeral, sender's, and
-recipient's public keys included as a salt. The sender creates a symmetric key and IV from the KDF
-output and encrypts the message with an AEAD. The sender transmits the ephemeral public key and the
-ciphertext.
+recipient's public keys included as a salt. The sender creates a symmetric key and nonce from the
+KDF output and encrypts the message with an AEAD. The sender transmits the ephemeral public key and
+the ciphertext.
 
 To receive a message, the receiver calculates the ephemeral shared secret between the ephemeral
 public key and their own secret key and the static shared secret between the recipient's public key
@@ -61,9 +46,9 @@ decrypted.
 As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
 KEM provides assurance that the message was encrypted by the holder of the sender's secret key. XDH
 mutability issues are mitigated by the inclusion of the ephemeral public key and the recipient's
-public key in the HKDF inputs. Deriving the key and IV from the ephemeral shared secret eliminates
-the possibility of IV misuse, allows for the safe usage of CTR mode, and results in a shorter
-ciphertext by eliding the IV.
+public key in the HKDF inputs. Deriving the key and nonce from the ephemeral shared secret
+eliminates the possibility of nonce misuse, results in a shorter ciphertext by eliding the nonce,
+and adds key-commitment with all public keys as openers.
 
 ### Multi-Recipient Messages
 
@@ -76,7 +61,7 @@ optional random padding to the end of the encrypted headers.
 
 Second, the sender uses the KEM mechanism to encrypt the message using the ephemeral public key.
 Instead of a single AEAD pass, the derived key is used to begin a KDF key ratchet, and each block of
-the input is encrypted using AES-256-CTR+HMAC-SHA256 with a new ratchet key and IV.
+the input is encrypted using ChaCha20Poly1305 with a new ratchet key and nonce.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable header
 using the shared secret between the ephemeral public key and recipient's secret key. When a header
@@ -85,8 +70,8 @@ the shared secret, and the message is decrypted.
 
 ### Password-Based Encryption
 
-To safely store secret keys, Argon2id is used with a 16-byte random salt to derive a AES-256 key and
-CTR IV. The secret key is encrypted with AES-256-CTR+HMAC-SHA256.
+To safely store secret keys, Argon2id is used with a 16-byte random salt to derive a
+ChaCha20Poly1305 key and nonce. The secret key is encrypted with ChaCha20Poly1305.
 
 ## What's the point
 
