@@ -22,6 +22,7 @@ import (
 	"io"
 
 	"github.com/bwesterb/go-ristretto"
+	"github.com/codahale/veil/internal/xdh"
 )
 
 // PublicKey is a ristretto255/XDH public key.
@@ -41,7 +42,7 @@ func (pk *PublicKey) MarshalBinary() ([]byte, error) {
 
 func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 	pk.rk = data
-	rk2pk(&pk.q, data)
+	xdh.RepresentativeToPublic(&pk.q, data)
 
 	return nil
 }
@@ -99,7 +100,7 @@ var _ fmt.Stringer = &SecretKey{}
 
 // NewSecretKey creates a new secret key.
 func NewSecretKey() (*SecretKey, error) {
-	q, rk, s, err := generateKeys()
+	q, rk, s, err := xdh.GenerateKeys()
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +113,8 @@ func NewSecretKey() (*SecretKey, error) {
 var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 
 const (
-	blockSize           = 1024 * 1024    // 1MiB
-	headerSize          = kemRepSize + 4 // 4 bytes for message offset
+	blockSize           = 1024 * 1024           // 1MiB
+	headerSize          = xdh.PublicKeySize + 4 // 4 bytes for message offset
 	encryptedHeaderSize = headerSize + kemOverhead
 )
 
@@ -122,7 +123,7 @@ const (
 // error reported while encrypting, if any.
 func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
 	// Generate an ephemeral key pair.
-	pkE, _, skE, err := generateKeys()
+	pkE, _, skE, err := xdh.GenerateKeys()
 	if err != nil {
 		return 0, err
 	}
@@ -131,7 +132,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 	offset := encryptedHeaderSize*len(recipients) + padding
 	header := make([]byte, headerSize)
 	copy(header, skE.Bytes())
-	binary.BigEndian.PutUint32(header[kemRepSize:], uint32(offset))
+	binary.BigEndian.PutUint32(header[xdh.PublicKeySize:], uint32(offset))
 
 	// Encrypt copies of the header for each recipient.
 	headers, err := sk.encryptHeaders(header, recipients, padding)
@@ -222,10 +223,10 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	}
 
 	// Re-derive the ephemeral public key.
-	sk2pk(&pkE, skE)
+	xdh.SecretToPublic(&pkE, skE)
 
 	// Read the ephemeral representative.
-	rkW := make([]byte, kemRepSize)
+	rkW := make([]byte, xdh.PublicKeySize)
 	if _, err := io.ReadFull(src, rkW); err != nil {
 		return nil, 0, err
 	}
@@ -268,12 +269,12 @@ func (sk *SecretKey) findHeader(src io.Reader, senders []*PublicKey) ([]byte, *P
 		headers = append(headers, buf...)
 
 		// Copy the ephemeral public key representative.
-		rkE := make([]byte, kemRepSize)
+		rkE := make([]byte, xdh.PublicKeySize)
 		copy(rkE, buf)
 
 		// Copy the ciphertext.
-		ciphertext := make([]byte, len(buf)-kemRepSize)
-		copy(ciphertext, buf[kemRepSize:])
+		ciphertext := make([]byte, len(buf)-xdh.PublicKeySize)
+		copy(ciphertext, buf[xdh.PublicKeySize:])
 
 		// Attempt to decrypt the header.
 		pkS, skE, offset := sk.decryptHeader(rkE, ciphertext, senders)
@@ -314,8 +315,8 @@ func (sk *SecretKey) decryptHeader(rkE, ciphertext []byte, senders []*PublicKey)
 
 		// If the header wss successful decrypted, decode the ephemeral secret key and message
 		// offset and return them.
-		_ = skE.UnmarshalBinary(header[:kemRepSize])
-		offset := binary.BigEndian.Uint32(header[kemRepSize:])
+		_ = skE.UnmarshalBinary(header[:xdh.PublicKeySize])
+		offset := binary.BigEndian.Uint32(header[xdh.PublicKeySize:])
 
 		return pkS, &skE, int(offset)
 	}

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
+	"github.com/codahale/veil/internal/xdh"
 )
 
 func Example() {
@@ -109,7 +110,7 @@ func TestPublicKey_Text(t *testing.T) {
 	pk.q.Derive([]byte("ok yeah"))
 
 	// Re-derive the representative.
-	pk.rk = pk2rk(&pk.q)
+	pk.rk = xdh.PublicToRepresentative(&pk.q)
 
 	j, err := json.Marshal(&pk)
 	if err != nil {
@@ -139,7 +140,7 @@ func TestPublicKey_Binary(t *testing.T) {
 	pk.q.Derive([]byte("ok yeah"))
 
 	// Re-derive the representative.
-	pk.rk = pk2rk(&pk.q)
+	pk.rk = xdh.PublicToRepresentative(&pk.q)
 
 	e := gob.NewEncoder(buf)
 	if err := e.Encode(&pk); err != nil {

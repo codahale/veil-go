@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/bwesterb/go-ristretto"
+	"github.com/codahale/veil/internal/xdh"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/cryptobyte"
 )
@@ -184,10 +185,10 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	}
 
 	// Derive the public key.
-	sk2pk(&q, &s)
+	xdh.SecretToPublic(&q, &s)
 
 	// Derive its Elligator2 representative.
-	rk := pk2rk(&q)
+	rk := xdh.PublicToRepresentative(&q)
 
 	return &SecretKey{s: s, pk: PublicKey{q: q, rk: rk}}, err
 }

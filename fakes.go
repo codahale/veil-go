@@ -3,6 +3,8 @@ package veil
 import (
 	"crypto/rand"
 	"math/big"
+
+	"github.com/codahale/veil/internal/xdh"
 )
 
 // AddFakes adds n randomly-generated public keys to the given set of public keys, shuffles the
@@ -15,7 +17,7 @@ func AddFakes(keys []*PublicKey, n int) ([]*PublicKey, error) {
 
 	// Add n randomly generated keys to the end.
 	for i := 0; i < n; i++ {
-		q, rk, _, err := generateKeys()
+		q, rk, _, err := xdh.GenerateKeys()
 		if err != nil {
 			return nil, err
 		}
