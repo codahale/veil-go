@@ -1,3 +1,8 @@
+// Package xdh provides ristretto255/XDH functionality.
+//
+// Veil uses ristretto255 for asymmetric cryptography. Each person has a ristretto255/XDH key pair
+// and shares their public key with each other. In place of encoded ristretto255 points, Veil
+// encodes all public keys using Elligator2, making them indistinguishable from noise.
 package xdh
 
 import (

@@ -1,3 +1,11 @@
+// Package ratchet implements an HKDF-based key ratchet system.
+//
+// In order to encrypt arbitrarily large messages, Veil uses a streaming AEAD construction based on
+// a Signal-style HKDF ratchet. An initial 64-byte chain key is used to create an HKDF-SHA256
+// instance, and the first 64 bytes of its output are used to create a new chain key. The next N
+// bytes of KDF output are used to create the key and nonce for an AEAD. To prevent attacker
+// appending blocks to a message, the final block of a stream is keyed using a different salt, thus
+// permanently forking the chain.
 package ratchet
 
 import (

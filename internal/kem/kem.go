@@ -1,3 +1,11 @@
+// Package kem implements a ristretto255/XDH key encapsulation mechanism (KEM).
+//
+// As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
+// KEM provides assurance that the message was encrypted by the holder of the sender's secret key.
+// XDH mutability issues are mitigated by the inclusion of the ephemeral public key and the
+// recipient's public key in the HKDF inputs. Deriving the key and nonce from the ephemeral shared
+// secret eliminates the possibility of nonce misuse, results in a shorter ciphertext by eliding the
+// nonce, and adds key-commitment with all public keys as openers.
 package kem
 
 import (
