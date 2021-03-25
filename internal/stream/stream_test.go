@@ -1,4 +1,4 @@
-package veil
+package stream
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ func TestAEADStream(t *testing.T) {
 	dst := bytes.NewBuffer(nil)
 
 	// Create an AEAD writer.
-	w := newAEADWriter(dst, key, ad, 9)
+	w := NewWriter(dst, key, ad, 9)
 
 	// Encrypt the input.
 	pn, err := io.Copy(w, src)
@@ -43,7 +43,7 @@ func TestAEADStream(t *testing.T) {
 	dst = bytes.NewBuffer(nil)
 
 	// Create a reader.
-	r := newAEADReader(src, key, ad, 9)
+	r := NewReader(src, key, ad, 9)
 
 	// Decrypt the input.
 	cn, err := io.Copy(dst, r)
@@ -69,7 +69,7 @@ func BenchmarkStreamEncrypt(b *testing.B) {
 
 		b.Run(fmt.Sprintf("%d bytes", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				w := newAEADWriter(io.Discard, key, ad, blockSize)
+				w := NewWriter(io.Discard, key, ad, 64*1024)
 
 				if _, err := io.CopyN(w, &fakeReader{}, size); err != nil {
 					b.Fatal(err)

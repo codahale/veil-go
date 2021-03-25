@@ -25,6 +25,7 @@ import (
 	"github.com/codahale/veil/internal/ctrhmac"
 	"github.com/codahale/veil/internal/kem"
 	"github.com/codahale/veil/internal/ratchet"
+	"github.com/codahale/veil/internal/stream"
 	"github.com/codahale/veil/internal/xdh"
 )
 
@@ -163,7 +164,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 
 	// Initialize an AEAD writer with the key and IV, using the encrypted headers as authenticated
 	// data.
-	w := newAEADWriter(dst, key, headers, blockSize)
+	w := stream.NewWriter(dst, key, headers, blockSize)
 
 	// Encrypt the plaintext as a stream.
 	bn, err := io.Copy(w, src)
@@ -239,7 +240,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 
 	// Initialize an AEAD reader with the key and IV, using the encrypted headers as authenticated
 	// data.
-	r := newAEADReader(src, key, headers, blockSize)
+	r := stream.NewReader(src, key, headers, blockSize)
 
 	// Decrypt the plaintext as a stream.
 	n, err := io.Copy(dst, r)
