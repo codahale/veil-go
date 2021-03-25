@@ -7,7 +7,7 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
-// Sequence implements a symmetric key ratchet system based on HKDF-SHA2-256.
+// Sequence implements a symmetric key ratchet system based on HKDF-SHA256.
 type Sequence struct {
 	chainKey  []byte
 	outputKey []byte
@@ -30,7 +30,7 @@ func New(key []byte, n int) *Sequence {
 }
 
 // Next returns the next key in the sequence. The previous chain key is used to create a new
-// HKDF-SHA2-256 instance with a domain-specific information parameter. If this is the final key in
+// HKDF-SHA256 instance with a domain-specific information parameter. If this is the final key in
 // the sequence, a salt of "last" is used; otherwise, a salt of "next" is used. The first 64 bytes
 // of KDF output are used to create a new chain key; the next N bytes of KDF output are returned as
 // the next key.
@@ -41,8 +41,8 @@ func (kr *Sequence) Next(final bool) []byte {
 		salt = []byte("last")
 	}
 
-	// Create a new HKDF-SHA2-256 instance with the current chain key, the salt, and a
-	// domain-specific info parameter.
+	// Create a new HKDF-SHA256 instance with the current chain key, the salt, and a domain-specific
+	// info parameter.
 	kdf := hkdf.New(sha256.New, kr.chainKey, salt, []byte("veil-ratchet"))
 
 	// Use the first 64 bytes as the next chain key.

@@ -70,7 +70,7 @@ func kdf(zzE, zzS, rkE []byte, pkR, pkS *ristretto.Point, info []byte, n int) []
 	// key, and the sender's public key.
 	salt := append(rkE, append(pkR.Bytes(), pkS.Bytes()...)...)
 
-	// Create an HKDF-SHA2-256 instance from the initial keying material and the salt, using the
+	// Create an HKDF-SHA256 instance from the initial keying material and the salt, using the
 	// domain-specific info parameter to distinguish between header keys and message keys.
 	h := hkdf.New(sha256.New, ikm, salt, info)
 

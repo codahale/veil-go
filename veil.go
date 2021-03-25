@@ -189,7 +189,7 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padd
 			return nil, err
 		}
 
-		// Use the key with AES-256-CTR+HMAC-SHA2-256.
+		// Use the key with AES-256-CTR+HMAC-SHA256.
 		aead := ctrhmac.New(secret[:ctrhmac.KeySize])
 
 		// Encrypt the header for the recipient.
@@ -306,7 +306,7 @@ func (sk *SecretKey) decryptHeader(rkE, ciphertext []byte, senders []*PublicKey)
 		// Re-derive the KEM secret between the sender and recipient.
 		secret := kem.Receive(&sk.s, &sk.pk.q, &pkS.q, rkE, []byte("header"), ctrhmac.KeySize+ctrhmac.IVSize)
 
-		// Use the key with AES-256-CTR+HMAC-SHA2-256.
+		// Use the key with AES-256-CTR+HMAC-SHA256.
 		aead := ctrhmac.New(secret[:ctrhmac.KeySize])
 
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't

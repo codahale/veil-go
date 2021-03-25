@@ -54,7 +54,7 @@ var (
 type EncryptedSecretKey struct {
 	Argon2idParams
 	Salt       []byte // The random salt used to encrypt the secret key.
-	Ciphertext []byte // The secret key, encrypted with AES-256-CTR+HMAC-SHA2-256.
+	Ciphertext []byte // The secret key, encrypted with AES-256-CTR+HMAC-SHA256.
 }
 
 func (esk *EncryptedSecretKey) MarshalBinary() ([]byte, error) {

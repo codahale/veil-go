@@ -22,7 +22,7 @@ type aesSHA256 struct {
 const (
 	KeySize  = 32            // The size of an AES-256 key.
 	IVSize   = aes.BlockSize // The size of an AES-CTR IV.
-	Overhead = sha256.Size   // The size of an HMAC-SHA2-256 digest.
+	Overhead = sha256.Size   // The size of an HMAC-SHA256 digest.
 )
 
 func New(key []byte) cipher.AEAD {

@@ -17,8 +17,8 @@ true length, and fake recipients can be added to disguise their true number from
 
 ### Key-Committing AEAD
 
-Veil uses a sadly non-standard AEAD construction which combines AES-256-CTR and HMAC-SHA2-256. It
-encrypts the message using AES-256-CTR, then uses the same key to calculate the HMAC-SHA2-256 digest
+Veil uses a sadly non-standard AEAD construction which combines AES-256-CTR and HMAC-SHA256. It
+encrypts the message using AES-256-CTR, then uses the same key to calculate the HMAC-SHA256 digest
 of the IV, the ciphertext, the authenticated data, the length in bits of the ciphertext as a 64-bit
 big-endian integer, and the length of the authenticated data in bits as a 64-bit big-endian integer.
 
@@ -33,7 +33,7 @@ ChaCha20Poly1305:
 ### Symmetric Key Ratcheting And Streaming AEADs
 
 In order to encrypt arbitrarily large messages, Veil uses a streaming AEAD construction based on a
-Signal-style HKDF ratchet. An initial 64-byte chain key is used to create an HKDF-SHA2-256 instance,
+Signal-style HKDF ratchet. An initial 64-byte chain key is used to create an HKDF-SHA256 instance,
 and the first 64 bytes of its output are used to create a new chain key. The next 32 bytes of KDF
 output are used to create an AES-256 key, and the following 16 bytes are used to create a CTR IV. To
 prevent attacker appending blocks to a message, the final block of a stream is keyed using a
@@ -48,15 +48,15 @@ public keys using Elligator2, making them indistinguishable from noise.
 When sending a message, the sender generates an ephemeral key pair and calculates the ephemeral
 shared secret between the recipient's public key and the ephemeral secret key. They then calculate
 the static shared secret between the recipient's public key and their own secret key. The two shared
-secret points are used as HKDF-SHA2-256 initial keying material, with the ephemeral, sender's, and
+secret points are used as HKDF-SHA256 initial keying material, with the ephemeral, sender's, and
 recipient's public keys included as a salt. The sender creates a symmetric key and IV from the KDF
 output and encrypts the message with an AEAD. The sender transmits the ephemeral public key and the
 ciphertext.
 
 To receive a message, the receiver calculates the ephemeral shared secret between the ephemeral
 public key and their own secret key and the static shared secret between the recipient's public key
-and their own secret key. The HKDF-SHA2-256 output is re-created, and the message is authenticated
-and decrypted.
+and their own secret key. The HKDF-SHA256 output is re-created, and the message is authenticated and
+decrypted.
 
 As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
 KEM provides assurance that the message was encrypted by the holder of the sender's secret key. XDH
@@ -76,7 +76,7 @@ optional random padding to the end of the encrypted headers.
 
 Second, the sender uses the KEM mechanism to encrypt the message using the ephemeral public key.
 Instead of a single AEAD pass, the derived key is used to begin a KDF key ratchet, and each block of
-the input is encrypted using AES-256-CTR+HMAC-SHA2-256 with a new ratchet key and IV.
+the input is encrypted using AES-256-CTR+HMAC-SHA256 with a new ratchet key and IV.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable header
 using the shared secret between the ephemeral public key and recipient's secret key. When a header
@@ -86,7 +86,7 @@ the shared secret, and the message is decrypted.
 ### Password-Based Encryption
 
 To safely store secret keys, Argon2id is used with a 16-byte random salt to derive a AES-256 key and
-CTR IV. The secret key is encrypted with AES-256-CTR+HMAC-SHA2-256.
+CTR IV. The secret key is encrypted with AES-256-CTR+HMAC-SHA256.
 
 ## What's the point
 
