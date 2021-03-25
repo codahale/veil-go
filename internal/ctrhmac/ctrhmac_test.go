@@ -12,8 +12,8 @@ func TestAEAD(t *testing.T) {
 
 	aead := New(bytes.Repeat([]byte("ayellowsubmarine"), 2))
 
-	assert.Equal(t, "nonce size", 16, aead.NonceSize())
-	assert.Equal(t, "overhead", 32, aead.Overhead())
+	assert.Equal(t, "nonce size", IVSize, aead.NonceSize())
+	assert.Equal(t, "overhead", Overhead, aead.Overhead())
 
 	message := []byte("this is functional")
 	iv := []byte("happiness is joy")

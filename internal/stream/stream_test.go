@@ -36,7 +36,7 @@ func TestAEADStream(t *testing.T) {
 
 	// Check to see that we wrote the expected number of bytes.
 	assert.Equal(t, "plaintext bytes written", int64(19), pn)
-	assert.Equal(t, "ciphertext bytes written", (9+32)+(9+32)+(1+32), dst.Len())
+	assert.Equal(t, "ciphertext bytes written", (9+16)+(9+16)+(1+16), dst.Len())
 
 	// Swap inputs and outputs.
 	src = dst
