@@ -196,7 +196,7 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 // pbeKDF uses Argon2id to derive an AES-256 key and CTR IV from the password, salt, and parameters.
 func pbeKDF(password, salt []byte, params *Argon2idParams) ([]byte, []byte) {
 	kn := argon2.IDKey(password, salt, params.Time, params.Memory, params.Parallelism,
-		aesKeySize+aeadIVSize)
+		aeadKeySize+aeadIVSize)
 
-	return kn[:aesKeySize], kn[aesKeySize:]
+	return kn[:aeadKeySize], kn[aeadKeySize:]
 }

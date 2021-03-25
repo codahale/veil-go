@@ -15,6 +15,7 @@ type aesCTRHMAC struct {
 }
 
 const (
+	aeadKeySize  = 32
 	aeadIVSize   = aes.BlockSize
 	aeadOverhead = sha256.Size // The size of an HMAC-SHA2-256 digest.
 )

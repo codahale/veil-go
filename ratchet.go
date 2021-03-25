@@ -15,17 +15,17 @@ type keyRatchet struct {
 }
 
 const (
-	aesKeySize = 32
+	ratchetKeySize = 64
 )
 
 // newKeyRatchet returns a new keyRatchet instance.
 func newKeyRatchet(key []byte) *keyRatchet {
-	chainKey := make([]byte, aesKeySize)
+	chainKey := make([]byte, ratchetKeySize)
 	copy(chainKey, key)
 
 	return &keyRatchet{
 		chainKey:  chainKey,
-		outputKey: make([]byte, aesKeySize),
+		outputKey: make([]byte, aeadKeySize),
 		iv:        make([]byte, aeadIVSize),
 	}
 }

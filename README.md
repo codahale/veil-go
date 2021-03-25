@@ -33,9 +33,9 @@ ChaCha20Poly1305:
 ### Symmetric Key Ratcheting And Streaming AEADs
 
 In order to encrypt arbitrarily large messages, Veil uses a streaming AEAD construction based on a
-Signal-style HKDF ratchet. An initial 32-byte chain key is used to create an HKDF-SHA2-256 instance,
-and the first 32 bytes of its output are used to create a new chain key. The next 32 bytes of KDF
-output are used to create an AES-256 key, and the following 12 bytes are used to create a CTR IV. To
+Signal-style HKDF ratchet. An initial 64-byte chain key is used to create an HKDF-SHA2-256 instance,
+and the first 64 bytes of its output are used to create a new chain key. The next 32 bytes of KDF
+output are used to create an AES-256 key, and the following 16 bytes are used to create a CTR IV. To
 prevent attacker appending blocks to a message, the final block of a stream is keyed using a
 different salt, thus permanently forking the chain.
 
