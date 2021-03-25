@@ -77,7 +77,7 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padd
 
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
-		// Generate KEM secret for the recipient.
+		// Generate a shared secret for the recipient.
 		rkE, secret, err := kem.Send(&sk.s, &sk.pk.q, &pkR.q, []byte("header"), chacha20.KeySize+chacha20.NonceSize)
 		if err != nil {
 			return nil, err

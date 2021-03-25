@@ -111,7 +111,7 @@ func (sk *SecretKey) decryptHeader(rkE, ciphertext []byte, senders []*PublicKey)
 
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
-		// Re-derive the KEM secret between the sender and recipient.
+		// Re-derive the shared secret between the sender and recipient.
 		secret := kem.Receive(&sk.s, &sk.pk.q, &pkS.q, rkE, []byte("header"), chacha20.KeySize+chacha20.NonceSize)
 
 		// Initialize a ChaCha20Poly1305 AEAD.

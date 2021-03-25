@@ -78,5 +78,6 @@ func kdf(zzE, zzS, rkE []byte, pkR, pkS *ristretto.Point, info []byte, n int) []
 	secret := make([]byte, n)
 	_, _ = io.ReadFull(h, secret)
 
+	// Return the shared secret.
 	return secret
 }
