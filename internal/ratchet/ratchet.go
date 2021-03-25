@@ -17,8 +17,7 @@ import (
 
 // Sequence implements a symmetric key ratchet system based on HKDF-SHA256.
 type Sequence struct {
-	chainKey  []byte
-	outputKey []byte
+	buf []byte
 }
 
 const (
@@ -28,13 +27,10 @@ const (
 // New returns a new Sequence instance which uses the initial key to create a sequence of keys of
 // size n.
 func New(key []byte, n int) *Sequence {
-	chainKey := make([]byte, KeySize)
-	copy(chainKey, key)
+	buf := make([]byte, KeySize+n)
+	copy(buf, key)
 
-	return &Sequence{
-		chainKey:  chainKey,
-		outputKey: make([]byte, n),
-	}
+	return &Sequence{buf: buf}
 }
 
 // Next returns the next key in the sequence. The previous chain key is used to create a new
@@ -51,14 +47,11 @@ func (kr *Sequence) Next(final bool) []byte {
 
 	// Create a new HKDF-SHA256 instance with the current chain key, the salt, and a domain-specific
 	// info parameter.
-	kdf := hkdf.New(sha256.New, kr.chainKey, salt, []byte("veil-ratchet"))
+	kdf := hkdf.New(sha256.New, kr.buf[:KeySize], salt, []byte("veil-ratchet"))
 
-	// Use the first 64 bytes as the next chain key.
-	_, _ = io.ReadFull(kdf, kr.chainKey)
-
-	// After that, use N bytes as the next encryption key.
-	_, _ = io.ReadFull(kdf, kr.outputKey)
+	// Advance the ratchet.
+	_, _ = io.ReadFull(kdf, kr.buf)
 
 	// Return the new key.
-	return kr.outputKey
+	return kr.buf[KeySize:]
 }
