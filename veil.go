@@ -22,6 +22,7 @@ import (
 	"io"
 
 	"github.com/bwesterb/go-ristretto"
+	"github.com/codahale/veil/internal/kem"
 	"github.com/codahale/veil/internal/xdh"
 )
 
@@ -115,7 +116,7 @@ var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 const (
 	blockSize           = 1024 * 1024           // 1MiB
 	headerSize          = xdh.PublicKeySize + 4 // 4 bytes for message offset
-	encryptedHeaderSize = headerSize + kemOverhead
+	encryptedHeaderSize = xdh.PublicKeySize + headerSize + aeadOverhead
 )
 
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
@@ -147,7 +148,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 	}
 
 	// Generate a shared key between the sender and the ephemeral key.
-	rkW, key, _, err := kemSend(&sk.s, &sk.pk.q, &pkE, false)
+	rkW, key, err := kem.Send(&sk.s, &sk.pk.q, &pkE, []byte("message"), aesKeySize)
 	if err != nil {
 		return int64(n), err
 	}
@@ -181,10 +182,13 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padd
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate KEM keys for the recipient.
-		rkE, key, iv, err := kemSend(&sk.s, &sk.pk.q, &pkR.q, true)
+		rkE, secret, err := kem.Send(&sk.s, &sk.pk.q, &pkR.q, []byte("header"), aesKeySize+aeadIVSize)
 		if err != nil {
 			return nil, err
 		}
+
+		key := secret[:aesKeySize]
+		iv := secret[aesKeySize:]
 
 		// Use the key with AES-256-CTR+HMAC-SHA2-256.
 		aead := newHMACAEAD(key)
@@ -232,7 +236,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	}
 
 	// Derive the shared key between the sender and the ephemeral key.
-	key, _ := kemReceive(skE, &pkE, &pkS.q, rkW, false)
+	key := kem.Receive(skE, &pkE, &pkS.q, rkW, []byte("message"), aesKeySize)
 
 	// Initialize an AEAD reader with the key and IV, using the encrypted headers as authenticated
 	// data.
@@ -301,7 +305,9 @@ func (sk *SecretKey) decryptHeader(rkE, ciphertext []byte, senders []*PublicKey)
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
 		// Re-derive the KEM key and IV between the sender and recipient.
-		key, iv := kemReceive(&sk.s, &sk.pk.q, &pkS.q, rkE, true)
+		secret := kem.Receive(&sk.s, &sk.pk.q, &pkS.q, rkE, []byte("header"), aesKeySize+aeadIVSize)
+		key := secret[:aesKeySize]
+		iv := secret[aesKeySize:]
 
 		// Use the key with AES-256-CTR+HMAC-SHA2-256.
 		aead := newHMACAEAD(key)
