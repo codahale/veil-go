@@ -23,6 +23,7 @@ import (
 
 	"github.com/bwesterb/go-ristretto"
 	"github.com/codahale/veil/internal/kem"
+	"github.com/codahale/veil/internal/ratchet"
 	"github.com/codahale/veil/internal/xdh"
 )
 
@@ -148,7 +149,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 	}
 
 	// Generate a shared ratchet key between the sender and the ephemeral key.
-	rkW, key, err := kem.Send(&sk.s, &sk.pk.q, &pkE, []byte("message"), ratchetKeySize)
+	rkW, key, err := kem.Send(&sk.s, &sk.pk.q, &pkE, []byte("message"), ratchet.KeySize)
 	if err != nil {
 		return int64(n), err
 	}
@@ -233,7 +234,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 	}
 
 	// Derive the shared ratchet key between the sender and the ephemeral key.
-	key := kem.Receive(skE, &pkE, &pkS.q, rkW, []byte("message"), ratchetKeySize)
+	key := kem.Receive(skE, &pkE, &pkS.q, rkW, []byte("message"), ratchet.KeySize)
 
 	// Initialize an AEAD reader with the key and IV, using the encrypted headers as authenticated
 	// data.

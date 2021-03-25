@@ -3,12 +3,14 @@ package veil
 import (
 	"errors"
 	"io"
+
+	"github.com/codahale/veil/internal/ratchet"
 )
 
 // aeadReader reads blocks of AEAD-encrypted data and decrypts them using a ratcheting key.
 type aeadReader struct {
 	r             io.Reader
-	keys          *keyRatchet
+	keys          *ratchet.Sequence
 	ad            []byte
 	plaintext     []byte
 	plaintextPos  int
@@ -18,7 +20,7 @@ type aeadReader struct {
 
 func newAEADReader(src io.Reader, key, additionalData []byte, blockSize int) io.Reader {
 	return &aeadReader{
-		keys:       newKeyRatchet(key),
+		keys:       ratchet.New(key, aeadKeySize+aeadIVSize),
 		r:          src,
 		ad:         additionalData,
 		ciphertext: make([]byte, blockSize+aeadOverhead+1), // extra byte for determining last block
@@ -80,17 +82,17 @@ func (r *aeadReader) Read(p []byte) (n int, err error) {
 }
 
 func (r *aeadReader) decrypt(ciphertext []byte, final bool) ([]byte, error) {
-	key, iv := r.keys.ratchet(final)
-	aead := newHMACAEAD(key)
+	key := r.keys.Next(final)
+	aead := newHMACAEAD(key[:aeadKeySize])
 
-	return aead.Open(nil, iv, ciphertext, r.ad)
+	return aead.Open(nil, key[aeadKeySize:], ciphertext, r.ad)
 }
 
 var _ io.Reader = &aeadReader{}
 
 // aeadWriter writes blocks of AEAD-encrypted data using a ratcheting key.
 type aeadWriter struct {
-	keys         *keyRatchet
+	keys         *ratchet.Sequence
 	w            io.Writer
 	ad           []byte
 	plaintext    []byte
@@ -101,7 +103,7 @@ type aeadWriter struct {
 
 func newAEADWriter(dst io.Writer, key, additionalData []byte, blockSize int) io.WriteCloser {
 	return &aeadWriter{
-		keys:      newKeyRatchet(key),
+		keys:      ratchet.New(key, aeadKeySize+aeadIVSize),
 		w:         dst,
 		ad:        additionalData,
 		plaintext: make([]byte, blockSize),
@@ -160,10 +162,10 @@ func (w *aeadWriter) Close() error {
 }
 
 func (w *aeadWriter) encrypt(plaintext []byte, final bool) []byte {
-	key, iv := w.keys.ratchet(final)
-	aead := newHMACAEAD(key)
+	key := w.keys.Next(final)
+	aead := newHMACAEAD(key[:aeadKeySize])
 
-	return aead.Seal(nil, iv, plaintext, w.ad)
+	return aead.Seal(nil, key[aeadKeySize:], plaintext, w.ad)
 }
 
 var _ io.WriteCloser = &aeadWriter{}
