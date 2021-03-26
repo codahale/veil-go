@@ -27,7 +27,7 @@ func Example() {
 
 	// Alice creates a list of recipients -- her and Bob -- but adds 98 fake recipients so Bob won't
 	// know the true number of recipients.
-	recipients, err := AddFakes([]*PublicKey{alice.PublicKey(), bob.PublicKey()}, 98)
+	recipients, err := AddFakes([]PublicKey{alice.PublicKey(), bob.PublicKey()}, 98)
 	if err != nil {
 		panic(err)
 	}
@@ -44,13 +44,13 @@ func Example() {
 	decrypted := bytes.NewBuffer(nil)
 
 	// Bob decrypts the message.
-	pk, _, err := bob.Decrypt(decrypted, received, []*PublicKey{bob.PublicKey(), alice.PublicKey()})
+	pk, _, err := bob.Decrypt(decrypted, received, []PublicKey{bob.PublicKey(), alice.PublicKey()})
 	if err != nil {
 		panic(err)
 	}
 
 	// Bob checks that the sender of the message was indeed Alice.
-	if alice.PublicKey().Equals(pk) {
+	if bytes.Equal(pk, alice.PublicKey()) {
 		fmt.Println("sent by A")
 	} else {
 		fmt.Println("sent by B")
@@ -79,7 +79,7 @@ func TestRoundTrip(t *testing.T) {
 	message := []byte("one two three four I declare a thumb war")
 	enc := bytes.NewBuffer(nil)
 	dec := bytes.NewBuffer(nil)
-	publicKeys := []*PublicKey{a.PublicKey(), b.PublicKey()}
+	publicKeys := []PublicKey{a.PublicKey(), b.PublicKey()}
 
 	eb, err := a.Encrypt(enc, bytes.NewReader(message), publicKeys, 1234)
 	if err != nil {
@@ -91,7 +91,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "public key", pk.q.Bytes(), a.pk.q.Bytes())
+	assert.Equal(t, "public key", pk, a.PublicKey())
 	assert.Equal(t, "plaintext", message, dec.Bytes())
 	assert.Equal(t, "encrypted bytes", int64(240+1234), eb)
 	assert.Equal(t, "decrypted bytes", int64(40), db)

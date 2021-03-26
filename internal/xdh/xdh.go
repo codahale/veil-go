@@ -12,45 +12,79 @@ import (
 	"github.com/bwesterb/go-ristretto/edwards25519"
 )
 
-// PublicKeySize is the length of an Elligator2 representative in bytes.
-const PublicKeySize = 32
+const (
+	PublicKeySize = 32 // PublicKeySize is the length of a public key in bytes.
+	SecretKeySize = 32 // SecretKeySize is the length of a secret key in bytes.
+)
 
-// SharedSecret performs a Diffie-Hellman key exchange using the given secret key and public key.
-func SharedSecret(s *ristretto.Scalar, q *ristretto.Point) []byte {
+// SharedSecret performs a Diffie-Hellman key exchange using the given public key.
+func SharedSecret(sk, pk []byte) []byte {
+	var (
+		s ristretto.Scalar
+		q ristretto.Point
+	)
+
+	parseScalar(&s, sk)
+	parsePoint(&q, pk)
+
 	// Multiply the point by the scalar.
-	x := (&ristretto.Point{}).ScalarMult(q, s)
+	x := (&ristretto.Point{}).ScalarMult(&q, &s)
 
 	// Return the shared secret.
 	return x.Bytes()
 }
 
-// RepresentativeToPublic converts a representative to a public key.
-func RepresentativeToPublic(q *ristretto.Point, rk []byte) {
+// PublicKey returns the corresponding public key for the given secret key.
+func PublicKey(sk []byte) []byte {
 	var (
-		buf [PublicKeySize]byte
-		fe  edwards25519.FieldElement
-		cp  edwards25519.CompletedPoint
-		ep  edwards25519.ExtendedPoint
+		s ristretto.Scalar
+		q ristretto.Point
 	)
 
-	// Copy the representative.
-	copy(buf[:], rk)
+	// Decode the secret key.
+	parseScalar(&s, sk)
 
-	// Convert it to a field element.
-	fe.SetBytes(&buf)
+	// Calculate the public key.
+	q.ScalarMultBase(&s)
 
-	// Convert the Elligator2 field element to a completed point.
-	cp.SetRistrettoElligator2(&fe)
-
-	// Convert the completed point to an extended point.
-	ep.SetCompleted(&cp)
-
-	// Cast the extended point as a regular point.
-	*q = (ristretto.Point)(ep)
+	// Encode the public key with Elligator2.
+	return elligator(&q)
 }
 
-// PublicToRepresentative converts a public key to an Elligator2 representative, if possible.
-func PublicToRepresentative(q *ristretto.Point) []byte {
+// GenerateKeys generates a key pair and returns the public key and the secret key.
+func GenerateKeys() (pk, sk []byte, err error) {
+	var (
+		buf [64]byte
+		s   ristretto.Scalar
+		q   ristretto.Point
+	)
+
+	// Not all key pairs have public keys which can be represented by Elligator2, so try until we
+	// find one.
+	for pk == nil {
+		// Generate 64 random bytes.
+		if _, err = rand.Read(buf[:]); err != nil {
+			return
+		}
+
+		// Convert to a secret key.
+		s.SetReduced(&buf)
+
+		// Encode the secret key.
+		sk = s.Bytes()
+
+		// Calculate the public key.
+		q.ScalarMultBase(&s)
+
+		// Encode the public key with Elligator2, if possible.
+		pk = elligator(&q)
+	}
+
+	// We generated a secret key whose public key has a representative, so return them.
+	return
+}
+
+func elligator(q *ristretto.Point) []byte {
 	var fes [8]edwards25519.FieldElement
 
 	// Convert the public key to an extended point.
@@ -77,35 +111,36 @@ func PublicToRepresentative(q *ristretto.Point) []byte {
 	return nil
 }
 
-// SecretToPublic converts a secret key to a public key.
-func SecretToPublic(q *ristretto.Point, s *ristretto.Scalar) {
-	// Multiply the scalar by the curve base to produce the public key.
-	q.ScalarMultBase(s)
+// parseScalar decodes the given bytes into the given ristretto255 scalar.
+func parseScalar(s *ristretto.Scalar, sk []byte) {
+	var buf [SecretKeySize]byte
+
+	copy(buf[:], sk)
+
+	s.SetBytes(&buf)
 }
 
-// GenerateKeys generates a key pair and returns the public key, the public key's representative,
-// and the secret key.
-func GenerateKeys() (q ristretto.Point, rk []byte, s ristretto.Scalar, err error) {
-	var buf [64]byte
+// parsePoint decodes the given Elligator2 bytes into the given ristretto255 point.
+func parsePoint(q *ristretto.Point, pk []byte) {
+	var (
+		buf [PublicKeySize]byte
+		fe  edwards25519.FieldElement
+		cp  edwards25519.CompletedPoint
+		ep  edwards25519.ExtendedPoint
+	)
 
-	// Not all key pairs have public keys which can be represented by Elligator2, so try until we
-	// find one.
-	for rk == nil {
-		// Generate 64 random bytes.
-		if _, err = rand.Read(buf[:]); err != nil {
-			return
-		}
+	// Copy the representative.
+	copy(buf[:], pk)
 
-		// Convert to a secret key.
-		s.SetReduced(&buf)
+	// Convert it to a field element.
+	fe.SetBytes(&buf)
 
-		// Generate the corresponding public key.
-		SecretToPublic(&q, &s)
+	// Convert the Elligator2 field element to a completed point.
+	cp.SetRistrettoElligator2(&fe)
 
-		// Calculate the public key's representative, if any.
-		rk = PublicToRepresentative(&q)
-	}
+	// Convert the completed point to an extended point.
+	ep.SetCompleted(&cp)
 
-	// We generated a secret key whose public key has a representative, so return them.
-	return
+	// Set the output to the extended point.
+	*q = (ristretto.Point)(ep)
 }

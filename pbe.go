@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bwesterb/go-ristretto"
-	"github.com/codahale/veil/internal/xdh"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -131,7 +129,7 @@ var (
 )
 
 // NewEncryptedSecretKey encrypts the given key pair with the given password.
-func NewEncryptedSecretKey(sk *SecretKey, password []byte, params *Argon2idParams) (*EncryptedSecretKey, error) {
+func NewEncryptedSecretKey(sk SecretKey, password []byte, params *Argon2idParams) (*EncryptedSecretKey, error) {
 	// Use default parameters if none are provided.
 	if params == nil {
 		// As recommended in https://tools.ietf.org/html/draft-irtf-cfrg-argon2-12#section-7.4.
@@ -158,7 +156,7 @@ func NewEncryptedSecretKey(sk *SecretKey, password []byte, params *Argon2idParam
 	}
 
 	// Encrypt the secret key.
-	ciphertext := aead.Seal(nil, nonce, sk.s.Bytes(), nil)
+	ciphertext := aead.Seal(nil, nonce, sk, nil)
 
 	// Return the salt, ciphertext, and parameters.
 	return &EncryptedSecretKey{
@@ -170,12 +168,7 @@ func NewEncryptedSecretKey(sk *SecretKey, password []byte, params *Argon2idParam
 
 // Decrypt uses the given password to decrypt the key pair. Returns an error if the password is
 // incorrect or if the encrypted key pair has been modified.
-func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
-	var (
-		s ristretto.Scalar
-		q ristretto.Point
-	)
-
+func (esk *EncryptedSecretKey) Decrypt(password []byte) (SecretKey, error) {
 	// Use Argon2id to derive a key and nonce from the password and salt.
 	key, nonce := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
 
@@ -186,23 +179,12 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (*SecretKey, error) {
 	}
 
 	// Decrypt the secret key.
-	plaintext, err := aead.Open(nil, nonce, esk.Ciphertext, nil)
+	sk, err := aead.Open(nil, nonce, esk.Ciphertext, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Decode the secret key.
-	if err := s.UnmarshalBinary(plaintext); err != nil {
-		return nil, err
-	}
-
-	// Derive the public key.
-	xdh.SecretToPublic(&q, &s)
-
-	// Derive its Elligator2 representative.
-	rk := xdh.PublicToRepresentative(&q)
-
-	return &SecretKey{s: s, pk: PublicKey{q: q, rk: rk}}, err
+	return sk, err
 }
 
 // pbeKDF uses Argon2id to derive a ChaCha20Poly1305 key and nonce from the password, salt, and

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 
-	"github.com/bwesterb/go-ristretto"
 	"github.com/codahale/veil/internal/kem"
 	"github.com/codahale/veil/internal/ratchet"
 	"github.com/codahale/veil/internal/stream"
@@ -24,26 +23,24 @@ var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 // N.B.: Because Veil messages are streamed, it is possible that this may write some decrypted data
 // to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
 // output written to dst should be discarded, as it cannot be ascertained to be authentic.
-func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey) (*PublicKey, int64, error) {
-	var pkE ristretto.Point
-
+func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) (PublicKey, int64, error) {
 	// Find a decryptable header and recover the ephemeral secret key.
-	headers, pkS, skE, err := sk.findHeader(src, senders)
+	headers, pkS, skEH, err := sk.findHeader(src, senders)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Re-derive the ephemeral public key.
-	xdh.SecretToPublic(&pkE, skE)
+	// Re-derive the ephemeral header public key.
+	pkEH := xdh.PublicKey(skEH)
 
-	// Read the ephemeral representative.
-	rkW := make([]byte, xdh.PublicKeySize)
-	if _, err := io.ReadFull(src, rkW); err != nil {
+	// Read the ephemeral message public key.
+	pkEM := make([]byte, xdh.PublicKeySize)
+	if _, err := io.ReadFull(src, pkEM); err != nil {
 		return nil, 0, err
 	}
 
 	// Derive the shared ratchet key between the sender and the ephemeral key.
-	key := kem.Receive(skE, &pkE, &pkS.q, rkW, []byte("message"), ratchet.KeySize)
+	key := kem.Receive(skEH, pkEH, pkS, pkEM, []byte("message"), ratchet.KeySize)
 
 	// Initialize an AEAD reader with the ratchey key, using the encrypted headers as authenticated
 	// data.
@@ -61,7 +58,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey)
 
 // findHeader scans src for header blocks encrypted by any of the given possible senders. Returns
 // the full slice of encrypted headers, the sender's public key, and the ephemeral secret key.
-func (sk *SecretKey) findHeader(src io.Reader, senders []*PublicKey) ([]byte, *PublicKey, *ristretto.Scalar, error) {
+func (sk *SecretKey) findHeader(src io.Reader, senders []PublicKey) ([]byte, PublicKey, SecretKey, error) {
 	headers := make([]byte, 0, len(senders)*encryptedHeaderSize) // a guess at initial capacity
 	buf := make([]byte, encryptedHeaderSize)
 
@@ -79,16 +76,16 @@ func (sk *SecretKey) findHeader(src io.Reader, senders []*PublicKey) ([]byte, *P
 		// Append the current header to the list of encrypted headers.
 		headers = append(headers, buf...)
 
-		// Copy the ephemeral public key representative.
-		rkE := make([]byte, xdh.PublicKeySize)
-		copy(rkE, buf)
+		// Copy the ephemeral header public key.
+		pkEH := make([]byte, xdh.PublicKeySize)
+		copy(pkEH, buf)
 
 		// Copy the ciphertext.
 		ciphertext := make([]byte, len(buf)-xdh.PublicKeySize)
 		copy(ciphertext, buf[xdh.PublicKeySize:])
 
 		// Attempt to decrypt the header.
-		pkS, skE, offset := sk.decryptHeader(rkE, ciphertext, senders)
+		pkS, skEH, offset := sk.decryptHeader(pkEH, ciphertext, senders)
 		if pkS != nil {
 			// If we successfully decrypt the header, use the message offset to read the remaining
 			// encrypted headers.
@@ -99,20 +96,21 @@ func (sk *SecretKey) findHeader(src io.Reader, senders []*PublicKey) ([]byte, *P
 
 			// Return the full set of encrypted headers, the sender's public key, and the ephemeral
 			// secret key.
-			return append(headers, remaining...), pkS, skE, nil
+			return append(headers, remaining...), pkS, skEH, nil
 		}
 	}
 }
 
 // decryptHeader attempts to decrypt the given header block if sent from any of the given public
 // keys.
-func (sk *SecretKey) decryptHeader(rkE, ciphertext []byte, senders []*PublicKey) (*PublicKey, *ristretto.Scalar, int) {
-	var skE ristretto.Scalar
+func (sk SecretKey) decryptHeader(pkEH, ciphertext []byte, senders []PublicKey) (PublicKey, SecretKey, int) {
+	// Re-derive the recipient's public key.
+	pk := sk.PublicKey()
 
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
 		// Re-derive the shared secret between the sender and recipient.
-		secret := kem.Receive(&sk.s, &sk.pk.q, &pkS.q, rkE, []byte("header"), chacha20.KeySize+chacha20.NonceSize)
+		secret := kem.Receive(sk, pk, pkS, pkEH, []byte("header"), chacha20.KeySize+chacha20.NonceSize)
 
 		// Initialize a ChaCha20Poly1305 AEAD.
 		aead, err := chacha20poly1305.New(secret[:chacha20.KeySize])
@@ -127,12 +125,12 @@ func (sk *SecretKey) decryptHeader(rkE, ciphertext []byte, senders []*PublicKey)
 			continue
 		}
 
-		// If the header wss successful decrypted, decode the ephemeral secret key and message
-		// offset and return them.
-		_ = skE.UnmarshalBinary(header[:xdh.PublicKeySize])
+		// If the header wss successful decrypted, decode the ephemeral wrapper secret key and
+		// message offset and return them.
+		skEW := header[:xdh.PublicKeySize]
 		offset := binary.BigEndian.Uint32(header[xdh.PublicKeySize:])
 
-		return pkS, &skE, int(offset)
+		return pkS, skEW, int(offset)
 	}
 
 	return nil, nil, 0

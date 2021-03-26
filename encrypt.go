@@ -18,9 +18,9 @@ import (
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
 // authenticate it and writes the results to dst. Returns the number of bytes written and the first
 // error reported while encrypting, if any.
-func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
-	// Generate an ephemeral key pair.
-	pkE, _, skE, err := xdh.GenerateKeys()
+func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey, padding int) (int64, error) {
+	// Generate an ephemeral header key pair.
+	pkEH, skEH, err := xdh.GenerateKeys()
 	if err != nil {
 		return 0, err
 	}
@@ -28,7 +28,7 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 	// Encode the ephemeral secret key and offset into a header.
 	offset := encryptedHeaderSize*len(recipients) + padding
 	header := make([]byte, headerSize)
-	copy(header, skE.Bytes())
+	copy(header, skEH)
 	binary.BigEndian.PutUint32(header[xdh.PublicKeySize:], uint32(offset))
 
 	// Encrypt copies of the header for each recipient.
@@ -43,14 +43,14 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 		return int64(n), err
 	}
 
-	// Generate a shared ratchet key between the sender and the ephemeral key.
-	rkW, key, err := kem.Send(&sk.s, &sk.pk.q, &pkE, []byte("message"), ratchet.KeySize)
+	// Generate a shared ratchet key between the sender and the ephemeral header key.
+	pkEW, key, err := kem.Send(sk, sk.PublicKey(), pkEH, []byte("message"), ratchet.KeySize)
 	if err != nil {
 		return int64(n), err
 	}
 
-	// Write the wrapper Elligator2 representative.
-	an, err := dst.Write(rkW)
+	// Write the ephemeral wrapper public key.
+	an, err := dst.Write(pkEW)
 	if err != nil {
 		return int64(n + an), err
 	}
@@ -71,14 +71,17 @@ func (sk *SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicK
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
 // fake recipients.
-func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padding int) ([]byte, error) {
+func (sk SecretKey) encryptHeaders(header []byte, publicKeys []PublicKey, padding int) ([]byte, error) {
 	// Allocate a buffer for the entire header.
 	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
 
+	// Re-derive the sender's public key.
+	pk := sk.PublicKey()
+
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
-		// Generate a shared secret for the recipient.
-		rkE, secret, err := kem.Send(&sk.s, &sk.pk.q, &pkR.q, []byte("header"), chacha20.KeySize+chacha20.NonceSize)
+		// Generate a header key pair shared secret for the recipient.
+		pkEH, secret, err := kem.Send(sk, pk, pkR, []byte("header"), chacha20.KeySize+chacha20.NonceSize)
 		if err != nil {
 			return nil, err
 		}
@@ -92,8 +95,8 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padd
 		// Encrypt the header for the recipient.
 		b := aead.Seal(nil, secret[chacha20.KeySize:], header, nil)
 
-		// Write the ephemeral representative and the ciphertext.
-		_, _ = buf.Write(rkE)
+		// Write the ephemeral header public key and the ciphertext.
+		_, _ = buf.Write(pkEH)
 		_, _ = buf.Write(b)
 	}
 

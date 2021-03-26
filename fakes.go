@@ -10,22 +10,19 @@ import (
 // AddFakes adds n randomly-generated public keys to the given set of public keys, shuffles the
 // results, and returns them. This allows senders of messages to conceal the true number of
 // recipients of a particular message.
-func AddFakes(keys []*PublicKey, n int) ([]*PublicKey, error) {
+func AddFakes(keys []PublicKey, n int) ([]PublicKey, error) {
 	// Make a copy of the public keys.
-	out := make([]*PublicKey, len(keys), len(keys)+n)
+	out := make([]PublicKey, len(keys), len(keys)+n)
 	copy(out, keys)
 
 	// Add n randomly generated keys to the end.
 	for i := 0; i < n; i++ {
-		q, rk, _, err := xdh.GenerateKeys()
+		pk, _, err := xdh.GenerateKeys()
 		if err != nil {
 			return nil, err
 		}
 
-		out = append(out, &PublicKey{
-			q:  q,
-			rk: rk,
-		})
+		out = append(out, pk)
 	}
 
 	// Perform a Fisher-Yates shuffle, using crypto/rand to pick indexes. This will randomly
