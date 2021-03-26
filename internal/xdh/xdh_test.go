@@ -53,3 +53,56 @@ func BenchmarkGenerateKeys(b *testing.B) {
 		_, _, _, _ = GenerateKeys()
 	}
 }
+
+func BenchmarkPublicToRepresentative(b *testing.B) {
+	q, _, _, err := GenerateKeys()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		PublicToRepresentative(&q)
+	}
+}
+
+func BenchmarkRepresentativeToPublic(b *testing.B) {
+	_, rk, _, err := GenerateKeys()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	var q ristretto.Point
+
+	for i := 0; i < b.N; i++ {
+		RepresentativeToPublic(&q, rk)
+	}
+}
+
+func BenchmarkSecretToPublic(b *testing.B) {
+	var (
+		s ristretto.Scalar
+		q ristretto.Point
+	)
+
+	s.Rand()
+
+	for i := 0; i < b.N; i++ {
+		SecretToPublic(&q, &s)
+	}
+}
+
+func BenchmarkSharedSecret(b *testing.B) {
+	_, _, skA, err := GenerateKeys()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	pkA, _, _, err := GenerateKeys()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		SharedSecret(&skA, &pkA)
+	}
+}
