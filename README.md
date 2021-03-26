@@ -54,19 +54,19 @@ and adds key-commitment with all public keys as openers.
 
 A Veil message combines all of these primitives to provide multi-recipient messages.
 
-First, the sender creates an ephemeral key pair and creates a header block consisting of the
-ephemeral secret key and the total length of all encrypted headers plus padding. For each recipient,
-the sender encrypts a copy of the header using the described KEM and AEAD. Finally, the sender adds
-optional random padding to the end of the encrypted headers.
+First, the sender creates an ephemeral header key pair and creates a header block consisting of the
+ephemeral header secret key and the total length of all encrypted headers plus padding. For each
+recipient, the sender encrypts a copy of the header using the described KEM and AEAD. Finally, the
+sender adds optional random padding to the end of the encrypted headers.
 
-Second, the sender uses the KEM mechanism to encrypt the message using the ephemeral public key.
-Instead of a single AEAD pass, the derived key is used to begin a KDF key ratchet, and each block of
-the input is encrypted using ChaCha20Poly1305 with a new ratchet key and nonce.
+Second, the sender uses the KEM mechanism to encrypt the message using the ephemeral header public
+key. Instead of a single AEAD pass, the shared secret is used to begin a KDF key ratchet, and each
+block of the input is encrypted using ChaCha20Poly1305 with a new ratchet key and nonce.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable header
-using the shared secret between the ephemeral public key and recipient's secret key. When a header
-is successfully decrypted, the ephemeral secret key and the sender's public key is used to re-derive
-the shared secret, and the message is decrypted.
+using the shared secret between the ephemeral header public key and recipient's secret key. When a
+header is successfully decrypted, the ephemeral header secret key and the sender's public key is
+used to re-derive the shared secret, and the message is decrypted.
 
 ### Password-Based Encryption
 

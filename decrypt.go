@@ -125,12 +125,12 @@ func (sk SecretKey) decryptHeader(pkEH, ciphertext []byte, senders []PublicKey) 
 			continue
 		}
 
-		// If the header wss successful decrypted, decode the ephemeral wrapper secret key and
+		// If the header wss successful decrypted, decode the ephemeral message secret key and
 		// message offset and return them.
-		skEW := header[:xdh.PublicKeySize]
+		skEM := header[:xdh.PublicKeySize]
 		offset := binary.BigEndian.Uint32(header[xdh.PublicKeySize:])
 
-		return pkS, skEW, int(offset)
+		return pkS, skEM, int(offset)
 	}
 
 	return nil, nil, 0

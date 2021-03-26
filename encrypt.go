@@ -40,14 +40,15 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 		return int64(n), err
 	}
 
-	// Generate a shared ratchet key between the sender and the ephemeral header public key.
-	pkEW, key, err := kem.Send(sk, sk.PublicKey(), pkEH, []byte("message"), ratchet.KeySize)
+	// Generate an ephemeral message public key and shared secret between the sender and the
+	// ephemeral header public key.
+	pkEM, key, err := kem.Send(sk, sk.PublicKey(), pkEH, []byte("message"), ratchet.KeySize)
 	if err != nil {
 		return int64(n), err
 	}
 
-	// Write the ephemeral wrapper public key.
-	an, err := dst.Write(pkEW)
+	// Write the ephemeral message public key.
+	an, err := dst.Write(pkEM)
 	if err != nil {
 		return int64(n + an), err
 	}
