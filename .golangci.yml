@@ -13,6 +13,7 @@ linters:
     - errorlint
     - exhaustive
     - exportloopref
+    - forcetypeassert
     - funlen
     - gci
     - gochecknoglobals
@@ -28,18 +29,21 @@ linters:
     - gofumpt
     - goimports
     - golint
+    - gomoddirectives
     - gomodguard
     - goprintffuncname
     - gosec
     - gosimple
     - govet
     - ifshort
+    - importas
     - ineffassign
     - lll
     - makezero
     - misspell
     - nakedret
     - nestif
+    - nilerr
     - noctx
     - nolintlint
     - paralleltest
@@ -47,7 +51,6 @@ linters:
     - predeclared
     - revive
     - rowserrcheck
-    - scopelint
     - sqlclosecheck
     - staticcheck
     - structcheck
@@ -58,6 +61,7 @@ linters:
     - unparam
     - unused
     - varcheck
+    - wastedassign
     - whitespace
     - wsl
 #    - exhaustivestruct
@@ -67,6 +71,7 @@ linters:
 #    - interfacer
 #    - maligned
 #    - nlreturn
+#    - scopelint
 #    - testpackage
 #    - typecheck
 #    - wrapcheck
