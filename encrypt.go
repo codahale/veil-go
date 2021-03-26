@@ -25,11 +25,8 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 		return 0, err
 	}
 
-	// Encode the ephemeral secret key and offset into a header.
-	offset := encryptedHeaderSize*len(recipients) + padding
-	header := make([]byte, headerSize)
-	copy(header, skEH)
-	binary.BigEndian.PutUint32(header[xdh.PublicKeySize:], uint32(offset))
+	// Encode the ephemeral header secret key and offset into a header.
+	header := sk.encodeHeader(skEH, len(recipients), padding)
 
 	// Encrypt copies of the header for each recipient.
 	headers, err := sk.encryptHeaders(header, recipients, padding)
@@ -43,7 +40,7 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 		return int64(n), err
 	}
 
-	// Generate a shared ratchet key between the sender and the ephemeral header key.
+	// Generate a shared ratchet key between the sender and the ephemeral header public key.
 	pkEW, key, err := kem.Send(sk, sk.PublicKey(), pkEH, []byte("message"), ratchet.KeySize)
 	if err != nil {
 		return int64(n), err
@@ -67,6 +64,19 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 
 	// Return the bytes written and flush any buffers.
 	return bn + int64(n+an), w.Close()
+}
+
+// encodeHeader encodes the ephemeral header secret key and the message offset.
+func (sk SecretKey) encodeHeader(skEH []byte, recipients, padding int) []byte {
+	// Copy the secret key.
+	header := make([]byte, headerSize)
+	copy(header, skEH)
+
+	// Calculate the message offset and encode it.
+	offset := encryptedHeaderSize*recipients + padding
+	binary.BigEndian.PutUint32(header[xdh.PublicKeySize:], uint32(offset))
+
+	return header
 }
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
