@@ -108,7 +108,7 @@ func (sk *SecretKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padd
 }
 
 const (
-	blockSize           = 1024 * 1024           // 1MiB
+	blockSize           = 64 * 1024             // 64KiB
 	headerSize          = xdh.PublicKeySize + 4 // 4 bytes for message offset
 	encryptedHeaderSize = xdh.PublicKeySize + headerSize + poly1305.TagSize
 )
