@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/alecthomas/kong"
@@ -33,9 +34,14 @@ func (cmd *decryptCmd) Run(_ *kong.Context) error {
 
 	defer func() { _ = w.Close() }()
 
-	_, _, err = sk.Decrypt(w, cmd.Ciphertext, senders)
+	sender, _, err := sk.Decrypt(w, cmd.Ciphertext, senders)
+	if err != nil {
+		return err
+	}
 
-	return err
+	_, _ = fmt.Fprintf(os.Stderr, "Message originally encrypted by %s", sender)
+
+	return nil
 }
 
 func openOutput(path string) (*os.File, error) {
