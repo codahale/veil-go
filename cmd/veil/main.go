@@ -68,14 +68,11 @@ func decryptSecretKey(f *os.File) (veil.SecretKey, error) {
 }
 
 func askPassword(prompt string) ([]byte, error) {
-	fmt.Print(prompt)
+	defer func() { _, _ = fmt.Fprintln(os.Stderr) }()
 
-	pwd, err := term.ReadPassword(syscall.Stdin)
-	if err != nil {
-		return nil, err
-	}
+	_, _ = fmt.Fprint(os.Stderr, prompt)
 
-	fmt.Println()
-
-	return pwd, nil
+	//nolint:unconvert // actually needed
+	//goland:noinspection GoRedundantConversion
+	return term.ReadPassword(int(syscall.Stdin))
 }
