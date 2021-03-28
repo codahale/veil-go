@@ -33,7 +33,7 @@ func parsePublicKeys(paths []string) ([]veil.PublicKey, error) {
 			return nil, err
 		}
 
-		keys[i] = veil.PublicKey(b)
+		keys[i] = b
 	}
 
 	return keys, nil

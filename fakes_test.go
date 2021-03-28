@@ -1,6 +1,7 @@
 package veil
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -30,9 +31,9 @@ func TestAddFakes(t *testing.T) {
 
 	for _, pk := range all {
 		switch {
-		case pk == alice.PublicKey():
+		case bytes.Equal(pk, alice.PublicKey()):
 			alices++
-		case pk == bob.PublicKey():
+		case bytes.Equal(pk, bob.PublicKey()):
 			bobs++
 		default:
 			others++

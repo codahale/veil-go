@@ -22,7 +22,7 @@ func AddFakes(keys []PublicKey, n int) ([]PublicKey, error) {
 			return nil, err
 		}
 
-		out = append(out, encodePK(pk))
+		out = append(out, pk)
 	}
 
 	// Perform a Fisher-Yates shuffle, using crypto/rand to pick indexes. This will randomly

@@ -24,16 +24,10 @@ var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 // to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
 // output written to dst should be discarded, as it cannot be ascertained to be authentic.
 func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) (PublicKey, int64, error) {
-	// Decode public keys.
-	pks, err := decodePKs(senders)
-	if err != nil {
-		return "", 0, err
-	}
-
 	// Find a decryptable header and recover the ephemeral secret key.
-	headers, pkS, skEH, err := sk.findHeader(src, pks)
+	headers, pkS, skEH, err := sk.findHeader(src, senders)
 	if err != nil {
-		return "", 0, err
+		return nil, 0, err
 	}
 
 	// Re-derive the ephemeral header public key.
@@ -42,7 +36,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) 
 	// Read the ephemeral message public key.
 	pkEM := make([]byte, xdh.PublicKeySize)
 	if _, err := io.ReadFull(src, pkEM); err != nil {
-		return "", 0, err
+		return nil, 0, err
 	}
 
 	// Derive the shared ratchet key between the sender and the ephemeral key.
@@ -55,16 +49,16 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) 
 	// Decrypt the plaintext as a stream.
 	n, err := io.Copy(dst, r)
 	if err != nil {
-		return "", n, err
+		return nil, n, err
 	}
 
 	// Return the sender's public key and the number of bytes written.
-	return encodePK(pkS), n, nil
+	return pkS, n, nil
 }
 
 // findHeader scans src for header blocks encrypted by any of the given possible senders. Returns
 // the full slice of encrypted headers, the sender's public key, and the ephemeral secret key.
-func (sk *SecretKey) findHeader(src io.Reader, senders [][]byte) ([]byte, []byte, SecretKey, error) {
+func (sk *SecretKey) findHeader(src io.Reader, senders []PublicKey) ([]byte, PublicKey, SecretKey, error) {
 	headers := make([]byte, 0, len(senders)*encryptedHeaderSize) // a guess at initial capacity
 	buf := make([]byte, encryptedHeaderSize)
 
@@ -104,9 +98,9 @@ func (sk *SecretKey) findHeader(src io.Reader, senders [][]byte) ([]byte, []byte
 
 // decryptHeader attempts to decrypt the given header block if sent from any of the given public
 // keys.
-func (sk SecretKey) decryptHeader(pkEH, ciphertext []byte, senders [][]byte) ([]byte, SecretKey, int) {
+func (sk SecretKey) decryptHeader(pkEH, ciphertext []byte, senders []PublicKey) (PublicKey, SecretKey, int) {
 	// Re-derive the recipient's public key.
-	pk := xdh.PublicKey(sk)
+	pk := sk.PublicKey()
 
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
