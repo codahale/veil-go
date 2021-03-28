@@ -36,6 +36,9 @@ func (cmd *generateCmd) Run(_ *kong.Context) error {
 		return err
 	}
 
+	// Encode the public key.
+	pk := pkEncoding.EncodeToString(sk.PublicKey())
+
 	// Write out the public key.
-	return os.WriteFile(cmd.PublicKey, sk.PublicKey(), 0600)
+	return os.WriteFile(cmd.PublicKey, []byte(pk), 0600)
 }
