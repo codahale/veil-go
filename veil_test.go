@@ -50,7 +50,7 @@ func Example() {
 	}
 
 	// Bob checks that the sender of the message was indeed Alice.
-	if bytes.Equal(pk, alice.PublicKey()) {
+	if pk == alice.PublicKey() {
 		fmt.Println("sent by A")
 	} else {
 		fmt.Println("sent by B")
@@ -95,4 +95,15 @@ func TestRoundTrip(t *testing.T) {
 	assert.Equal(t, "plaintext", message, dec.Bytes())
 	assert.Equal(t, "encrypted bytes", int64(240+1234), eb)
 	assert.Equal(t, "decrypted bytes", int64(40), db)
+}
+
+func TestSecretKey_String(t *testing.T) {
+	t.Parallel()
+
+	sk, err := NewSecretKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "string representation", string(sk.PublicKey()), sk.String())
 }

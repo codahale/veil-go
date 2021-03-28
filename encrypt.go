@@ -28,8 +28,14 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 	// Encode the ephemeral header secret key and offset into a header.
 	header := sk.encodeHeader(skEH, len(recipients), padding)
 
+	// Decode all public keys.
+	decodedRecipients, err := decodePKs(recipients)
+	if err != nil {
+		return 0, err
+	}
+
 	// Encrypt copies of the header for each recipient.
-	headers, err := sk.encryptHeaders(header, recipients, padding)
+	headers, err := sk.encryptHeaders(header, decodedRecipients, padding)
 	if err != nil {
 		return 0, err
 	}
@@ -42,7 +48,7 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pkEM, key, err := kem.Send(sk, sk.PublicKey(), pkEH, []byte("message"), ratchet.KeySize)
+	pkEM, key, err := kem.Send(sk, xdh.PublicKey(sk), pkEH, []byte("message"), ratchet.KeySize)
 	if err != nil {
 		return int64(n), err
 	}
@@ -82,12 +88,12 @@ func (sk SecretKey) encodeHeader(skEH []byte, recipients, padding int) []byte {
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
 // fake recipients.
-func (sk SecretKey) encryptHeaders(header []byte, publicKeys []PublicKey, padding int) ([]byte, error) {
+func (sk SecretKey) encryptHeaders(header []byte, publicKeys [][]byte, padding int) ([]byte, error) {
 	// Allocate a buffer for the entire header.
 	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
 
 	// Re-derive the sender's public key.
-	pk := sk.PublicKey()
+	pk := xdh.PublicKey(sk)
 
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {

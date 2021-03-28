@@ -37,5 +37,5 @@ func (cmd *generateCmd) Run(_ *kong.Context) error {
 	}
 
 	// Write out the public key.
-	return os.WriteFile(cmd.PublicKey, sk.PublicKey(), 0600)
+	return os.WriteFile(cmd.PublicKey, []byte(sk.PublicKey()), 0600)
 }
