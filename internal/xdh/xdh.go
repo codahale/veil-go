@@ -84,6 +84,8 @@ func GenerateKeys() (pk, sk []byte, err error) {
 	return
 }
 
+// elligator encodes the given ristretto255 point using Elligator2, returning either 32 bytes of
+// uniformly-distributed data or nil, if the point is not representable with Elligator2.
 func elligator(q *ristretto.Point) []byte {
 	var fes [8]edwards25519.FieldElement
 
