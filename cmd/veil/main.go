@@ -76,3 +76,16 @@ func askPassword(prompt string) ([]byte, error) {
 	//goland:noinspection GoRedundantConversion
 	return term.ReadPassword(int(syscall.Stdin))
 }
+
+func openOutput(path string) (*os.File, error) {
+	if path == "-" {
+		return os.Stdout, nil
+	}
+
+	w, err := os.Create(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return w, nil
+}

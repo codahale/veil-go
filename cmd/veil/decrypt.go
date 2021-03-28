@@ -43,16 +43,3 @@ func (cmd *decryptCmd) Run(_ *kong.Context) error {
 
 	return nil
 }
-
-func openOutput(path string) (*os.File, error) {
-	if path == "-" {
-		return os.Stdout, nil
-	}
-
-	w, err := os.Create(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return w, nil
-}
