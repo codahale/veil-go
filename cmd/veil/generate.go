@@ -8,12 +8,12 @@ import (
 	"github.com/codahale/veil"
 )
 
-type genKeyCmd struct {
+type generateCmd struct {
 	SecretKey string `arg:"" type:"path" help:"The output path for the encrypted secret key."`
 	PublicKey string `arg:"" type:"path" help:"The output path for the public key."`
 }
 
-func (cmd *genKeyCmd) Run(_ *kong.Context) error {
+func (cmd *generateCmd) Run(_ *kong.Context) error {
 	pwd, err := askPassword("Enter password: ")
 	if err != nil {
 		return err

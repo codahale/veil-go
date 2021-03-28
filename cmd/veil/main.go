@@ -12,9 +12,9 @@ import (
 )
 
 type cli struct {
-	GenerateKey genKeyCmd  `cmd:"" help:"Generate a new key pair."`
-	Encrypt     encryptCmd `cmd:"" help:"Encrypt a message for a set of recipients."`
-	Decrypt     decryptCmd `cmd:"" help:"Decrypt a message."`
+	Generate generateCmd `cmd:"" help:"Generate a new key pair."`
+	Encrypt  encryptCmd  `cmd:"" help:"Encrypt a message for a set of recipients."`
+	Decrypt  decryptCmd  `cmd:"" help:"Decrypt a message."`
 }
 
 func main() {
