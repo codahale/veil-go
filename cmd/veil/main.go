@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base32"
 	"fmt"
 	"os"
 	"syscall"
@@ -36,12 +35,12 @@ func parsePublicKeys(paths []string) ([]veil.PublicKey, error) {
 		}
 
 		// Decode the public key.
-		b, err = pkEncoding.DecodeString(string(b))
-		if err != nil {
+		var pk veil.PublicKey
+		if err := pk.UnmarshalText(b); err != nil {
 			return nil, err
 		}
 
-		keys[i] = b
+		keys[i] = pk
 	}
 
 	return keys, nil
@@ -86,5 +85,3 @@ func openInput(path string) (*os.File, error) {
 
 	return os.Open(path)
 }
-
-var pkEncoding = base32.StdEncoding.WithPadding(base32.NoPadding) //nolint:gochecknoglobals // constant
