@@ -76,19 +76,14 @@ func (sk *SecretKey) findHeader(src io.Reader, senders []PublicKey) ([]byte, Pub
 		// Append the current header to the list of encrypted headers.
 		headers = append(headers, buf...)
 
-		// Copy the ephemeral header public key.
-		pkEH := make([]byte, xdh.PublicKeySize)
-		copy(pkEH, buf)
-
-		// Copy the ciphertext.
-		ciphertext := make([]byte, len(buf)-xdh.PublicKeySize)
-		copy(ciphertext, buf[xdh.PublicKeySize:])
-
 		// Attempt to decrypt the header.
+		pkEH := buf[:xdh.PublicKeySize]
+		ciphertext := buf[xdh.PublicKeySize:]
 		pkS, skEH, offset := sk.decryptHeader(pkEH, ciphertext, senders)
+
+		// If we successfully decrypt the header, use the message offset to read the remaining
+		// encrypted headers.
 		if pkS != nil {
-			// If we successfully decrypt the header, use the message offset to read the remaining
-			// encrypted headers.
 			remaining := make([]byte, offset-len(headers))
 			if _, err := io.ReadFull(src, remaining); err != nil {
 				return nil, nil, nil, err
