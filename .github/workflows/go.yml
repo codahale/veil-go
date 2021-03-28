@@ -31,3 +31,8 @@ jobs:
           skip-pkg-cache: true
           skip-build-cache: true
 
+      - name: Cross-compile
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          version: latest
+          args: build --snapshot
