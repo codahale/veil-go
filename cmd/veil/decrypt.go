@@ -36,6 +36,10 @@ func (cmd *decryptCmd) Run(_ *kong.Context) error {
 
 	sender, _, err := sk.Decrypt(w, cmd.Ciphertext, senders)
 	if err != nil {
+		_ = w.Close()
+
+		_ = os.Remove(cmd.Ciphertext.Name())
+
 		return err
 	}
 
