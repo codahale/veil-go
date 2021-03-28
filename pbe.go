@@ -103,6 +103,6 @@ func pbeKDF(passphrase, salt []byte, params *Argon2idParams) ([]byte, []byte) {
 }
 
 const (
-	saltSize       = 16
+	saltSize       = 16 // per https://tools.ietf.org/html/draft-irtf-cfrg-argon2-12#section-3.1
 	ciphertextSize = xdh.SecretKeySize + poly1305.TagSize
 )
