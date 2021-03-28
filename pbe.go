@@ -1,135 +1,24 @@
 package veil
 
 import (
+	"bytes"
 	"crypto/rand"
-	"encoding"
-	"encoding/base64"
-	"errors"
-	"fmt"
+	"encoding/binary"
 
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/chacha20poly1305"
-	"golang.org/x/crypto/cryptobyte"
 )
 
+// Argon2idParams contains the parameters of the Argon2id password-based KDF algorithm.
 type Argon2idParams struct {
 	Time, Memory uint32 // The time and memory Argon2id parameters.
 	Parallelism  uint8  // The parallelism Argon2id parameter.
 }
 
-func (a *Argon2idParams) MarshalBinary() ([]byte, error) {
-	b := cryptobyte.NewBuilder(nil)
-
-	// Encode all params as fixed integers.
-	b.AddUint32(a.Time)
-	b.AddUint32(a.Memory)
-	b.AddUint8(a.Parallelism)
-
-	return b.Bytes()
-}
-
-// ErrInvalidArgon2idParams is returned when an Argon2idParams cannot be unmarshalled from the
-// provided data.
-var ErrInvalidArgon2idParams = errors.New("invalid Argon2id params")
-
-func (a *Argon2idParams) UnmarshalBinary(data []byte) error {
-	s := cryptobyte.String(data)
-
-	// Decode all params.
-	if !(s.ReadUint32(&a.Time) && s.ReadUint32(&a.Memory) && s.ReadUint8(&a.Parallelism)) {
-		return ErrInvalidArgon2idParams
-	}
-
-	return nil
-}
-
-var (
-	_ encoding.BinaryMarshaler   = &Argon2idParams{}
-	_ encoding.BinaryUnmarshaler = &Argon2idParams{}
-)
-
-// EncryptedSecretKey is a SecretKey that has been encrypted with a password.
-type EncryptedSecretKey struct {
-	Argon2idParams
-	Salt       []byte // The random salt used to encrypt the secret key.
-	Ciphertext []byte // The secret key, encrypted with ChaCha20Poly1305.
-}
-
-func (esk *EncryptedSecretKey) MarshalBinary() ([]byte, error) {
-	b := cryptobyte.NewBuilder(nil)
-
-	// Encode the salt with an 8-bit length prefix.
-	b.AddUint8LengthPrefixed(func(child *cryptobyte.Builder) {
-		child.AddBytes(esk.Salt)
-	})
-
-	// Encode the ciphertext with a 16-bit length prefix.
-	b.AddUint16LengthPrefixed(func(child *cryptobyte.Builder) {
-		child.AddBytes(esk.Ciphertext)
-	})
-
-	// Encode the Argon2id parameters.
-	p, _ := esk.Argon2idParams.MarshalBinary()
-	b.AddBytes(p)
-
-	return b.Bytes()
-}
-
-// ErrInvalidEncryptedKeyPair is returned when an EncryptedKeyPair cannot be unmarshalled from the
-// provided data.
-var ErrInvalidEncryptedKeyPair = errors.New("invalid encrypted key pair")
-
-func (esk *EncryptedSecretKey) UnmarshalBinary(data []byte) error {
-	s := cryptobyte.String(data)
-
-	if !(s.ReadUint8LengthPrefixed((*cryptobyte.String)(&esk.Salt)) &&
-		s.ReadUint16LengthPrefixed((*cryptobyte.String)(&esk.Ciphertext)) &&
-		s.ReadUint32(&esk.Time) &&
-		s.ReadUint32(&esk.Memory) &&
-		s.ReadUint8(&esk.Parallelism)) {
-		return ErrInvalidEncryptedKeyPair
-	}
-
-	return nil
-}
-
-func (esk *EncryptedSecretKey) MarshalText() ([]byte, error) {
-	b, err := esk.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	t := make([]byte, base64.RawURLEncoding.EncodedLen(len(b)))
-	base64.RawURLEncoding.Encode(t, b)
-
-	return t, nil
-}
-
-func (esk *EncryptedSecretKey) UnmarshalText(text []byte) error {
-	b, err := base64.RawURLEncoding.DecodeString(string(text))
-	if err != nil {
-		return err
-	}
-
-	return esk.UnmarshalBinary(b)
-}
-
-func (esk *EncryptedSecretKey) String() string {
-	t, _ := esk.MarshalText()
-	return string(t)
-}
-
-var (
-	_ encoding.BinaryMarshaler   = &EncryptedSecretKey{}
-	_ encoding.BinaryUnmarshaler = &EncryptedSecretKey{}
-	_ encoding.TextMarshaler     = &EncryptedSecretKey{}
-	_ encoding.TextUnmarshaler   = &EncryptedSecretKey{}
-	_ fmt.Stringer               = &EncryptedSecretKey{}
-)
-
-// NewEncryptedSecretKey encrypts the given key pair with the given password.
-func NewEncryptedSecretKey(sk SecretKey, password []byte, params *Argon2idParams) (*EncryptedSecretKey, error) {
+// EncryptSecretKey encrypts the given secret key with the given passphrase and optional Argon2id
+// parameters. Returns the encrypted key.
+func EncryptSecretKey(sk SecretKey, passphrase []byte, params *Argon2idParams) ([]byte, error) {
 	// Use default parameters if none are provided.
 	if params == nil {
 		// As recommended in https://tools.ietf.org/html/draft-irtf-cfrg-argon2-12#section-7.4.
@@ -140,14 +29,14 @@ func NewEncryptedSecretKey(sk SecretKey, password []byte, params *Argon2idParams
 		}
 	}
 
-	// Generate a random 16-byte salt.
-	salt := make([]byte, 16)
+	// Generate a random salt.
+	salt := make([]byte, saltSize)
 	if _, err := rand.Read(salt); err != nil {
 		return nil, err
 	}
 
 	// Use Argon2id to derive a key and nonce from the password and salt.
-	key, nonce := pbeKDF(password, salt, params)
+	key, nonce := pbeKDF(passphrase, salt, params)
 
 	// Initialize a ChaCha20Poly1305 AEAD.
 	aead, err := chacha20poly1305.New(key)
@@ -158,19 +47,32 @@ func NewEncryptedSecretKey(sk SecretKey, password []byte, params *Argon2idParams
 	// Encrypt the secret key.
 	ciphertext := aead.Seal(nil, nonce, sk, nil)
 
-	// Return the salt, ciphertext, and parameters.
-	return &EncryptedSecretKey{
-		Salt:           salt,
-		Ciphertext:     ciphertext,
-		Argon2idParams: *params,
-	}, nil
+	// Encode the Argon2id params, the salt, and the ciphertext.
+	buf := bytes.NewBuffer(nil)
+	_ = binary.Write(buf, binary.BigEndian, params.Time)
+	_ = binary.Write(buf, binary.BigEndian, params.Memory)
+	_ = binary.Write(buf, binary.BigEndian, params.Parallelism)
+	_, _ = buf.Write(salt)
+	_, _ = buf.Write(ciphertext)
+
+	return buf.Bytes(), err
 }
 
-// Decrypt uses the given password to decrypt the key pair. Returns an error if the password is
-// incorrect or if the encrypted key pair has been modified.
-func (esk *EncryptedSecretKey) Decrypt(password []byte) (SecretKey, error) {
-	// Use Argon2id to derive a key and nonce from the password and salt.
-	key, nonce := pbeKDF(password, esk.Salt, &esk.Argon2idParams)
+// DecryptSecretKey decrypts the given secret key with the given passphrase. Returns the decrypted
+// secret key.
+func DecryptSecretKey(sk, passphrase []byte) (SecretKey, error) {
+	var params Argon2idParams
+
+	// Decode the Argon2id params, the salt, and the ciphertext.
+	buf := bytes.NewReader(sk)
+	_ = binary.Read(buf, binary.BigEndian, &params.Time)
+	_ = binary.Read(buf, binary.BigEndian, &params.Memory)
+	_ = binary.Read(buf, binary.BigEndian, &params.Parallelism)
+	salt := sk[paramPrefixSize : paramPrefixSize+saltSize]
+	ciphertext := sk[paramPrefixSize+saltSize:]
+
+	// Use Argon2id to re-derive the key and nonce from the password and salt.
+	key, nonce := pbeKDF(passphrase, salt, &params)
 
 	// Initialize a ChaCha20Poly1305 AEAD.
 	aead, err := chacha20poly1305.New(key)
@@ -179,12 +81,10 @@ func (esk *EncryptedSecretKey) Decrypt(password []byte) (SecretKey, error) {
 	}
 
 	// Decrypt the secret key.
-	sk, err := aead.Open(nil, nonce, esk.Ciphertext, nil)
-	if err != nil {
-		return nil, err
-	}
+	plaintext, err := aead.Open(nil, nonce, ciphertext, nil)
 
-	return sk, err
+	// Return it or any error in decryption.
+	return plaintext, err
 }
 
 // pbeKDF uses Argon2id to derive a ChaCha20Poly1305 key and nonce from the password, salt, and
@@ -195,3 +95,8 @@ func pbeKDF(password, salt []byte, params *Argon2idParams) ([]byte, []byte) {
 
 	return kn[:chacha20.KeySize], kn[chacha20.KeySize:]
 }
+
+const (
+	saltSize        = 16
+	paramPrefixSize = 1 + 4 + 4
+)

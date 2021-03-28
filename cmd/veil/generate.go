@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"os"
 
 	"github.com/alecthomas/kong"
 	"github.com/codahale/veil"
@@ -33,35 +34,16 @@ func (cmd *generateCmd) Run(_ *kong.Context) error {
 		return err
 	}
 
-	psk, err := veil.NewEncryptedSecretKey(sk, pwd, nil)
+	esk, err := veil.EncryptSecretKey(sk, pwd, nil)
 	if err != nil {
 		return err
 	}
 
-	skF, err := openOutput(cmd.SecretKey)
-	if err != nil {
+	if err := os.WriteFile(cmd.SecretKey, esk, 0600); err != nil {
 		return err
 	}
 
-	defer func() { _ = skF.Close() }()
-
-	b, _ := psk.MarshalBinary()
-
-	_, err = skF.Write(b)
-	if err != nil {
-		return err
-	}
-
-	pkF, err := openOutput(cmd.PublicKey)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = pkF.Close() }()
-
-	_, err = pkF.Write(sk.PublicKey())
-
-	return err
+	return os.WriteFile(cmd.PublicKey, sk.PublicKey(), 0600)
 }
 
 var errPasswordMismatch = errors.New("password mismatch")

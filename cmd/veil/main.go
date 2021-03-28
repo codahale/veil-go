@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"syscall"
 
@@ -25,37 +24,24 @@ func main() {
 	ctx.FatalIfErrorf(err)
 }
 
-func parsePublicKeys(paths []*os.File) ([]veil.PublicKey, error) {
+func parsePublicKeys(paths []string) ([]veil.PublicKey, error) {
 	keys := make([]veil.PublicKey, len(paths))
 
-	for i, f := range paths {
-		b, err := io.ReadAll(f)
+	for i, path := range paths {
+		b, err := os.ReadFile(path)
 		if err != nil {
 			return nil, err
 		}
 
 		keys[i] = b
-
-		if err := f.Close(); err != nil {
-			return nil, err
-		}
 	}
 
 	return keys, nil
 }
 
-func decryptSecretKey(f *os.File) (veil.SecretKey, error) {
-	b, err := io.ReadAll(f)
+func decryptSecretKey(path string) (veil.SecretKey, error) {
+	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := f.Close(); err != nil {
-		return nil, err
-	}
-
-	var esk veil.EncryptedSecretKey
-	if err := esk.UnmarshalBinary(b); err != nil {
 		return nil, err
 	}
 
@@ -64,7 +50,7 @@ func decryptSecretKey(f *os.File) (veil.SecretKey, error) {
 		return nil, err
 	}
 
-	return esk.Decrypt(pwd)
+	return veil.DecryptSecretKey(b, pwd)
 }
 
 func askPassword(prompt string) ([]byte, error) {
@@ -75,17 +61,4 @@ func askPassword(prompt string) ([]byte, error) {
 	//nolint:unconvert // actually needed
 	//goland:noinspection GoRedundantConversion
 	return term.ReadPassword(int(syscall.Stdin))
-}
-
-func openOutput(path string) (*os.File, error) {
-	if path == "-" {
-		return os.Stdout, nil
-	}
-
-	w, err := os.Create(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return w, nil
 }

@@ -8,10 +8,10 @@ import (
 )
 
 type encryptCmd struct {
-	SecretKey  *os.File   `arg:"" help:"The path to the secret key."`
-	Plaintext  *os.File   `arg:"" help:"The path to the plaintext file."`
-	Ciphertext string     `arg:"" type:"path" help:"The path to the ciphertext file."`
-	Recipients []*os.File `arg:"" repeated:"" help:"The public keys of the recipients."`
+	SecretKey  string   `arg:"" type:"existingfile" help:"The path to the secret key."`
+	Plaintext  *os.File `arg:"" help:"The path to the plaintext file."`
+	Ciphertext string   `arg:"" type:"path" help:"The path to the ciphertext file."`
+	Recipients []string `arg:"" type:"existingfile" repeated:"" help:"The public keys of the recipients."`
 
 	Fakes   int `help:"The number of fake recipients to add."`
 	Padding int `help:"The number of bytes of random padding to add."`
@@ -35,14 +35,14 @@ func (cmd *encryptCmd) Run(_ *kong.Context) error {
 		}
 	}
 
-	w, err := openOutput(cmd.Ciphertext)
+	f, err := os.Create(cmd.Ciphertext)
 	if err != nil {
 		return err
 	}
 
-	defer func() { _ = w.Close() }()
+	defer func() { _ = f.Close() }()
 
-	_, err = sk.Encrypt(w, cmd.Plaintext, recipients, cmd.Padding)
+	_, err = sk.Encrypt(f, cmd.Plaintext, recipients, cmd.Padding)
 
 	return err
 }
