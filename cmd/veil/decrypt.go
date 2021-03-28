@@ -9,40 +9,47 @@ import (
 
 type decryptCmd struct {
 	SecretKey  string   `arg:"" type:"existingfile" help:"The path to the secret key."`
-	Ciphertext *os.File `arg:"" help:"The path to the ciphertext file."`
+	Ciphertext string   `arg:"" type:"existingfile" help:"The path to the ciphertext file."`
 	Plaintext  string   `arg:"" type:"path" help:"The path to the plaintext file."`
-	Senders    []string `arg:"" repeated:"" type:"existingfile" help:"The public keys of the possible senders."`
+	Senders    []string `arg:"" type:"existingfile" repeated:"" help:"The public keys of the possible senders."`
 }
 
 func (cmd *decryptCmd) Run(_ *kong.Context) error {
+	// Decrypt the secret key.
 	sk, err := decryptSecretKey(cmd.SecretKey)
 	if err != nil {
 		return err
 	}
 
+	// Parse the public keys of the possible senders.
 	senders, err := parsePublicKeys(cmd.Senders)
 	if err != nil {
 		return err
 	}
 
-	defer func() { _ = cmd.Ciphertext.Close() }()
-
-	f, err := os.Create(cmd.Plaintext)
+	// Open the ciphertext input.
+	src, err := openInput(cmd.Ciphertext)
 	if err != nil {
 		return err
 	}
 
-	defer func() { _ = f.Close() }()
+	defer func() { _ = src.Close() }()
 
-	sender, _, err := sk.Decrypt(f, cmd.Ciphertext, senders)
+	// Open the plaintext output.
+	dst, err := openOutput(cmd.Plaintext)
 	if err != nil {
-		_ = f.Close()
-
-		_ = os.Remove(cmd.Plaintext)
-
 		return err
 	}
 
+	defer func() { _ = dst.Close() }()
+
+	// Decrypt the ciphertext.
+	sender, _, err := sk.Decrypt(dst, src, senders)
+	if err != nil {
+		return err
+	}
+
+	// Print the verified sender.
 	_, _ = fmt.Fprintf(os.Stderr, "Message originally encrypted by %s\n", sender)
 
 	return nil
