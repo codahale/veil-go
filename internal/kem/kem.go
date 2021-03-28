@@ -77,7 +77,9 @@ func kdf(zzE, zzS, pkE, pkR, pkS, info []byte, n int) []byte {
 
 	// Derive the secret from the HKDF output.
 	secret := make([]byte, n)
-	_, _ = io.ReadFull(h, secret)
+	if _, err := io.ReadFull(h, secret); err != nil {
+		panic(err)
+	}
 
 	// Return the shared secret.
 	return secret

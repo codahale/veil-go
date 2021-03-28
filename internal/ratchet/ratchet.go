@@ -50,7 +50,9 @@ func (kr *Sequence) Next(final bool) []byte {
 	kdf := hkdf.New(sha256.New, kr.buf[:KeySize], salt, []byte("veil-ratchet"))
 
 	// Advance the ratchet.
-	_, _ = io.ReadFull(kdf, kr.buf)
+	if _, err := io.ReadFull(kdf, kr.buf); err != nil {
+		panic(err)
+	}
 
 	// Return the new key.
 	return kr.buf[KeySize:]

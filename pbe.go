@@ -55,7 +55,7 @@ func EncryptSecretKey(sk SecretKey, passphrase []byte, params *Argon2idParams) (
 	// Encode the Argon2id params, the salt, and the ciphertext.
 	buf := bytes.NewBuffer(nil)
 	if err := binary.Write(buf, binary.BigEndian, &esk); err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	return buf.Bytes(), nil
