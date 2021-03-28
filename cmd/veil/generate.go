@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"errors"
 	"os"
 
 	"github.com/alecthomas/kong"
@@ -15,35 +13,29 @@ type generateCmd struct {
 }
 
 func (cmd *generateCmd) Run(_ *kong.Context) error {
+	// Prompt for the PBE passphrase.
 	passphrase, err := askPassphrase("Enter passphrase: ")
 	if err != nil {
 		return err
 	}
 
-	confirmation, err := askPassphrase("Confirm passphrase: ")
-	if err != nil {
-		return err
-	}
-
-	if !bytes.Equal(passphrase, confirmation) {
-		return errPassphraseMismatch
-	}
-
+	// Generate a new secret key.
 	sk, err := veil.NewSecretKey()
 	if err != nil {
 		return err
 	}
 
+	// Encrypt the secret key with the passphrase.
 	esk, err := veil.EncryptSecretKey(sk, passphrase, nil)
 	if err != nil {
 		return err
 	}
 
+	// Write out the encrypted secret key.
 	if err := os.WriteFile(cmd.SecretKey, esk, 0600); err != nil {
 		return err
 	}
 
+	// Write out the public key.
 	return os.WriteFile(cmd.PublicKey, sk.PublicKey(), 0600)
 }
-
-var errPassphraseMismatch = errors.New("passphrase mismatch")
