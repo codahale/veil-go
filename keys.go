@@ -31,10 +31,6 @@ func (sk SecretKey) PublicKey() PublicKey {
 // NewSecretKey creates a new secret key.
 func NewSecretKey() (SecretKey, error) {
 	_, sk, err := xdh.GenerateKeys()
-	if err != nil {
-		return nil, err
-	}
-
 	return sk, err
 }
 
