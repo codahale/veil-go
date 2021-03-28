@@ -68,7 +68,7 @@ using the shared secret between the ephemeral header public key and recipient's 
 header is successfully decrypted, the ephemeral header secret key and the sender's public key is
 used to re-derive the shared secret, and the message is decrypted.
 
-### Password-Based Encryption
+### Passphrase-Based Encryption
 
 To safely store secret keys, Argon2id is used with a 16-byte random salt to derive a
 ChaCha20Poly1305 key and nonce. The secret key is encrypted with ChaCha20Poly1305.

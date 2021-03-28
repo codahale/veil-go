@@ -45,7 +45,7 @@ func decryptSecretKey(path string) (veil.SecretKey, error) {
 		return nil, err
 	}
 
-	pwd, err := askPassword("Enter password: ")
+	pwd, err := askPassphrase("Enter passphrase: ")
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func decryptSecretKey(path string) (veil.SecretKey, error) {
 	return veil.DecryptSecretKey(b, pwd)
 }
 
-func askPassword(prompt string) ([]byte, error) {
+func askPassphrase(prompt string) ([]byte, error) {
 	defer func() { _, _ = fmt.Fprintln(os.Stderr) }()
 
 	_, _ = fmt.Fprint(os.Stderr, prompt)

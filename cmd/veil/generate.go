@@ -15,18 +15,18 @@ type generateCmd struct {
 }
 
 func (cmd *generateCmd) Run(_ *kong.Context) error {
-	pwd, err := askPassword("Enter password: ")
+	passphrase, err := askPassphrase("Enter passphrase: ")
 	if err != nil {
 		return err
 	}
 
-	cfm, err := askPassword("Confirm password: ")
+	confirmation, err := askPassphrase("Confirm passphrase: ")
 	if err != nil {
 		return err
 	}
 
-	if !bytes.Equal(pwd, cfm) {
-		return errPasswordMismatch
+	if !bytes.Equal(passphrase, confirmation) {
+		return errPassphraseMismatch
 	}
 
 	sk, err := veil.NewSecretKey()
@@ -34,7 +34,7 @@ func (cmd *generateCmd) Run(_ *kong.Context) error {
 		return err
 	}
 
-	esk, err := veil.EncryptSecretKey(sk, pwd, nil)
+	esk, err := veil.EncryptSecretKey(sk, passphrase, nil)
 	if err != nil {
 		return err
 	}
@@ -46,4 +46,4 @@ func (cmd *generateCmd) Run(_ *kong.Context) error {
 	return os.WriteFile(cmd.PublicKey, sk.PublicKey(), 0600)
 }
 
-var errPasswordMismatch = errors.New("password mismatch")
+var errPassphraseMismatch = errors.New("passphrase mismatch")

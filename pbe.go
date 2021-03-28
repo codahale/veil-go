@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-// Argon2idParams contains the parameters of the Argon2id password-based KDF algorithm.
+// Argon2idParams contains the parameters of the Argon2id passphrase-based KDF algorithm.
 type Argon2idParams struct {
 	Time, Memory uint32 // The time and memory Argon2id parameters.
 	Parallelism  uint8  // The parallelism Argon2id parameter.
@@ -35,7 +35,7 @@ func EncryptSecretKey(sk SecretKey, passphrase []byte, params *Argon2idParams) (
 		return nil, err
 	}
 
-	// Use Argon2id to derive a key and nonce from the password and salt.
+	// Use Argon2id to derive a key and nonce from the passphrase and salt.
 	key, nonce := pbeKDF(passphrase, salt, params)
 
 	// Initialize a ChaCha20Poly1305 AEAD.
@@ -71,7 +71,7 @@ func DecryptSecretKey(sk, passphrase []byte) (SecretKey, error) {
 	salt := sk[paramPrefixSize : paramPrefixSize+saltSize]
 	ciphertext := sk[paramPrefixSize+saltSize:]
 
-	// Use Argon2id to re-derive the key and nonce from the password and salt.
+	// Use Argon2id to re-derive the key and nonce from the passphrase and salt.
 	key, nonce := pbeKDF(passphrase, salt, &params)
 
 	// Initialize a ChaCha20Poly1305 AEAD.
@@ -87,10 +87,10 @@ func DecryptSecretKey(sk, passphrase []byte) (SecretKey, error) {
 	return plaintext, err
 }
 
-// pbeKDF uses Argon2id to derive a ChaCha20Poly1305 key and nonce from the password, salt, and
+// pbeKDF uses Argon2id to derive a ChaCha20Poly1305 key and nonce from the passphrase, salt, and
 // parameters.
-func pbeKDF(password, salt []byte, params *Argon2idParams) ([]byte, []byte) {
-	kn := argon2.IDKey(password, salt, params.Time, params.Memory, params.Parallelism,
+func pbeKDF(passphrase, salt []byte, params *Argon2idParams) ([]byte, []byte) {
+	kn := argon2.IDKey(passphrase, salt, params.Time, params.Memory, params.Parallelism,
 		chacha20.KeySize+chacha20.NonceSize)
 
 	return kn[:chacha20.KeySize], kn[chacha20.KeySize:]
