@@ -7,13 +7,13 @@ import (
 	"github.com/codahale/veil"
 )
 
-type verifyCmd struct {
+type verifyDetachedCmd struct {
 	PublicKey string `arg:"" type:"existingfile" help:"The path to the public key."`
 	Message   string `arg:"" type:"existingfile" help:"The path to the message."`
 	Signature string `arg:"" type:"existingfile" help:"The path to the signature file."`
 }
 
-func (cmd *verifyCmd) Run(_ *kong.Context) error {
+func (cmd *verifyDetachedCmd) Run(_ *kong.Context) error {
 	// Open and decode the public key.
 	pk, err := parsePublicKey(cmd.PublicKey)
 	if err != nil {

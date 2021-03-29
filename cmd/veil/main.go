@@ -11,11 +11,11 @@ import (
 )
 
 type cli struct {
-	Generate generateCmd `cmd:"" help:"Generate a new key pair."`
-	Encrypt  encryptCmd  `cmd:"" help:"Encrypt a message for a set of recipients."`
-	Decrypt  decryptCmd  `cmd:"" help:"Decrypt a message."`
-	Sign     signCmd     `cmd:"" help:"Sign a message."`
-	Verify   verifyCmd   `cmd:"" help:"Verify a signature for a message."`
+	Generate       generateCmd       `cmd:"" help:"Generate a new key pair."`
+	Encrypt        encryptCmd        `cmd:"" help:"Encrypt a message for a set of recipients."`
+	Decrypt        decryptCmd        `cmd:"" help:"Decrypt a message."`
+	SignDetached   signDetachedCmd   `cmd:"" help:"Create a detached signature for a message."`
+	VerifyDetached verifyDetachedCmd `cmd:"" help:"Verify a detached signature for a message."`
 }
 
 func main() {
@@ -50,7 +50,8 @@ func parsePublicKey(path string) (veil.PublicKey, error) {
 
 	// Decode the public key.
 	var pk veil.PublicKey
-	if err := pk.UnmarshalText(b); err != nil {
+	if //goland:noinspection GoNilness
+	err := pk.UnmarshalText(b); err != nil {
 		return nil, err
 	}
 

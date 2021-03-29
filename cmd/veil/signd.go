@@ -4,13 +4,13 @@ import (
 	"github.com/alecthomas/kong"
 )
 
-type signCmd struct {
+type signDetachedCmd struct {
 	SecretKey string `arg:"" type:"existingfile" help:"The path to the secret key."`
 	Message   string `arg:"" type:"existingfile" help:"The path to the message."`
 	Signature string `arg:"" type:"path" help:"The path to the signature file."`
 }
 
-func (cmd *signCmd) Run(_ *kong.Context) error {
+func (cmd *signDetachedCmd) Run(_ *kong.Context) error {
 	// Decrypt the secret key.
 	sk, err := decryptSecretKey(cmd.SecretKey)
 	if err != nil {
