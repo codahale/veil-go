@@ -14,6 +14,8 @@ type cli struct {
 	Generate generateCmd `cmd:"" help:"Generate a new key pair."`
 	Encrypt  encryptCmd  `cmd:"" help:"Encrypt a message for a set of recipients."`
 	Decrypt  decryptCmd  `cmd:"" help:"Decrypt a message."`
+	Sign     signCmd     `cmd:"" help:"Sign a message."`
+	Verify   verifyCmd   `cmd:"" help:"Verify a signature for a message."`
 }
 
 func main() {
@@ -28,15 +30,8 @@ func parsePublicKeys(paths []string) ([]veil.PublicKey, error) {
 	keys := make([]veil.PublicKey, len(paths))
 
 	for i, path := range paths {
-		// Read the contents of the file.
-		b, err := os.ReadFile(path)
+		pk, err := parsePublicKey(path)
 		if err != nil {
-			return nil, err
-		}
-
-		// Decode the public key.
-		var pk veil.PublicKey
-		if err := pk.UnmarshalText(b); err != nil {
 			return nil, err
 		}
 
@@ -44,6 +39,22 @@ func parsePublicKeys(paths []string) ([]veil.PublicKey, error) {
 	}
 
 	return keys, nil
+}
+
+func parsePublicKey(path string) (veil.PublicKey, error) {
+	// Read the contents of the file.
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decode the public key.
+	var pk veil.PublicKey
+	if err := pk.UnmarshalText(b); err != nil {
+		return nil, err
+	}
+
+	return pk, nil
 }
 
 func decryptSecretKey(path string) (veil.SecretKey, error) {
