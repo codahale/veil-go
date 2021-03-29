@@ -1,0 +1,108 @@
+package stream
+
+import (
+	"crypto/sha512"
+	"errors"
+	"hash"
+	"io"
+
+	"github.com/codahale/veil/internal/xdh"
+)
+
+type SignatureReader struct {
+	Signature []byte
+	SHA512    hash.Hash
+
+	in          io.Reader
+	scratch     []byte
+	trailerUsed int
+	error       bool
+	eof         bool
+}
+
+func NewSignatureReader(src io.Reader) *SignatureReader {
+	return &SignatureReader{
+		Signature: make([]byte, xdh.SignatureSize),
+		SHA512:    sha512.New(),
+		in:        src,
+		scratch:   make([]byte, xdh.SignatureSize),
+	}
+}
+
+//nolint:gocognit,nakedret // This is just complicated.
+func (tr *SignatureReader) Read(buf []byte) (n int, err error) {
+	if tr.error {
+		err = io.ErrUnexpectedEOF
+		return
+	}
+
+	if tr.eof {
+		err = io.EOF
+		return
+	}
+
+	// If we haven't yet filled the trailer buffer then we must do that
+	// first.
+	for tr.trailerUsed < len(tr.Signature) {
+		n, err = tr.in.Read(tr.Signature[tr.trailerUsed:])
+		tr.trailerUsed += n
+
+		if errors.Is(err, io.EOF) {
+			if tr.trailerUsed != len(tr.Signature) {
+				n = 0
+				err = io.ErrUnexpectedEOF
+				tr.error = true
+
+				return
+			}
+
+			tr.eof = true
+			n = 0
+
+			return
+		}
+
+		if err != nil {
+			n = 0
+
+			return
+		}
+	}
+
+	// If it's a short read then we read into a temporary buffer and shift
+	// the data into the caller's buffer.
+	if len(buf) <= len(tr.Signature) {
+		n, err = readFull(tr.in, tr.scratch[:len(buf)])
+		copy(buf, tr.Signature[:n])
+		tr.SHA512.Write(buf[:n])
+		copy(tr.Signature, tr.Signature[n:])
+		copy(tr.Signature[len(tr.Signature)-n:], tr.scratch)
+
+		if n < len(buf) {
+			tr.eof = true
+			err = io.EOF
+		}
+
+		return
+	}
+
+	n, err = tr.in.Read(buf[len(tr.Signature):])
+	copy(buf, tr.Signature)
+	tr.SHA512.Write(buf[:n])
+	copy(tr.Signature, buf[n:])
+
+	if errors.Is(err, io.EOF) {
+		tr.eof = true
+	}
+
+	return
+}
+
+func readFull(r io.Reader, buf []byte) (n int, err error) {
+	n, err = io.ReadFull(r, buf)
+	if errors.Is(err, io.EOF) {
+		err = io.ErrUnexpectedEOF
+	}
+
+	return
+}

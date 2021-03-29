@@ -3,6 +3,7 @@ package veil
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha512"
 	"encoding/binary"
 	"io"
 
@@ -57,14 +58,30 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 	// data.
 	w := stream.NewWriter(dst, key, headers, blockSize)
 
+	// Tee reads from the input into a SHA-512 hash.
+	h := sha512.New()
+	r := io.TeeReader(src, h)
+
 	// Encrypt the plaintext as a stream.
-	bn, err := io.Copy(w, src)
+	bn, err := io.Copy(w, r)
 	if err != nil {
 		return bn + int64(n+an), err
 	}
 
+	// Create a signature of the SHA-512 hash of the plaintext.
+	sig, err := xdh.Sign(sk, h.Sum(nil))
+	if err != nil {
+		return bn + int64(n+an), err
+	}
+
+	// Append the signature to the plaintext.
+	cn, err := w.Write(sig)
+	if err != nil {
+		return bn + int64(n+an+cn), err
+	}
+
 	// Return the bytes written and flush any buffers.
-	return bn + int64(n+an), w.Close()
+	return bn + int64(n+an+cn), w.Close()
 }
 
 // encodeHeader encodes the ephemeral header secret key and the message offset.

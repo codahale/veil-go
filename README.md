@@ -50,6 +50,13 @@ public key in the HKDF inputs. Deriving the key and nonce from the ephemeral sha
 eliminates the possibility of nonce misuse, results in a shorter ciphertext by eliding the nonce,
 and adds key-commitment with all public keys as openers.
 
+### Digital Signatures
+
+To make authenticated messages, Veil creates Schnorr signatures using the signer's secret key. The
+ephemeral public key created for the signature is encoded using Elligator2, making the signatures
+indistinguishable from random noise. The actual "message" signed is a SHA-512 hash of the message,
+and SHA-512 is used to derive ristretto255 scalars from the message and ephemeral public key.
+
 ### Multi-Recipient Messages
 
 A Veil message combines all of these primitives to provide multi-recipient messages.
@@ -63,10 +70,14 @@ Second, the sender uses the KEM mechanism to encrypt the message using the ephem
 key. Instead of a single AEAD pass, the shared secret is used to begin a KDF key ratchet, and each
 block of the input is encrypted using ChaCha20Poly1305 with a new ratchet key and nonce.
 
+Finally, a signature is created of the SHA-512 hash of the plaintext and appended to the plaintext
+inside the AEAD stream.
+
 To decrypt a message, the recipient iterates through the message, searching for a decryptable header
 using the shared secret between the ephemeral header public key and recipient's secret key. When a
 header is successfully decrypted, the ephemeral header secret key and the sender's public key is
-used to re-derive the shared secret, and the message is decrypted.
+used to re-derive the shared secret, and the message is decrypted. The signature is verified against
+an SHA-512 hash of the message, assuring authenticity.
 
 ### Passphrase-Based Encryption
 

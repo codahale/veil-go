@@ -42,14 +42,22 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) 
 	// Derive the shared ratchet key between the sender and the ephemeral key.
 	key := kem.Receive(skEH, pkEH, pkS, pkEM, []byte("message"), ratchet.KeySize)
 
-	// Initialize an AEAD reader with the ratchey key, using the encrypted headers as authenticated
+	// Initialize an AEAD reader with the ratchet key, using the encrypted headers as authenticated
 	// data.
 	r := stream.NewReader(src, key, headers, blockSize)
 
+	// Detach the signature from the plaintext and calculate a hash of it.
+	sr := stream.NewSignatureReader(r)
+
 	// Decrypt the plaintext as a stream.
-	n, err := io.Copy(dst, r)
+	n, err := io.Copy(dst, sr)
 	if err != nil {
 		return nil, n, err
+	}
+
+	// Verify the signature of the plaintext.
+	if !xdh.Verify(pkS, sr.SHA512.Sum(nil), sr.Signature) {
+		return nil, n, ErrInvalidCiphertext
 	}
 
 	// Return the sender's public key and the number of bytes written.
