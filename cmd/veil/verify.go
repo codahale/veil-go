@@ -1,0 +1,38 @@
+package main
+
+import "github.com/alecthomas/kong"
+
+type verifyCmd struct {
+	PublicKey     string `arg:"" type:"existingfile" help:"The path to the public key."`
+	SignedMessage string `arg:"" type:"existingfile" help:"The path to the signed message."`
+	Message       string `arg:"" type:"path" help:"The path to the message."`
+}
+
+func (cmd *verifyCmd) Run(_ *kong.Context) error {
+	// Open and decode the public key.
+	pk, err := parsePublicKey(cmd.PublicKey)
+	if err != nil {
+		return err
+	}
+
+	// Open the signed message input.
+	src, err := openInput(cmd.SignedMessage)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = src.Close() }()
+
+	// Open the verified output.
+	dst, err := openOutput(cmd.Message)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = dst.Close() }()
+
+	// Verify the message.
+	_, err = pk.Verify(dst, src)
+
+	return err
+}
