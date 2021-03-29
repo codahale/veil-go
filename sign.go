@@ -20,9 +20,9 @@ type Signature []byte
 
 // MarshalText encodes the signature into unpadded base32 text and returns the result.
 func (s Signature) MarshalText() (text []byte, err error) {
-	text = make([]byte, pkEncoding.EncodedLen(len(s)))
+	text = make([]byte, asciiEncoding.EncodedLen(len(s)))
 
-	pkEncoding.Encode(text, s)
+	asciiEncoding.Encode(text, s)
 
 	return
 }
@@ -32,7 +32,7 @@ func (s Signature) MarshalText() (text []byte, err error) {
 func (s *Signature) UnmarshalText(text []byte) error {
 	data := make([]byte, xdh.SignatureSize)
 
-	_, err := pkEncoding.Decode(data, text)
+	_, err := asciiEncoding.Decode(data, text)
 	if err != nil {
 		return fmt.Errorf("invalid public key: %w", err)
 	}

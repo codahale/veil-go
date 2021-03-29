@@ -27,9 +27,9 @@ type PublicKey []byte
 
 // MarshalText encodes the public key into unpadded base32 text and returns the result.
 func (pk PublicKey) MarshalText() (text []byte, err error) {
-	text = make([]byte, pkEncoding.EncodedLen(len(pk)))
+	text = make([]byte, asciiEncoding.EncodedLen(len(pk)))
 
-	pkEncoding.Encode(text, pk)
+	asciiEncoding.Encode(text, pk)
 
 	return
 }
@@ -39,7 +39,7 @@ func (pk PublicKey) MarshalText() (text []byte, err error) {
 func (pk *PublicKey) UnmarshalText(text []byte) error {
 	data := make([]byte, xdh.PublicKeySize)
 
-	_, err := pkEncoding.Decode(data, text)
+	_, err := asciiEncoding.Decode(data, text)
 	if err != nil {
 		return fmt.Errorf("invalid public key: %w", err)
 	}
@@ -88,5 +88,5 @@ var (
 	_ fmt.Stringer             = SecretKey{}
 
 	//nolint:gochecknoglobals // reusable constant
-	pkEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
+	asciiEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 )
