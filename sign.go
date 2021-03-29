@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/codahale/veil/internal/stream"
 	"github.com/codahale/veil/internal/xdh"
 )
 
@@ -71,6 +72,31 @@ func (sk SecretKey) SignDetached(src io.Reader) (Signature, error) {
 	return xdh.Sign(sk, h.Sum(nil))
 }
 
+// Sign copies src to dst, creates a signature of the contents of src, and appends it to src.
+func (sk SecretKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
+	// Tee all reads from src into an SHA-512 hash.
+	h := sha512.New()
+	r := io.TeeReader(src, h)
+
+	// Copy all data from src into dst via h.
+	n, err := io.Copy(dst, r)
+	if err != nil {
+		return n, err
+	}
+
+	// Sign the SHA-512 hash of the message.
+	sig, err := xdh.Sign(sk, h.Sum(nil))
+	if err != nil {
+		return n, err
+	}
+
+	// Append the signature.
+	sn, err := dst.Write(sig)
+
+	// Return the bytes written and any errors.
+	return n + int64(sn), err
+}
+
 // VerifyDetached returns nil if the given signature was created by the owner of the given public
 // key for the contents of src, otherwise ErrInvalidSignature.
 func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
@@ -85,4 +111,22 @@ func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 	}
 
 	return nil
+}
+
+// Verify copies src to dst, removing the appended signature and verifying it.
+func (pk PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
+	sr := stream.NewSignatureReader(src)
+
+	// Copy all data from src into dst, skipping the appended signature.
+	n, err := io.Copy(dst, sr)
+	if err != nil {
+		return n, err
+	}
+
+	// Verify the signature.
+	if !xdh.Verify(pk, sr.SHA512.Sum(nil), sr.Signature) {
+		return n, ErrInvalidSignature
+	}
+
+	return n, nil
 }
