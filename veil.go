@@ -59,15 +59,6 @@ func (pk PublicKey) String() string {
 	return string(text)
 }
 
-var (
-	_ encoding.TextMarshaler   = PublicKey{}
-	_ encoding.TextUnmarshaler = &PublicKey{}
-	_ fmt.Stringer             = PublicKey{}
-
-	//nolint:gochecknoglobals // reusable constant
-	pkEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
-)
-
 // SecretKey is a ristretto255/XDH secret key.
 //
 // Technically, it's a ristretto255 scalar. It should never be serialized in plaintext. Use
@@ -90,4 +81,12 @@ func NewSecretKey() (SecretKey, error) {
 	return sk, err
 }
 
-var _ fmt.Stringer = SecretKey{}
+var (
+	_ encoding.TextMarshaler   = PublicKey{}
+	_ encoding.TextUnmarshaler = &PublicKey{}
+	_ fmt.Stringer             = PublicKey{}
+	_ fmt.Stringer             = SecretKey{}
+
+	//nolint:gochecknoglobals // reusable constant
+	pkEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
+)
