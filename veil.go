@@ -20,8 +20,12 @@ import (
 )
 
 // PublicKey is a ristretto255/XDH public key.
+//
+// Technically, it's the Elligator2 encoding of a ristretto255 point and is indistinguishable from
+// random noise. It can be marshalled and unmarshalled as a base32 string for human consumption.
 type PublicKey []byte
 
+// MarshalText encodes the public key into unpadded base32 text and returns the result.
 func (pk PublicKey) MarshalText() (text []byte, err error) {
 	text = make([]byte, pkEncoding.EncodedLen(len(pk)))
 
@@ -30,6 +34,8 @@ func (pk PublicKey) MarshalText() (text []byte, err error) {
 	return
 }
 
+// UnmarshalText decodes the results of MarshalText and updates the receiver to contain the decoded
+// public key.
 func (pk *PublicKey) UnmarshalText(text []byte) error {
 	data := make([]byte, xdh.PublicKeySize)
 
@@ -43,6 +49,7 @@ func (pk *PublicKey) UnmarshalText(text []byte) error {
 	return nil
 }
 
+// String returns the public key as unpadded base32 text.
 func (pk PublicKey) String() string {
 	text, err := pk.MarshalText()
 	if err != nil {
@@ -62,8 +69,12 @@ var (
 )
 
 // SecretKey is a ristretto255/XDH secret key.
+//
+// Technically, it's a ristretto255 scalar. It should never be serialized in plaintext. Use
+// EncryptSecretKey to encrypt it using a passphrase.
 type SecretKey []byte
 
+// String returns the secret key's corresponding public key as unpadded base32 text.
 func (sk SecretKey) String() string {
 	return sk.PublicKey().String()
 }
