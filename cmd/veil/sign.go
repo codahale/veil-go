@@ -34,7 +34,7 @@ func (cmd *signCmd) Run(_ *kong.Context) error {
 	defer func() { _ = dst.Close() }()
 
 	// Sign the message.
-	sig, err := sk.Sign(src)
+	sig, err := sk.SignDetached(src)
 	if err != nil {
 		return err
 	}

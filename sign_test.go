@@ -17,12 +17,12 @@ func TestSignAndVerify(t *testing.T) {
 
 	message := []byte("ok there bud")
 
-	sig, err := sk.Sign(bytes.NewReader(message))
+	sig, err := sk.SignDetached(bytes.NewReader(message))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := sk.PublicKey().Verify(bytes.NewReader(message), sig); err != nil {
+	if err := sk.PublicKey().VerifyDetached(bytes.NewReader(message), sig); err != nil {
 		t.Fatal(err)
 	}
 }

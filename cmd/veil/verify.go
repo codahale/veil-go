@@ -41,5 +41,5 @@ func (cmd *verifyCmd) Run(_ *kong.Context) error {
 	}
 
 	// Verify the signature.
-	return pk.Verify(src, sig)
+	return pk.VerifyDetached(src, sig)
 }

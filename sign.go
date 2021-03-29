@@ -57,8 +57,11 @@ var (
 	_ fmt.Stringer             = Signature{}
 )
 
-// Sign returns a detached signature of the contents of src.
-func (sk SecretKey) Sign(src io.Reader) (Signature, error) {
+// ErrInvalidSignature is returned when a signature, public key, and message do not match.
+var ErrInvalidSignature = errors.New("invalid signature")
+
+// SignDetached returns a detached signature of the contents of src.
+func (sk SecretKey) SignDetached(src io.Reader) (Signature, error) {
 	h := sha512.New()
 
 	if _, err := io.Copy(h, src); err != nil {
@@ -68,12 +71,9 @@ func (sk SecretKey) Sign(src io.Reader) (Signature, error) {
 	return xdh.Sign(sk, h.Sum(nil))
 }
 
-// ErrInvalidSignature is returned when a signature, public key, and message do not match.
-var ErrInvalidSignature = errors.New("invalid signature")
-
-// Verify returns nil if the given signature was created by the owner of the given public key for
-// the contents of src, otherwise ErrInvalidSignature.
-func (pk PublicKey) Verify(src io.Reader, sig Signature) error {
+// VerifyDetached returns nil if the given signature was created by the owner of the given public
+// key for the contents of src, otherwise ErrInvalidSignature.
+func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 	h := sha512.New()
 
 	if _, err := io.Copy(h, src); err != nil {
