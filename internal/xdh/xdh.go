@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	PublicKeySize = 32 // PublicKeySize is the length of a public key in bytes.
-	SecretKeySize = 32 // SecretKeySize is the length of a secret key in bytes.
+	PublicKeySize = 32                            // PublicKeySize is the length of a public key in bytes.
+	SecretKeySize = 32                            // SecretKeySize is the length of a secret key in bytes.
+	SignatureSize = PublicKeySize + SecretKeySize // SignatureSize is the length of a signature in bytes.
 )
 
 // SharedSecret performs a Diffie-Hellman key exchange using the given public key.
@@ -82,6 +83,72 @@ func GenerateKeys() (pk, sk []byte, err error) {
 
 	// We generated a secret key whose public key has a representative, so return them.
 	return
+}
+
+// Sign returns a Schnorr signature of the given message using the given secret key.
+func Sign(sk, message []byte) ([]byte, error) {
+	var (
+		skS, skE ristretto.Scalar
+		c        ristretto.Scalar
+		t        ristretto.Scalar
+	)
+
+	// Generate an ephemeral key pair.
+	pkE, skEb, err := GenerateKeys()
+	if err != nil {
+		return nil, err
+	}
+
+	// Decode the static and ephemeral secret keys.
+	parseScalar(&skS, sk)
+	parseScalar(&skE, skEb)
+
+	// Derive a scalar from the ephemeral public key and the message using SHA-512.
+	c.Derive(append(pkE, message...))
+
+	// Calculate the signature scalar.
+	t.MulAdd(&c, &skS, &skE)
+
+	// Return the ephemeral public key and the signature scalar.
+	return append(pkE, t.Bytes()...), nil
+}
+
+// Verify returns true if the given signature of the given message was created with the secret key
+// corresponding to the given public key.
+func Verify(pk, message, sig []byte) bool {
+	var (
+		pkS ristretto.Point
+		pkE ristretto.Point
+		t   ristretto.Scalar
+		c   ristretto.Scalar
+		lhs ristretto.Point
+		rhs ristretto.Point
+	)
+
+	if len(sig) != SignatureSize {
+		return false
+	}
+
+	// Parse the static public key.
+	parsePoint(&pkS, pk)
+
+	// Parse the ephemeral public key.
+	parsePoint(&pkE, sig[:32])
+
+	// Parse the signature scalar.
+	_ = t.UnmarshalBinary(sig[32:])
+
+	// Derive a scalar from the ephemeral public key and the message.
+	c.Derive(append(sig[:32], message...))
+
+	// Calculate the left-hand side of the equation.
+	lhs.ScalarMultBase(&t)
+
+	// Calculate the right-hand side of the equation.
+	rhs.ScalarMult(&pkS, &c).Add(&rhs, &pkE)
+
+	// The signature is verified if both sides of the equation are equal.
+	return lhs.Equals(&rhs)
 }
 
 // elligator encodes the given ristretto255 point using Elligator2, returning either 32 bytes of

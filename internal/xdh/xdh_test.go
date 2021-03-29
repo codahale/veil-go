@@ -25,6 +25,30 @@ func TestSharedSecret(t *testing.T) {
 	assert.Equal(t, "shared secret", xA, xB)
 }
 
+func TestSignAndVerify(t *testing.T) {
+	t.Parallel()
+
+	message := []byte("ok bud")
+
+	pk, sk, err := GenerateKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sig, err := Sign(sk, message)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !Verify(pk, message, sig) {
+		t.Error("didn't verify")
+	}
+
+	if Verify(pk, []byte("other message"), sig) {
+		t.Error("did verify")
+	}
+}
+
 func BenchmarkGenerateKeys(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _, _ = GenerateKeys()
