@@ -63,25 +63,24 @@ func PublicKey(sk []byte) []byte {
 
 // GenerateKeys generates a key pair and returns the public key and the secret key.
 func GenerateKeys() (sk, pk []byte, err error) {
+	// Allocate a buffer for the secret key.
+	sk = make([]byte, SecretKeySize)
+
 	var (
-		buf [SecretKeySize]byte
-		s   ristretto.Scalar
-		q   ristretto.Point
+		s ristretto.Scalar
+		q ristretto.Point
 	)
 
 	// Not all key pairs have public keys which can be represented by Elligator2, so try until we
 	// find one.
 	for pk == nil {
 		// Generate 64 random bytes.
-		if _, err = rand.Read(buf[:]); err != nil {
+		if _, err = rand.Read(sk); err != nil {
 			return
 		}
 
 		// Convert to a secret key by hashing it with SHA-512.
-		s.Derive(buf[:])
-
-		// Encode the secret key.
-		sk = buf[:]
+		s.Derive(sk)
 
 		// Calculate the public key.
 		q.ScalarMultBase(&s)
