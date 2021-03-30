@@ -6,7 +6,7 @@ import (
 	"github.com/codahale/gubbins/assert"
 )
 
-func TestSharedSecret(t *testing.T) {
+func TestDiffieHellman(t *testing.T) {
 	t.Parallel()
 
 	pkA, skA, err := GenerateKeys()
