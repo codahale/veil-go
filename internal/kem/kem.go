@@ -10,7 +10,7 @@ package kem
 
 import (
 	"bytes"
-	"crypto/sha256"
+	"crypto/sha512"
 	"io"
 
 	"github.com/codahale/veil/internal/xdh"
@@ -71,9 +71,9 @@ func kdf(zzE, zzS, pkE, pkR, pkS, info []byte, n int) []byte {
 	// sender's public key.
 	salt := bytes.Join([][]byte{pkE, pkR, pkS}, nil)
 
-	// Create an HKDF-SHA256 instance from the initial keying material and the salt, using the
+	// Create an HKDF-SHA-512 instance from the initial keying material and the salt, using the
 	// domain-specific info parameter to distinguish between header keys and message keys.
-	h := hkdf.New(sha256.New, ikm, salt, info)
+	h := hkdf.New(sha512.New, ikm, salt, info)
 
 	// Derive the secret from the HKDF output.
 	secret := make([]byte, n)

@@ -18,7 +18,7 @@ true length, and fake recipients can be added to disguise their true number from
 ### Symmetric Key Ratcheting And Streaming AEADs
 
 In order to encrypt arbitrarily large messages, Veil uses a streaming AEAD construction based on a
-Signal-style HKDF ratchet. An initial 64-byte chain key is used to create an HKDF-SHA256 instance,
+Signal-style HKDF ratchet. An initial 64-byte chain key is used to create an HKDF-SHA-512 instance,
 and the first 64 bytes of its output are used to create a new chain key. The next 32 bytes of KDF
 output are used to create a ChaCha20Poly1305 key, and the following 12 bytes are used to create a
 nonce. To prevent attacker appending blocks to a message, the final block of a stream is keyed using
@@ -33,15 +33,15 @@ public keys using Elligator2, making them indistinguishable from noise.
 When sending a message, the sender generates an ephemeral key pair and calculates the ephemeral
 shared secret between the recipient's public key and the ephemeral secret key. They then calculate
 the static shared secret between the recipient's public key and their own secret key. The two shared
-secret points are used as HKDF-SHA256 initial keying material, with the ephemeral, sender's, and
+secret points are used as HKDF-SHA-512 initial keying material, with the ephemeral, sender's, and
 recipient's public keys included as a salt. The sender creates a symmetric key and nonce from the
 KDF output and encrypts the message with an AEAD. The sender transmits the ephemeral public key and
 the ciphertext.
 
 To receive a message, the receiver calculates the ephemeral shared secret between the ephemeral
 public key and their own secret key and the static shared secret between the recipient's public key
-and their own secret key. The HKDF-SHA256 output is re-created, and the message is authenticated and
-decrypted.
+and their own secret key. The HKDF-SHA-512 output is re-created, and the message is authenticated
+and decrypted.
 
 As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
 KEM provides assurance that the message was encrypted by the holder of the sender's secret key. XDH

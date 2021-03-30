@@ -21,10 +21,10 @@ func TestKeyRatchet(t *testing.T) {
 	}
 
 	assert.Equal(t, "keys", []string{
-		"1f2b62f56528323e109234ed2416b937",
-		"df0ae6cc6d6e2e9285402c71cd75d34f",
-		"c6319c3278890a6a068b7a0382b872be",
-		"d488195713ff46b665a7dfc49b79a0f7",
+		"14d195c0516c827e634ae01d597bbf89",
+		"d726b635a43ae6d1c8f336bc91c0e2ac",
+		"39b0bdf24cba1018de94b6d4ca43d640",
+		"c94d06eb90587d00a38dcfeae887607c",
 	}, keys)
 }
 
