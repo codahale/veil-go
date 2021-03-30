@@ -126,12 +126,12 @@ func Sign(sk, message []byte) ([]byte, error) {
 // corresponding to the given public key.
 func Verify(pk, message, sig []byte) bool {
 	var (
-		y   ristretto.Point
-		R   ristretto.Point
-		s   ristretto.Scalar
-		k   ristretto.Scalar
-		lhs ristretto.Point
-		rhs ristretto.Point
+		y  ristretto.Point
+		R  ristretto.Point
+		s  ristretto.Scalar
+		k  ristretto.Scalar
+		Rp ristretto.Point
+		ky ristretto.Point
 	)
 
 	if len(sig) != SignatureSize {
@@ -150,14 +150,13 @@ func Verify(pk, message, sig []byte) bool {
 	// Derive a scalar from the ephemeral public key and the message.
 	k.Derive(append(sig[:32], message...))
 
-	// Calculate the left-hand side of the equation.
-	lhs.ScalarMultBase(&s)
+	// R' = -ky + gs
+	ky.ScalarMult(&y, &k)
+	Rp.ScalarMultBase(&s)
+	Rp.Sub(&Rp, &ky)
 
-	// Calculate the right-hand side of the equation.
-	rhs.ScalarMult(&y, &k).Add(&rhs, &R)
-
-	// The signature is verified if both sides of the equation are equal.
-	return lhs.Equals(&rhs)
+	// The signature is verified R and R' are equal.
+	return R.Equals(&Rp)
 }
 
 // e2encode encodes the given ristretto255 point using Elligator2, returning either 32 bytes of
