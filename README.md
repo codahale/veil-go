@@ -26,9 +26,9 @@ a different salt, thus permanently forking the chain.
 
 ### Key Agreement And Encapsulation
 
-Veil uses ristretto255 for asymmetric cryptography. Each person has a ristretto255/XDH key pair and
-shares their public key with each other. In place of encoded ristretto255 points, Veil encodes all
-public keys using Elligator2, making them indistinguishable from noise.
+Veil uses ristretto255 for asymmetric cryptography. Secret keys are 64-byte random bytestrings which
+are mapped to ristretto255 scalars via SHA-512. Each person has a key pair and shares their public
+key with each other.
 
 When sending a message, the sender generates an ephemeral key pair and calculates the ephemeral
 shared secret between the recipient's public key and the ephemeral secret key. They then calculate
@@ -53,9 +53,8 @@ and adds key-commitment with all public keys as openers.
 ### Digital Signatures
 
 To make authenticated messages, Veil creates Schnorr signatures using the signer's secret key. The
-ephemeral public key created for the signature is encoded using Elligator2, making the signatures
-indistinguishable from random noise. The actual "message" signed is a SHA-512 hash of the message,
-and SHA-512 is used to derive ristretto255 scalars from the message and ephemeral public key.
+actual "message" signed is a SHA-512 hash of the message, and SHA-512 is used to derive ristretto255
+scalars from the message and ephemeral public key.
 
 ### Multi-Recipient Messages
 
