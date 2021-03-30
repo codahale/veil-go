@@ -12,6 +12,7 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 
+	"github.com/codahale/veil/internal/scopedhash"
 	"github.com/gtank/ristretto255"
 )
 
@@ -48,47 +49,41 @@ func PublicKey(sk []byte) []byte {
 	return q.Encode(nil)
 }
 
-// GenerateKeys generates a key pair and returns the public key and the secret key.
+// GenerateKeys generates a key pair and returns the secret key and the public key.
 func GenerateKeys() (sk, pk []byte, err error) {
-	// Allocate a buffer for the secret key.
-	sk = make([]byte, SecretKeySize)
-
-	// Generate 64 random bytes.
-	if _, err = rand.Read(sk); err != nil {
+	// Generate a new random key pair.
+	sk, _, q, err := randomKeyPair()
+	if err != nil {
 		return nil, nil, err
 	}
 
-	// Convert to a secret key by hashing it with SHA-512.
-	s := deriveScalar(sk)
-
-	// Calculate the public key.
-	q := ristretto255.NewElement().ScalarBaseMult(s)
-
-	// Return the secret key and the public key.
+	// Return the secret key and the encoded public key.
 	return sk, q.Encode(nil), nil
 }
 
 // Sign returns a Schnorr signature of the given message using the given secret key.
 func Sign(sk, message []byte) ([]byte, error) {
 	// Generate an ephemeral key pair (R, r).
-	skE, R, err := GenerateKeys()
+	_, r, R, err := randomKeyPair()
 	if err != nil {
 		return nil, err
 	}
 
-	// Derive the static and ephemeral secret keys (x, r).
+	// Create a canonical encoding of the ephemeral public key.
+	Rb := R.Encode(nil)
+
+	// Derive the static secret scalar.
 	x := deriveScalar(sk)
-	r := deriveScalar(skE)
 
 	// Derive a scalar from the ephemeral public key and the message using SHA-512 (k).
-	k := deriveScalar(append(R, message...))
+	k := deriveScalar(append(Rb, message...))
 
 	// Calculate the signature scalar (kx + r).
 	s := ristretto255.NewScalar().Multiply(k, x)
 	s = s.Add(s, r)
 
 	// Return the ephemeral public key and the signature scalar (R, s).
-	return append(R, s.Encode(nil)...), nil
+	return append(Rb, s.Encode(nil)...), nil
 }
 
 // Verify returns true if the given signature of the given message was created with the secret key
@@ -119,12 +114,15 @@ func Verify(pk, message, sig []byte) bool {
 	return R.Equal(Rp) == 1
 }
 
+// deriveScalar hashes the given data with SHA-512 and maps the digest to a scalar.
 func deriveScalar(data []byte) *ristretto255.Scalar {
-	h := sha512.Sum512(data)
+	h := scopedhash.New("veilsecretkey", sha512.New())
+	_, _ = h.Write(data)
 
-	return ristretto255.NewScalar().FromUniformBytes(h[:])
+	return ristretto255.NewScalar().FromUniformBytes(h.Sum(nil))
 }
 
+// decodePoint decodes the encoded point and returns it.
 func decodePoint(data []byte) *ristretto255.Element {
 	p := ristretto255.NewElement()
 	if err := p.Decode(data); err != nil {
@@ -134,6 +132,7 @@ func decodePoint(data []byte) *ristretto255.Element {
 	return p
 }
 
+// decodeScalar decodes the encoded scalar and returns it.
 func decodeScalar(data []byte) *ristretto255.Scalar {
 	s := ristretto255.NewScalar()
 	if err := s.Decode(data); err != nil {
@@ -141,4 +140,22 @@ func decodeScalar(data []byte) *ristretto255.Scalar {
 	}
 
 	return s
+}
+
+// randomKeyPair returns a random 64-byte secret key, its derived scalar, and its public key point.
+func randomKeyPair() ([]byte, *ristretto255.Scalar, *ristretto255.Element, error) {
+	// Generate a 64-byte random secret key.
+	sk := make([]byte, SecretKeySize)
+	if _, err := rand.Read(sk); err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Derive a scalar from the SHA-512 hash of the secret key.
+	s := deriveScalar(sk)
+
+	// Calculate the public key for the derived scalar.
+	q := ristretto255.NewElement().ScalarBaseMult(s)
+
+	// Return the key, its scalar, and its public key.
+	return sk, s, q, nil
 }
