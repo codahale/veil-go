@@ -64,7 +64,7 @@ func PublicKey(sk []byte) []byte {
 // GenerateKeys generates a key pair and returns the public key and the secret key.
 func GenerateKeys() (pk, sk []byte, err error) {
 	var (
-		buf [64]byte
+		buf [SecretKeySize]byte
 		s   ristretto.Scalar
 		q   ristretto.Point
 	)
