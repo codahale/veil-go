@@ -63,12 +63,13 @@ var ErrInvalidSignature = errors.New("invalid signature")
 
 // SignDetached returns a detached signature of the contents of src.
 func (sk SecretKey) SignDetached(src io.Reader) (Signature, error) {
+	// Hash the message.
 	h := sha512.New()
-
 	if _, err := io.Copy(h, src); err != nil {
 		return nil, err
 	}
 
+	// Create a signature of the hash.
 	return xdh.Sign(sk, h.Sum(nil))
 }
 
@@ -100,12 +101,13 @@ func (sk SecretKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 // VerifyDetached returns nil if the given signature was created by the owner of the given public
 // key for the contents of src, otherwise ErrInvalidSignature.
 func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
+	// Hash the message.
 	h := sha512.New()
-
 	if _, err := io.Copy(h, src); err != nil {
 		return err
 	}
 
+	// Verify the signature against the hash of the message.
 	if !xdh.Verify(pk, h.Sum(nil), sig) {
 		return ErrInvalidSignature
 	}
@@ -115,6 +117,7 @@ func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 
 // Verify copies src to dst, removing the appended signature and verifying it.
 func (pk PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
+	// Hash the message and detach the signature.
 	h := sha512.New()
 	sr := stream.NewSignatureReader(src, h, xdh.SignatureSize)
 
