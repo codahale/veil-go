@@ -1,18 +1,15 @@
 package stream
 
 import (
-	"crypto/sha512"
 	"errors"
 	"hash"
 	"io"
-
-	"github.com/codahale/veil/internal/xdh"
 )
 
 type SignatureReader struct {
 	Signature []byte
-	SHA512    hash.Hash
 
+	h           hash.Hash
 	in          io.Reader
 	scratch     []byte
 	trailerUsed int
@@ -20,12 +17,12 @@ type SignatureReader struct {
 	eof         bool
 }
 
-func NewSignatureReader(src io.Reader) *SignatureReader {
+func NewSignatureReader(src io.Reader, h hash.Hash, sigSize int) *SignatureReader {
 	return &SignatureReader{
-		Signature: make([]byte, xdh.SignatureSize),
-		SHA512:    sha512.New(),
+		Signature: make([]byte, sigSize),
+		h:         h,
 		in:        src,
-		scratch:   make([]byte, xdh.SignatureSize),
+		scratch:   make([]byte, sigSize),
 	}
 }
 
@@ -74,7 +71,7 @@ func (tr *SignatureReader) Read(buf []byte) (n int, err error) {
 	if len(buf) <= len(tr.Signature) {
 		n, err = readFull(tr.in, tr.scratch[:len(buf)])
 		copy(buf, tr.Signature[:n])
-		tr.SHA512.Write(buf[:n])
+		tr.h.Write(buf[:n])
 		copy(tr.Signature, tr.Signature[n:])
 		copy(tr.Signature[len(tr.Signature)-n:], tr.scratch)
 
@@ -88,7 +85,7 @@ func (tr *SignatureReader) Read(buf []byte) (n int, err error) {
 
 	n, err = tr.in.Read(buf[len(tr.Signature):])
 	copy(buf, tr.Signature)
-	tr.SHA512.Write(buf[:n])
+	tr.h.Write(buf[:n])
 	copy(tr.Signature, buf[n:])
 
 	if errors.Is(err, io.EOF) {

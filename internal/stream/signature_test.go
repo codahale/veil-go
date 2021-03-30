@@ -7,14 +7,14 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"github.com/codahale/veil/internal/xdh"
 )
 
 func TestSignatureReader_Read(t *testing.T) {
 	t.Parallel()
 
-	src := []byte("well cool then explain thisAYELLOWSUBMARINEAYELLOWSUBMARINEAYELLOWSUBMARINEAYELLOWSUBMARINE")
-	tr := NewSignatureReader(bytes.NewReader(src))
+	h := sha512.New()
+	src := []byte("well cool then explain thisAYE")
+	tr := NewSignatureReader(bytes.NewReader(src), h, 3)
 	dst := bytes.NewBuffer(nil)
 
 	n, err := io.Copy(dst, tr)
@@ -22,12 +22,11 @@ func TestSignatureReader_Read(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	actualHash := tr.SHA512.Sum(nil)
-	expectedHash := sha512.Sum512(src[:len(src)-xdh.SignatureSize])
+	actualHash := tr.h.Sum(nil)
+	expectedHash := sha512.Sum512(src[:len(src)-3])
 
-	assert.Equal(t, "bytes read", int64(len(src)-xdh.SignatureSize), n)
-	assert.Equal(t, "read", src[:len(src)-xdh.SignatureSize], dst.Bytes())
+	assert.Equal(t, "bytes read", int64(len(src)-3), n)
+	assert.Equal(t, "read", src[:len(src)-3], dst.Bytes())
 	assert.Equal(t, "hash", expectedHash[:], actualHash)
-	assert.Equal(t, "signature",
-		[]byte("AYELLOWSUBMARINEAYELLOWSUBMARINEAYELLOWSUBMARINEAYELLOWSUBMARINE"), tr.Signature)
+	assert.Equal(t, "signature", []byte("AYE"), tr.Signature)
 }

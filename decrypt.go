@@ -1,6 +1,7 @@
 package veil
 
 import (
+	"crypto/sha512"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -47,7 +48,8 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) 
 	r := stream.NewReader(src, key, headers, blockSize)
 
 	// Detach the signature from the plaintext and calculate a hash of it.
-	sr := stream.NewSignatureReader(r)
+	h := sha512.New()
+	sr := stream.NewSignatureReader(r, h, xdh.SignatureSize)
 
 	// Decrypt the plaintext as a stream.
 	n, err := io.Copy(dst, sr)
@@ -56,7 +58,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) 
 	}
 
 	// Verify the signature of the plaintext.
-	if !xdh.Verify(pkS, sr.SHA512.Sum(nil), sr.Signature) {
+	if !xdh.Verify(pkS, h.Sum(nil), sr.Signature) {
 		return nil, n, ErrInvalidCiphertext
 	}
 

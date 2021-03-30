@@ -115,7 +115,8 @@ func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 
 // Verify copies src to dst, removing the appended signature and verifying it.
 func (pk PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
-	sr := stream.NewSignatureReader(src)
+	h := sha512.New()
+	sr := stream.NewSignatureReader(src, h, xdh.SignatureSize)
 
 	// Copy all data from src into dst, skipping the appended signature.
 	n, err := io.Copy(dst, sr)
@@ -124,7 +125,7 @@ func (pk PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	}
 
 	// Verify the signature.
-	if !xdh.Verify(pk, sr.SHA512.Sum(nil), sr.Signature) {
+	if !xdh.Verify(pk, h.Sum(nil), sr.Signature) {
 		return n, ErrInvalidSignature
 	}
 
