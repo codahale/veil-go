@@ -69,7 +69,7 @@ func GenerateKeys() (pk, sk []byte, err error) {
 		}
 
 		// Convert to a secret key.
-		s.SetReduced(&buf)
+		s.Derive(buf[:])
 
 		// Encode the secret key.
 		sk = s.Bytes()
