@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"github.com/codahale/veil/internal/r255"
+	"github.com/codahale/veil/internal/scopedhash"
 	"github.com/codahale/veil/internal/stream"
 )
 
@@ -64,7 +65,7 @@ var ErrInvalidSignature = errors.New("invalid signature")
 // SignDetached returns a detached signature of the contents of src.
 func (sk SecretKey) SignDetached(src io.Reader) (Signature, error) {
 	// Hash the message.
-	h := sha512.New()
+	h := scopedhash.New("veilsign", sha512.New())
 	if _, err := io.Copy(h, src); err != nil {
 		return nil, err
 	}
@@ -76,7 +77,7 @@ func (sk SecretKey) SignDetached(src io.Reader) (Signature, error) {
 // Sign copies src to dst, creates a signature of the contents of src, and appends it to src.
 func (sk SecretKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	// Tee all reads from src into an SHA-512 hash.
-	h := sha512.New()
+	h := scopedhash.New("veilsign", sha512.New())
 	r := io.TeeReader(src, h)
 
 	// Copy all data from src into dst via h.
@@ -102,7 +103,7 @@ func (sk SecretKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 // key for the contents of src, otherwise ErrInvalidSignature.
 func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 	// Hash the message.
-	h := sha512.New()
+	h := scopedhash.New("veilsign", sha512.New())
 	if _, err := io.Copy(h, src); err != nil {
 		return err
 	}
@@ -118,7 +119,7 @@ func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 // Verify copies src to dst, removing the appended signature and verifying it.
 func (pk PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	// Hash the message and detach the signature.
-	h := sha512.New()
+	h := scopedhash.New("veilsign", sha512.New())
 	sr := stream.NewSignatureReader(src, h, r255.SignatureSize)
 
 	// Copy all data from src into dst, skipping the appended signature.

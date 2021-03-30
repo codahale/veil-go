@@ -9,6 +9,7 @@ import (
 	"github.com/codahale/veil/internal/kem"
 	"github.com/codahale/veil/internal/r255"
 	"github.com/codahale/veil/internal/ratchet"
+	"github.com/codahale/veil/internal/scopedhash"
 	"github.com/codahale/veil/internal/stream"
 	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -48,7 +49,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) 
 	r := stream.NewReader(src, key, headers, blockSize)
 
 	// Detach the signature from the plaintext and calculate a hash of it.
-	h := sha512.New()
+	h := scopedhash.New("veilsign", sha512.New())
 	sr := stream.NewSignatureReader(r, h, r255.SignatureSize)
 
 	// Decrypt the plaintext as a stream.

@@ -10,6 +10,7 @@ import (
 	"github.com/codahale/veil/internal/kem"
 	"github.com/codahale/veil/internal/r255"
 	"github.com/codahale/veil/internal/ratchet"
+	"github.com/codahale/veil/internal/scopedhash"
 	"github.com/codahale/veil/internal/stream"
 	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -59,7 +60,7 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 	w := stream.NewWriter(dst, key, headers, blockSize)
 
 	// Tee reads from the input into a SHA-512 hash.
-	h := sha512.New()
+	h := scopedhash.New("veilsign", sha512.New())
 	r := io.TeeReader(src, h)
 
 	// Encrypt the plaintext as a stream.
