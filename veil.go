@@ -78,7 +78,7 @@ func (sk SecretKey) PublicKey() PublicKey {
 
 // NewSecretKey creates a new secret key.
 func NewSecretKey() (SecretKey, error) {
-	_, sk, err := r255.GenerateKeys()
+	sk, _, err := r255.GenerateKeys()
 	return sk, err
 }
 

@@ -10,12 +10,12 @@ import (
 func TestExchange(t *testing.T) {
 	t.Parallel()
 
-	pkA, skA, err := r255.GenerateKeys()
+	skA, pkA, err := r255.GenerateKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pkB, skB, err := r255.GenerateKeys()
+	skB, pkB, err := r255.GenerateKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,12 +31,12 @@ func TestExchange(t *testing.T) {
 }
 
 func BenchmarkSend(b *testing.B) {
-	pkA, skA, err := r255.GenerateKeys()
+	skA, pkA, err := r255.GenerateKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	pkB, _, err := r255.GenerateKeys()
+	_, pkB, err := r255.GenerateKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -49,12 +49,12 @@ func BenchmarkSend(b *testing.B) {
 }
 
 func BenchmarkReceive(b *testing.B) {
-	pkA, skA, err := r255.GenerateKeys()
+	skA, pkA, err := r255.GenerateKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	pkB, skB, err := r255.GenerateKeys()
+	skB, pkB, err := r255.GenerateKeys()
 	if err != nil {
 		b.Fatal(err)
 	}

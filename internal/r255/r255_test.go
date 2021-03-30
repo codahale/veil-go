@@ -9,12 +9,12 @@ import (
 func TestDiffieHellman(t *testing.T) {
 	t.Parallel()
 
-	pkA, skA, err := GenerateKeys()
+	skA, pkA, err := GenerateKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pkB, skB, err := GenerateKeys()
+	skB, pkB, err := GenerateKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func TestSignAndVerify(t *testing.T) {
 
 	message := []byte("ok bud")
 
-	pk, sk, err := GenerateKeys()
+	sk, pk, err := GenerateKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func BenchmarkGenerateKeys(b *testing.B) {
 }
 
 func BenchmarkPublicKey(b *testing.B) {
-	_, sk, err := GenerateKeys()
+	sk, _, err := GenerateKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -67,12 +67,12 @@ func BenchmarkPublicKey(b *testing.B) {
 }
 
 func BenchmarkSharedSecret(b *testing.B) {
-	_, skA, err := GenerateKeys()
+	skA, _, err := GenerateKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	pkB, _, err := GenerateKeys()
+	_, pkB, err := GenerateKeys()
 	if err != nil {
 		b.Fatal(err)
 	}

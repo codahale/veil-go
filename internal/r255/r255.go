@@ -62,7 +62,7 @@ func PublicKey(sk []byte) []byte {
 }
 
 // GenerateKeys generates a key pair and returns the public key and the secret key.
-func GenerateKeys() (pk, sk []byte, err error) {
+func GenerateKeys() (sk, pk []byte, err error) {
 	var (
 		buf [SecretKeySize]byte
 		s   ristretto.Scalar
@@ -103,7 +103,7 @@ func Sign(sk, message []byte) ([]byte, error) {
 	)
 
 	// Generate an ephemeral key pair (R, r).
-	R, skE, err := GenerateKeys()
+	skE, R, err := GenerateKeys()
 	if err != nil {
 		return nil, err
 	}

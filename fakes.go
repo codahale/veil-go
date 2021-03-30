@@ -17,7 +17,7 @@ func AddFakes(keys []PublicKey, n int) ([]PublicKey, error) {
 
 	// Add n randomly generated keys to the end.
 	for i := 0; i < n; i++ {
-		pk, _, err := r255.GenerateKeys()
+		_, pk, err := r255.GenerateKeys()
 		if err != nil {
 			return nil, err
 		}
