@@ -97,39 +97,39 @@ func GenerateKeys() (pk, sk []byte, err error) {
 // Sign returns a Schnorr signature of the given message using the given secret key.
 func Sign(sk, message []byte) ([]byte, error) {
 	var (
-		skS, skE ristretto.Scalar
-		c        ristretto.Scalar
-		t        ristretto.Scalar
+		x, r ristretto.Scalar
+		k    ristretto.Scalar
+		s    ristretto.Scalar
 	)
 
-	// Generate an ephemeral key pair.
-	pkE, skEb, err := GenerateKeys()
+	// Generate an ephemeral key pair (R, r).
+	R, skE, err := GenerateKeys()
 	if err != nil {
 		return nil, err
 	}
 
-	// Unpack the static and ephemeral secret keys.
-	_ = skS.UnmarshalBinary(sk)
-	_ = skE.UnmarshalBinary(skEb)
+	// Unpack the static and ephemeral secret keys (x, r).
+	_ = x.UnmarshalBinary(sk)
+	_ = r.UnmarshalBinary(skE)
 
-	// Derive a scalar from the ephemeral public key and the message using SHA-512.
-	c.Derive(append(pkE, message...))
+	// Derive a scalar from the ephemeral public key and the message using SHA-512 (k).
+	k.Derive(append(R, message...))
 
-	// Calculate the signature scalar.
-	t.MulAdd(&c, &skS, &skE)
+	// Calculate the signature scalar (kx + r).
+	s.MulAdd(&k, &x, &r)
 
-	// Return the ephemeral public key and the signature scalar.
-	return append(pkE, t.Bytes()...), nil
+	// Return the ephemeral public key and the signature scalar (R, s).
+	return append(R, s.Bytes()...), nil
 }
 
 // Verify returns true if the given signature of the given message was created with the secret key
 // corresponding to the given public key.
 func Verify(pk, message, sig []byte) bool {
 	var (
-		pkS ristretto.Point
-		pkE ristretto.Point
-		t   ristretto.Scalar
-		c   ristretto.Scalar
+		y   ristretto.Point
+		R   ristretto.Point
+		s   ristretto.Scalar
+		k   ristretto.Scalar
 		lhs ristretto.Point
 		rhs ristretto.Point
 	)
@@ -139,22 +139,22 @@ func Verify(pk, message, sig []byte) bool {
 	}
 
 	// Decode the static public key.
-	e2decode(&pkS, pk)
+	e2decode(&y, pk)
 
 	// Decode the ephemeral public key.
-	e2decode(&pkE, sig[:32])
+	e2decode(&R, sig[:32])
 
 	// Parse the signature scalar.
-	_ = t.UnmarshalBinary(sig[32:])
+	_ = s.UnmarshalBinary(sig[32:])
 
 	// Derive a scalar from the ephemeral public key and the message.
-	c.Derive(append(sig[:32], message...))
+	k.Derive(append(sig[:32], message...))
 
 	// Calculate the left-hand side of the equation.
-	lhs.ScalarMultBase(&t)
+	lhs.ScalarMultBase(&s)
 
 	// Calculate the right-hand side of the equation.
-	rhs.ScalarMult(&pkS, &c).Add(&rhs, &pkE)
+	rhs.ScalarMult(&y, &k).Add(&rhs, &R)
 
 	// The signature is verified if both sides of the equation are equal.
 	return lhs.Equals(&rhs)
