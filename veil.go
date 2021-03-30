@@ -61,8 +61,9 @@ func (pk PublicKey) String() string {
 
 // SecretKey is a ristretto255/XDH secret key.
 //
-// Technically, it's a ristretto255 scalar. It should never be serialized in plaintext. Use
-// EncryptSecretKey to encrypt it using a passphrase.
+// Technically, it's 64 bytes of random data from which a ristretto255 scalar is derived using
+// SHA-512. It should never be serialized in plaintext. Use EncryptSecretKey to encrypt it using a
+// passphrase.
 type SecretKey []byte
 
 // String returns the secret key's corresponding public key as unpadded base32 text.

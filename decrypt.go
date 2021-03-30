@@ -132,8 +132,8 @@ func (sk SecretKey) decryptHeader(pkEH, ciphertext []byte, senders []PublicKey) 
 
 		// If the header wss successful decrypted, decode the ephemeral message secret key and
 		// message offset and return them.
-		skEM := header[:r255.PublicKeySize]
-		offset := binary.BigEndian.Uint32(header[r255.PublicKeySize:])
+		skEM := header[:r255.SecretKeySize]
+		offset := binary.BigEndian.Uint32(header[r255.SecretKeySize:])
 
 		return pkS, skEM, int(offset)
 	}

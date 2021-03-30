@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	PublicKeySize = 32                            // PublicKeySize is the length of a public key in bytes.
-	SecretKeySize = 32                            // SecretKeySize is the length of a secret key in bytes.
-	SignatureSize = PublicKeySize + SecretKeySize // SignatureSize is the length of a signature in bytes.
+	PublicKeySize = 32                 // PublicKeySize is the length of a public key in bytes.
+	SecretKeySize = 64                 // SecretKeySize is the length of a secret key in bytes.
+	SignatureSize = PublicKeySize + 32 // SignatureSize is the length of a signature in bytes.
 )
 
 // DiffieHellman performs a Diffie-Hellman key exchange using the given public key.
@@ -32,7 +32,7 @@ func DiffieHellman(sk, pk []byte) []byte {
 	)
 
 	// Unpack the secret key.
-	_ = s.UnmarshalBinary(sk)
+	s.Derive(sk)
 
 	// Decode the public key.
 	e2decode(&q, pk)
@@ -51,8 +51,8 @@ func PublicKey(sk []byte) []byte {
 		q ristretto.Point
 	)
 
-	// Unpack the secret key.
-	_ = s.UnmarshalBinary(sk)
+	// Derive the secret key.
+	s.Derive(sk)
 
 	// Calculate the public key.
 	q.ScalarMultBase(&s)
@@ -81,7 +81,7 @@ func GenerateKeys() (pk, sk []byte, err error) {
 		s.Derive(buf[:])
 
 		// Encode the secret key.
-		sk = s.Bytes()
+		sk = buf[:]
 
 		// Calculate the public key.
 		q.ScalarMultBase(&s)
@@ -108,9 +108,9 @@ func Sign(sk, message []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Unpack the static and ephemeral secret keys (x, r).
-	_ = x.UnmarshalBinary(sk)
-	_ = r.UnmarshalBinary(skE)
+	// Derive the static and ephemeral secret keys (x, r).
+	x.Derive(sk)
+	r.Derive(skE)
 
 	// Derive a scalar from the ephemeral public key and the message using SHA-512 (k).
 	k.Derive(append(R, message...))
@@ -142,13 +142,13 @@ func Verify(pk, message, sig []byte) bool {
 	e2decode(&y, pk)
 
 	// Decode the ephemeral public key.
-	e2decode(&R, sig[:32])
+	e2decode(&R, sig[:PublicKeySize])
 
 	// Unpack the signature scalar.
-	_ = s.UnmarshalBinary(sig[32:])
+	_ = s.UnmarshalBinary(sig[PublicKeySize:])
 
 	// Derive a scalar from the ephemeral public key and the message.
-	k.Derive(append(sig[:32], message...))
+	k.Derive(append(sig[:PublicKeySize], message...))
 
 	// R' = -ky + gs
 	ky.ScalarMult(&y, &k)

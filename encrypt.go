@@ -92,7 +92,7 @@ func (sk SecretKey) encodeHeader(skEH []byte, recipients, padding int) []byte {
 
 	// Calculate the message offset and encode it.
 	offset := encryptedHeaderSize*recipients + padding
-	binary.BigEndian.PutUint32(header[r255.PublicKeySize:], uint32(offset))
+	binary.BigEndian.PutUint32(header[r255.SecretKeySize:], uint32(offset))
 
 	return header
 }
@@ -140,6 +140,6 @@ func (sk SecretKey) encryptHeaders(header []byte, publicKeys []PublicKey, paddin
 
 const (
 	blockSize           = 64 * 1024              // 64KiB
-	headerSize          = r255.PublicKeySize + 4 // 4 bytes for message offset
+	headerSize          = r255.SecretKeySize + 4 // 4 bytes for message offset
 	encryptedHeaderSize = r255.PublicKeySize + headerSize + poly1305.TagSize
 )

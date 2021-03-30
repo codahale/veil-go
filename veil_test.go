@@ -93,7 +93,7 @@ func TestRoundTrip(t *testing.T) {
 
 	assert.Equal(t, "public key", pk, a.PublicKey())
 	assert.Equal(t, "plaintext", message, dec.Bytes())
-	assert.Equal(t, "encrypted bytes", int64(304+1234), eb)
+	assert.Equal(t, "encrypted bytes", int64(368+1234), eb)
 	assert.Equal(t, "decrypted bytes", int64(40), db)
 }
 
