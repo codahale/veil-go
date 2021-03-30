@@ -21,8 +21,8 @@ func (cmd *decryptCmd) Run(_ *kong.Context) error {
 		return err
 	}
 
-	// Parse the public keys of the possible senders.
-	senders, err := parsePublicKeys(cmd.Senders)
+	// Decode the public keys of the possible senders.
+	senders, err := decodePublicKeys(cmd.Senders)
 	if err != nil {
 		return err
 	}

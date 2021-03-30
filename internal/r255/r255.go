@@ -144,7 +144,7 @@ func Verify(pk, message, sig []byte) bool {
 	// Decode the ephemeral public key.
 	e2decode(&R, sig[:32])
 
-	// Parse the signature scalar.
+	// Unpack the signature scalar.
 	_ = s.UnmarshalBinary(sig[32:])
 
 	// Derive a scalar from the ephemeral public key and the message.

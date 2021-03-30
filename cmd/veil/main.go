@@ -28,11 +28,11 @@ func main() {
 	ctx.FatalIfErrorf(err)
 }
 
-func parsePublicKeys(paths []string) ([]veil.PublicKey, error) {
+func decodePublicKeys(paths []string) ([]veil.PublicKey, error) {
 	keys := make([]veil.PublicKey, len(paths))
 
 	for i, path := range paths {
-		pk, err := parsePublicKey(path)
+		pk, err := decodePublicKey(path)
 		if err != nil {
 			return nil, err
 		}
@@ -43,7 +43,7 @@ func parsePublicKeys(paths []string) ([]veil.PublicKey, error) {
 	return keys, nil
 }
 
-func parsePublicKey(path string) (veil.PublicKey, error) {
+func decodePublicKey(path string) (veil.PublicKey, error) {
 	// Read the contents of the file.
 	b, err := os.ReadFile(path)
 	if err != nil {

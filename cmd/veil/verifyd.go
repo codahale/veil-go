@@ -15,7 +15,7 @@ type verifyDetachedCmd struct {
 
 func (cmd *verifyDetachedCmd) Run(_ *kong.Context) error {
 	// Open and decode the public key.
-	pk, err := parsePublicKey(cmd.PublicKey)
+	pk, err := decodePublicKey(cmd.PublicKey)
 	if err != nil {
 		return err
 	}
