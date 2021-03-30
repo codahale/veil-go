@@ -4,18 +4,18 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"github.com/codahale/veil/internal/xdh"
+	"github.com/codahale/veil/internal/r255"
 )
 
 func TestExchange(t *testing.T) {
 	t.Parallel()
 
-	pkA, skA, err := xdh.GenerateKeys()
+	pkA, skA, err := r255.GenerateKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pkB, skB, err := xdh.GenerateKeys()
+	pkB, skB, err := r255.GenerateKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,12 +31,12 @@ func TestExchange(t *testing.T) {
 }
 
 func BenchmarkSend(b *testing.B) {
-	pkA, skA, err := xdh.GenerateKeys()
+	pkA, skA, err := r255.GenerateKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	pkB, _, err := xdh.GenerateKeys()
+	pkB, _, err := r255.GenerateKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -49,12 +49,12 @@ func BenchmarkSend(b *testing.B) {
 }
 
 func BenchmarkReceive(b *testing.B) {
-	pkA, skA, err := xdh.GenerateKeys()
+	pkA, skA, err := r255.GenerateKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	pkB, skB, err := xdh.GenerateKeys()
+	pkB, skB, err := r255.GenerateKeys()
 	if err != nil {
 		b.Fatal(err)
 	}

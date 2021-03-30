@@ -1,4 +1,4 @@
-package xdh
+package r255
 
 import (
 	"testing"
@@ -19,8 +19,8 @@ func TestSharedSecret(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	xA := SharedSecret(skA, pkB)
-	xB := SharedSecret(skB, pkA)
+	xA := DiffieHellman(skA, pkB)
+	xB := DiffieHellman(skB, pkA)
 
 	assert.Equal(t, "shared secret", xA, xB)
 }
@@ -78,6 +78,6 @@ func BenchmarkSharedSecret(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		SharedSecret(skA, pkB)
+		DiffieHellman(skA, pkB)
 	}
 }

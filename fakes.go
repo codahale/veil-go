@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"math/big"
 
-	"github.com/codahale/veil/internal/xdh"
+	"github.com/codahale/veil/internal/r255"
 )
 
 // AddFakes adds n randomly-generated public keys to the given set of public keys, shuffles the
@@ -17,7 +17,7 @@ func AddFakes(keys []PublicKey, n int) ([]PublicKey, error) {
 
 	// Add n randomly generated keys to the end.
 	for i := 0; i < n; i++ {
-		pk, _, err := xdh.GenerateKeys()
+		pk, _, err := r255.GenerateKeys()
 		if err != nil {
 			return nil, err
 		}

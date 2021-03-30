@@ -8,9 +8,9 @@ import (
 	"io"
 
 	"github.com/codahale/veil/internal/kem"
+	"github.com/codahale/veil/internal/r255"
 	"github.com/codahale/veil/internal/ratchet"
 	"github.com/codahale/veil/internal/stream"
-	"github.com/codahale/veil/internal/xdh"
 	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/poly1305"
@@ -21,7 +21,7 @@ import (
 // error reported while encrypting, if any.
 func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey, padding int) (int64, error) {
 	// Generate an ephemeral header key pair.
-	pkEH, skEH, err := xdh.GenerateKeys()
+	pkEH, skEH, err := r255.GenerateKeys()
 	if err != nil {
 		return 0, err
 	}
@@ -69,7 +69,7 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 	}
 
 	// Create a signature of the SHA-512 hash of the plaintext.
-	sig, err := xdh.Sign(sk, h.Sum(nil))
+	sig, err := r255.Sign(sk, h.Sum(nil))
 	if err != nil {
 		return bn + int64(n+an), err
 	}
@@ -92,7 +92,7 @@ func (sk SecretKey) encodeHeader(skEH []byte, recipients, padding int) []byte {
 
 	// Calculate the message offset and encode it.
 	offset := encryptedHeaderSize*recipients + padding
-	binary.BigEndian.PutUint32(header[xdh.PublicKeySize:], uint32(offset))
+	binary.BigEndian.PutUint32(header[r255.PublicKeySize:], uint32(offset))
 
 	return header
 }
@@ -139,7 +139,7 @@ func (sk SecretKey) encryptHeaders(header []byte, publicKeys []PublicKey, paddin
 }
 
 const (
-	blockSize           = 64 * 1024             // 64KiB
-	headerSize          = xdh.PublicKeySize + 4 // 4 bytes for message offset
-	encryptedHeaderSize = xdh.PublicKeySize + headerSize + poly1305.TagSize
+	blockSize           = 64 * 1024              // 64KiB
+	headerSize          = r255.PublicKeySize + 4 // 4 bytes for message offset
+	encryptedHeaderSize = r255.PublicKeySize + headerSize + poly1305.TagSize
 )

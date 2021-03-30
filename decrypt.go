@@ -7,9 +7,9 @@ import (
 	"io"
 
 	"github.com/codahale/veil/internal/kem"
+	"github.com/codahale/veil/internal/r255"
 	"github.com/codahale/veil/internal/ratchet"
 	"github.com/codahale/veil/internal/stream"
-	"github.com/codahale/veil/internal/xdh"
 	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/chacha20poly1305"
 )
@@ -32,10 +32,10 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) 
 	}
 
 	// Re-derive the ephemeral header public key.
-	pkEH := xdh.PublicKey(skEH)
+	pkEH := r255.PublicKey(skEH)
 
 	// Read the ephemeral message public key.
-	pkEM := make([]byte, xdh.PublicKeySize)
+	pkEM := make([]byte, r255.PublicKeySize)
 	if _, err := io.ReadFull(src, pkEM); err != nil {
 		return nil, 0, err
 	}
@@ -49,7 +49,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) 
 
 	// Detach the signature from the plaintext and calculate a hash of it.
 	h := sha512.New()
-	sr := stream.NewSignatureReader(r, h, xdh.SignatureSize)
+	sr := stream.NewSignatureReader(r, h, r255.SignatureSize)
 
 	// Decrypt the plaintext as a stream.
 	n, err := io.Copy(dst, sr)
@@ -58,7 +58,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) 
 	}
 
 	// Verify the signature of the plaintext.
-	if !xdh.Verify(pkS, h.Sum(nil), sr.Signature) {
+	if !r255.Verify(pkS, h.Sum(nil), sr.Signature) {
 		return nil, n, ErrInvalidCiphertext
 	}
 
@@ -87,8 +87,8 @@ func (sk *SecretKey) findHeader(src io.Reader, senders []PublicKey) ([]byte, Pub
 		headers = append(headers, buf...)
 
 		// Attempt to decrypt the header.
-		pkEH := buf[:xdh.PublicKeySize]
-		ciphertext := buf[xdh.PublicKeySize:]
+		pkEH := buf[:r255.PublicKeySize]
+		ciphertext := buf[r255.PublicKeySize:]
 		pkS, skEH, offset := sk.decryptHeader(pkEH, ciphertext, senders)
 
 		// If we successfully decrypt the header, use the message offset to read the remaining
@@ -132,8 +132,8 @@ func (sk SecretKey) decryptHeader(pkEH, ciphertext []byte, senders []PublicKey) 
 
 		// If the header wss successful decrypted, decode the ephemeral message secret key and
 		// message offset and return them.
-		skEM := header[:xdh.PublicKeySize]
-		offset := binary.BigEndian.Uint32(header[xdh.PublicKeySize:])
+		skEM := header[:r255.PublicKeySize]
+		offset := binary.BigEndian.Uint32(header[r255.PublicKeySize:])
 
 		return pkS, skEM, int(offset)
 	}

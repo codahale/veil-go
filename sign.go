@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/codahale/veil/internal/r255"
 	"github.com/codahale/veil/internal/stream"
-	"github.com/codahale/veil/internal/xdh"
 )
 
 // Signature is a ristretto255/Schnorr signature.
@@ -30,7 +30,7 @@ func (s Signature) MarshalText() (text []byte, err error) {
 // UnmarshalText decodes the results of MarshalText and updates the receiver to contain the decoded
 // signature.
 func (s *Signature) UnmarshalText(text []byte) error {
-	data := make([]byte, xdh.SignatureSize)
+	data := make([]byte, r255.SignatureSize)
 
 	_, err := asciiEncoding.Decode(data, text)
 	if err != nil {
@@ -70,7 +70,7 @@ func (sk SecretKey) SignDetached(src io.Reader) (Signature, error) {
 	}
 
 	// Create a signature of the hash.
-	return xdh.Sign(sk, h.Sum(nil))
+	return r255.Sign(sk, h.Sum(nil))
 }
 
 // Sign copies src to dst, creates a signature of the contents of src, and appends it to src.
@@ -86,7 +86,7 @@ func (sk SecretKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	}
 
 	// Sign the SHA-512 hash of the message.
-	sig, err := xdh.Sign(sk, h.Sum(nil))
+	sig, err := r255.Sign(sk, h.Sum(nil))
 	if err != nil {
 		return n, err
 	}
@@ -108,7 +108,7 @@ func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 	}
 
 	// Verify the signature against the hash of the message.
-	if !xdh.Verify(pk, h.Sum(nil), sig) {
+	if !r255.Verify(pk, h.Sum(nil), sig) {
 		return ErrInvalidSignature
 	}
 
@@ -119,7 +119,7 @@ func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 func (pk PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	// Hash the message and detach the signature.
 	h := sha512.New()
-	sr := stream.NewSignatureReader(src, h, xdh.SignatureSize)
+	sr := stream.NewSignatureReader(src, h, r255.SignatureSize)
 
 	// Copy all data from src into dst, skipping the appended signature.
 	n, err := io.Copy(dst, sr)
@@ -128,7 +128,7 @@ func (pk PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	}
 
 	// Verify the signature.
-	if !xdh.Verify(pk, h.Sum(nil), sr.Signature) {
+	if !r255.Verify(pk, h.Sum(nil), sr.Signature) {
 		return n, ErrInvalidSignature
 	}
 

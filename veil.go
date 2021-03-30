@@ -16,7 +16,7 @@ import (
 	"encoding/base32"
 	"fmt"
 
-	"github.com/codahale/veil/internal/xdh"
+	"github.com/codahale/veil/internal/r255"
 )
 
 // PublicKey is a ristretto255/XDH public key.
@@ -37,7 +37,7 @@ func (pk PublicKey) MarshalText() (text []byte, err error) {
 // UnmarshalText decodes the results of MarshalText and updates the receiver to contain the decoded
 // public key.
 func (pk *PublicKey) UnmarshalText(text []byte) error {
-	data := make([]byte, xdh.PublicKeySize)
+	data := make([]byte, r255.PublicKeySize)
 
 	_, err := asciiEncoding.Decode(data, text)
 	if err != nil {
@@ -72,12 +72,12 @@ func (sk SecretKey) String() string {
 
 // PublicKey returns the public key for the given secret key.
 func (sk SecretKey) PublicKey() PublicKey {
-	return xdh.PublicKey(sk)
+	return r255.PublicKey(sk)
 }
 
 // NewSecretKey creates a new secret key.
 func NewSecretKey() (SecretKey, error) {
-	_, sk, err := xdh.GenerateKeys()
+	_, sk, err := r255.GenerateKeys()
 	return sk, err
 }
 

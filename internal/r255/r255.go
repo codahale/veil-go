@@ -1,9 +1,15 @@
-// Package xdh provides ristretto255/XDH functionality.
+// Package r255 provides ristretto255 functionality.
 //
 // Veil uses ristretto255 for asymmetric cryptography. Each person has a ristretto255/XDH key pair
 // and shares their public key with each other. In place of encoded ristretto255 points, Veil
 // encodes all public keys using Elligator2, making them indistinguishable from noise.
-package xdh
+//
+// To make authenticated messages, Veil creates Schnorr signatures using the signer's secret key.
+// The ephemeral public key created for the signature is encoded using Elligator2, making the
+// signatures indistinguishable from random noise. The actual "message" signed is a SHA-512 hash of
+// the message, and SHA-512 is used to derive ristretto255 scalars from the message and ephemeral
+// public key.
+package r255
 
 import (
 	"crypto/rand"
@@ -18,8 +24,8 @@ const (
 	SignatureSize = PublicKeySize + SecretKeySize // SignatureSize is the length of a signature in bytes.
 )
 
-// SharedSecret performs a Diffie-Hellman key exchange using the given public key.
-func SharedSecret(sk, pk []byte) []byte {
+// DiffieHellman performs a Diffie-Hellman key exchange using the given public key.
+func DiffieHellman(sk, pk []byte) []byte {
 	var (
 		s ristretto.Scalar
 		q ristretto.Point

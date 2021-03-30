@@ -13,7 +13,7 @@ import (
 	"crypto/sha512"
 	"io"
 
-	"github.com/codahale/veil/internal/xdh"
+	"github.com/codahale/veil/internal/r255"
 	"golang.org/x/crypto/hkdf"
 )
 
@@ -22,18 +22,18 @@ import (
 // length of the secret in bytes. It return an ephemeral public key and a shared secret.
 func Send(skS, pkS, pkR, info []byte, n int) ([]byte, []byte, error) {
 	// Generate an ephemeral key pair.
-	pkE, skE, err := xdh.GenerateKeys()
+	pkE, skE, err := r255.GenerateKeys()
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Calculate the ephemeral shared secret between the ephemeral secret key and the recipient's
 	// public key.
-	zzE := xdh.SharedSecret(skE, pkR)
+	zzE := r255.DiffieHellman(skE, pkR)
 
 	// Calculate the static shared secret between the sender's secret key and the recipient's
 	// public key.
-	zzS := xdh.SharedSecret(skS, pkR)
+	zzS := r255.DiffieHellman(skS, pkR)
 
 	// Derive the secret from the shared secrets, the ephemeral public key, the public keys of both
 	// the recipient and the sender, the info parameter, and the length of the secret in bytes.
@@ -49,11 +49,11 @@ func Send(skS, pkS, pkR, info []byte, n int) ([]byte, []byte, error) {
 func Receive(skR, pkR, pkS, pkE, info []byte, n int) []byte {
 	// Calculate the ephemeral shared secret between the recipient's secret key and the ephemeral
 	// public key.
-	zzE := xdh.SharedSecret(skR, pkE)
+	zzE := r255.DiffieHellman(skR, pkE)
 
 	// Calculate the static shared secret between the recipient's secret key and the sender's public
 	// key.
-	zzS := xdh.SharedSecret(skR, pkS)
+	zzS := r255.DiffieHellman(skR, pkS)
 
 	// Derive the secret from the shared secrets, the ephemeral public key, the public keys of both
 	// the recipient and the sender, the info parameter, and the length of the secret in bytes.
