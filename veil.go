@@ -19,10 +19,8 @@ import (
 	"github.com/codahale/veil/internal/r255"
 )
 
-// PublicKey is a ristretto255/XDH public key.
-//
-// Technically, it's the Elligator2 encoding of a ristretto255 point and is indistinguishable from
-// random noise. It can be marshalled and unmarshalled as a base32 string for human consumption.
+// PublicKey is a ristretto255/XDH public key. It can be marshalled and unmarshalled as a base32
+// string for human consumption.
 type PublicKey []byte
 
 // MarshalText encodes the public key into unpadded base32 text and returns the result.

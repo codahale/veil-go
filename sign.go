@@ -12,11 +12,9 @@ import (
 	"github.com/codahale/veil/internal/stream"
 )
 
-// Signature is a ristretto255/Schnorr signature.
-//
-// Technically, it's the Elligator2 encoding of a ristretto255 point prepended to a ristretto255
-// scalar and is indistinguishable from random noise. It can be marshalled and unmarshalled as a
-// base32 string for human consumption.
+// Signature is a ristretto255/Schnorr signature. Technically, it's a ristretto255 point prepended
+// to a ristretto255 scalar. It can be marshalled and unmarshalled as a base32 string for human
+// consumption.
 type Signature []byte
 
 // MarshalText encodes the signature into unpadded base32 text and returns the result.
