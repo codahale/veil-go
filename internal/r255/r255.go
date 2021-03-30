@@ -31,8 +31,11 @@ func DiffieHellman(sk, pk []byte) []byte {
 		q ristretto.Point
 	)
 
-	parseScalar(&s, sk)
-	parsePoint(&q, pk)
+	// Unpack the secret key.
+	_ = s.UnmarshalBinary(sk)
+
+	// Decode the public key.
+	e2decode(&q, pk)
 
 	// Multiply the point by the scalar.
 	x := (&ristretto.Point{}).ScalarMult(&q, &s)
@@ -48,14 +51,14 @@ func PublicKey(sk []byte) []byte {
 		q ristretto.Point
 	)
 
-	// Decode the secret key.
-	parseScalar(&s, sk)
+	// Unpack the secret key.
+	_ = s.UnmarshalBinary(sk)
 
 	// Calculate the public key.
 	q.ScalarMultBase(&s)
 
 	// Encode the public key with Elligator2.
-	return elligator(&q)
+	return e2encode(&q)
 }
 
 // GenerateKeys generates a key pair and returns the public key and the secret key.
@@ -74,7 +77,7 @@ func GenerateKeys() (pk, sk []byte, err error) {
 			return
 		}
 
-		// Convert to a secret key.
+		// Convert to a secret key by hashing it with SHA-512.
 		s.Derive(buf[:])
 
 		// Encode the secret key.
@@ -84,7 +87,7 @@ func GenerateKeys() (pk, sk []byte, err error) {
 		q.ScalarMultBase(&s)
 
 		// Encode the public key with Elligator2, if possible.
-		pk = elligator(&q)
+		pk = e2encode(&q)
 	}
 
 	// We generated a secret key whose public key has a representative, so return them.
@@ -105,9 +108,9 @@ func Sign(sk, message []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Decode the static and ephemeral secret keys.
-	parseScalar(&skS, sk)
-	parseScalar(&skE, skEb)
+	// Unpack the static and ephemeral secret keys.
+	_ = skS.UnmarshalBinary(sk)
+	_ = skE.UnmarshalBinary(skEb)
 
 	// Derive a scalar from the ephemeral public key and the message using SHA-512.
 	c.Derive(append(pkE, message...))
@@ -135,11 +138,11 @@ func Verify(pk, message, sig []byte) bool {
 		return false
 	}
 
-	// Parse the static public key.
-	parsePoint(&pkS, pk)
+	// Decode the static public key.
+	e2decode(&pkS, pk)
 
-	// Parse the ephemeral public key.
-	parsePoint(&pkE, sig[:32])
+	// Decode the ephemeral public key.
+	e2decode(&pkE, sig[:32])
 
 	// Parse the signature scalar.
 	_ = t.UnmarshalBinary(sig[32:])
@@ -157,9 +160,9 @@ func Verify(pk, message, sig []byte) bool {
 	return lhs.Equals(&rhs)
 }
 
-// elligator encodes the given ristretto255 point using Elligator2, returning either 32 bytes of
+// e2encode encodes the given ristretto255 point using Elligator2, returning either 32 bytes of
 // uniformly-distributed data or nil, if the point is not representable with Elligator2.
-func elligator(q *ristretto.Point) []byte {
+func e2encode(q *ristretto.Point) []byte {
 	var fes [8]edwards25519.FieldElement
 
 	// Convert the public key to an extended point.
@@ -186,17 +189,8 @@ func elligator(q *ristretto.Point) []byte {
 	return nil
 }
 
-// parseScalar decodes the given bytes into the given ristretto255 scalar.
-func parseScalar(s *ristretto.Scalar, sk []byte) {
-	var buf [SecretKeySize]byte
-
-	copy(buf[:], sk)
-
-	s.SetBytes(&buf)
-}
-
-// parsePoint decodes the given Elligator2 bytes into the given ristretto255 point.
-func parsePoint(q *ristretto.Point, pk []byte) {
+// e2decode decodes the given Elligator2 bytes into the given ristretto255 point.
+func e2decode(q *ristretto.Point, pk []byte) {
 	var (
 		buf [PublicKeySize]byte
 		fe  edwards25519.FieldElement
