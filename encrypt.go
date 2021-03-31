@@ -21,10 +21,12 @@ import (
 // error reported while encrypting, if any.
 func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey, padding int) (int64, error) {
 	// Generate an ephemeral header key pair.
-	skEH, pkEH, err := r255.GenerateKeys()
+	skEH, err := r255.NewSecretKey()
 	if err != nil {
 		return 0, err
 	}
+
+	pkEH := r255.PublicKey(skEH)
 
 	// Encode the ephemeral header secret key and offset into a header.
 	header := sk.encodeHeader(skEH, len(recipients), padding)

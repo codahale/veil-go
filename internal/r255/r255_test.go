@@ -9,22 +9,22 @@ import (
 func TestDiffieHellman(t *testing.T) {
 	t.Parallel()
 
-	skA, pkA, err := GenerateKeys()
+	skA, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	skB, pkB, err := GenerateKeys()
+	skB, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	xA, err := DiffieHellman(skA, pkB)
+	xA, err := DiffieHellman(skA, PublicKey(skB))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	xB, err := DiffieHellman(skB, pkA)
+	xB, err := DiffieHellman(skB, PublicKey(skA))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestSignAndVerify(t *testing.T) {
 
 	message := []byte("ok bud")
 
-	sk, pk, err := GenerateKeys()
+	sk, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,23 +47,32 @@ func TestSignAndVerify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !Verify(pk, message, sig) {
+	if Verify(PublicKey(sk), []byte("other message"), sig) {
+		t.Error("did verify")
+	}
+
+	sk2, err := NewSecretKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if Verify(PublicKey(sk2), message, sig) {
 		t.Error("didn't verify")
 	}
 
-	if Verify(pk, []byte("other message"), sig) {
+	if Verify(PublicKey(sk), []byte("other message"), sig) {
 		t.Error("did verify")
 	}
 }
 
-func BenchmarkGenerateKeys(b *testing.B) {
+func BenchmarkNewSecretKey(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _, _ = GenerateKeys()
+		_, _ = NewSecretKey()
 	}
 }
 
 func BenchmarkPublicKey(b *testing.B) {
-	sk, _, err := GenerateKeys()
+	sk, err := NewSecretKey()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -74,15 +83,17 @@ func BenchmarkPublicKey(b *testing.B) {
 }
 
 func BenchmarkSharedSecret(b *testing.B) {
-	skA, _, err := GenerateKeys()
+	skA, err := NewSecretKey()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	_, pkB, err := GenerateKeys()
+	skB, err := NewSecretKey()
 	if err != nil {
 		b.Fatal(err)
 	}
+
+	pkB := PublicKey(skB)
 
 	for i := 0; i < b.N; i++ {
 		_, _ = DiffieHellman(skA, pkB)

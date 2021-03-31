@@ -10,6 +10,7 @@ package r255
 
 import (
 	"crypto/rand"
+	"crypto/sha512"
 	"hash"
 
 	"github.com/codahale/veil/internal/scopedhash"
@@ -52,27 +53,33 @@ func PublicKey(sk []byte) []byte {
 	return q.Encode(nil)
 }
 
-// GenerateKeys generates a key pair and returns the secret key and the public key.
-func GenerateKeys() (sk, pk []byte, err error) {
-	// Generate a new random key pair.
-	sk, _, q, err := randomKeyPair()
-	if err != nil {
-		return nil, nil, err
+// NewSecretKey creates a new 64-byte secret key.
+func NewSecretKey() ([]byte, error) {
+	// Read a large buffer of random data.
+	b := make([]byte, SecretKeySize*4)
+	if _, err := rand.Read(b); err != nil {
+		return nil, err
 	}
 
-	// Return the secret key and the encoded public key.
-	return sk, q.Encode(nil), nil
+	// Hash it with SHA-512.
+	h := sha512.Sum512(b)
+
+	// Return the hash.
+	return h[:], nil
 }
 
 // Sign returns a Schnorr signature of the given message using the given secret key.
 func Sign(sk, message []byte) ([]byte, error) {
-	// Generate an ephemeral key pair (R, r).
-	_, r, R, err := randomKeyPair()
+	// Create a new secret key.
+	skR, err := NewSecretKey()
 	if err != nil {
 		return nil, err
 	}
 
-	// Create a canonical encoding of the ephemeral public key.
+	// Generate an ephemeral key pair (R, r). The derivation step is skipped here because the secret
+	// key is discarded after the signature is created.
+	r := ristretto255.NewScalar().FromUniformBytes(skR)
+	R := ristretto255.NewElement().ScalarBaseMult(r)
 	Rb := R.Encode(nil)
 
 	// Derive the static secret scalar.
@@ -151,22 +158,4 @@ func decodeScalar(data []byte) (*ristretto255.Scalar, error) {
 	}
 
 	return s, nil
-}
-
-// randomKeyPair returns a random 64-byte secret key, its derived scalar, and its public key point.
-func randomKeyPair() ([]byte, *ristretto255.Scalar, *ristretto255.Element, error) {
-	// Generate a 64-byte random secret key.
-	sk := make([]byte, SecretKeySize)
-	if _, err := rand.Read(sk); err != nil {
-		return nil, nil, nil, err
-	}
-
-	// Derive a scalar from the SHA-512 hash of the secret key.
-	s := deriveScalar(scopedhash.NewSecretKeyHash(), sk)
-
-	// Calculate the public key for the derived scalar.
-	q := ristretto255.NewElement().ScalarBaseMult(s)
-
-	// Return the key, its scalar, and its public key.
-	return sk, s, q, nil
 }

@@ -22,10 +22,12 @@ import (
 // length of the secret in bytes. It return an ephemeral public key and a shared secret.
 func Send(skS, pkS, pkR, info []byte, n int) ([]byte, []byte, error) {
 	// Generate an ephemeral key pair.
-	skE, pkE, err := r255.GenerateKeys()
+	skE, err := r255.NewSecretKey()
 	if err != nil {
 		return nil, nil, err
 	}
+
+	pkE := r255.PublicKey(skE)
 
 	// Calculate the ephemeral shared secret between the ephemeral secret key and the recipient's
 	// public key.

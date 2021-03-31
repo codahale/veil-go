@@ -17,12 +17,12 @@ func AddFakes(keys []PublicKey, n int) ([]PublicKey, error) {
 
 	// Add n randomly generated keys to the end.
 	for i := 0; i < n; i++ {
-		_, pk, err := r255.GenerateKeys()
+		sk, err := r255.NewSecretKey()
 		if err != nil {
 			return nil, err
 		}
 
-		out = append(out, pk)
+		out = append(out, r255.PublicKey(sk))
 	}
 
 	// Shuffle the recipients. This will randomly distribute the N fake recipients throughout the

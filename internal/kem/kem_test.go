@@ -10,22 +10,22 @@ import (
 func TestExchange(t *testing.T) {
 	t.Parallel()
 
-	skA, pkA, err := r255.GenerateKeys()
+	skA, err := r255.NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	skB, pkB, err := r255.GenerateKeys()
+	skB, err := r255.NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pkW, secretA, err := Send(skA, pkA, pkB, []byte("boop"), 20)
+	pkW, secretA, err := Send(skA, r255.PublicKey(skA), r255.PublicKey(skB), []byte("boop"), 20)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	secretB, err := Receive(skB, pkB, pkA, pkW, []byte("boop"), 20)
+	secretB, err := Receive(skB, r255.PublicKey(skB), r255.PublicKey(skA), pkW, []byte("boop"), 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,15 +34,19 @@ func TestExchange(t *testing.T) {
 }
 
 func BenchmarkSend(b *testing.B) {
-	skA, pkA, err := r255.GenerateKeys()
+	skA, err := r255.NewSecretKey()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	_, pkB, err := r255.GenerateKeys()
+	pkA := r255.PublicKey(skA)
+
+	skB, err := r255.NewSecretKey()
 	if err != nil {
 		b.Fatal(err)
 	}
+
+	pkB := r255.PublicKey(skB)
 
 	b.ResetTimer()
 
@@ -52,15 +56,19 @@ func BenchmarkSend(b *testing.B) {
 }
 
 func BenchmarkReceive(b *testing.B) {
-	skA, pkA, err := r255.GenerateKeys()
+	skA, err := r255.NewSecretKey()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	skB, pkB, err := r255.GenerateKeys()
+	pkA := r255.PublicKey(skA)
+
+	skB, err := r255.NewSecretKey()
 	if err != nil {
 		b.Fatal(err)
 	}
+
+	pkB := r255.PublicKey(skB)
 
 	pkW, _, err := Send(skA, pkA, pkB, []byte("boop"), 20)
 	if err != nil {
