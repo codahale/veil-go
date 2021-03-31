@@ -1,7 +1,6 @@
 package veil
 
 import (
-	"crypto/sha512"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -49,7 +48,7 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) 
 	r := stream.NewReader(src, key, headers, blockSize)
 
 	// Detach the signature from the plaintext and calculate a hash of it.
-	h := scopedhash.New("veilsign", sha512.New())
+	h := scopedhash.NewMessageHash()
 	sr := stream.NewSignatureReader(r, h, r255.SignatureSize)
 
 	// Decrypt the plaintext as a stream.

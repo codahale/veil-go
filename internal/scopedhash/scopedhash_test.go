@@ -11,7 +11,7 @@ import (
 func TestNew(t *testing.T) {
 	t.Parallel()
 
-	sh := New("scope", sha512.New())
+	sh := newHash("scope")
 	_, _ = io.WriteString(sh, "message")
 	digest := sh.Sum(nil)
 

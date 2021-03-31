@@ -3,7 +3,6 @@ package veil
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/sha512"
 	"encoding/binary"
 	"io"
 
@@ -60,7 +59,7 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 	w := stream.NewWriter(dst, key, headers, blockSize)
 
 	// Tee reads from the input into a SHA-512 hash.
-	h := scopedhash.New("veilsign", sha512.New())
+	h := scopedhash.NewMessageHash()
 	r := io.TeeReader(src, h)
 
 	// Encrypt the plaintext as a stream.
