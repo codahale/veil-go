@@ -8,7 +8,7 @@ import (
 )
 
 type verifyDetachedCmd struct {
-	PublicKey string `arg:"" type:"existingfile" help:"The path to the public key."`
+	PublicKey string `arg:"" help:"The signer's public key."`
 	Message   string `arg:"" type:"existingfile" help:"The path to the message."`
 	Signature string `arg:"" type:"existingfile" help:"The path to the signature file."`
 }

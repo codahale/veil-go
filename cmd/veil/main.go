@@ -29,10 +29,10 @@ func main() {
 	ctx.FatalIfErrorf(err)
 }
 
-func decodePublicKeys(paths []string) ([]veil.PublicKey, error) {
-	keys := make([]veil.PublicKey, len(paths))
+func decodePublicKeys(pathsOrKeys []string) ([]veil.PublicKey, error) {
+	keys := make([]veil.PublicKey, len(pathsOrKeys))
 
-	for i, path := range paths {
+	for i, path := range pathsOrKeys {
 		pk, err := decodePublicKey(path)
 		if err != nil {
 			return nil, err
@@ -44,17 +44,23 @@ func decodePublicKeys(paths []string) ([]veil.PublicKey, error) {
 	return keys, nil
 }
 
-func decodePublicKey(path string) (veil.PublicKey, error) {
-	// Read the contents of the file.
-	b, err := os.ReadFile(path)
+func decodePublicKey(pathOrKey string) (veil.PublicKey, error) {
+	// Try decoding the key directly.
+	var pk veil.PublicKey
+	//goland:noinspection GoNilness
+	if err := pk.UnmarshalText([]byte(pathOrKey)); err == nil {
+		return pk, nil
+	}
+
+	// Otherwise, try reading the contents of it as a file.
+	b, err := os.ReadFile(pathOrKey)
 	if err != nil {
 		return nil, err
 	}
 
 	// Decode the public key.
-	var pk veil.PublicKey
-	if //goland:noinspection GoNilness
-	err := pk.UnmarshalText(b); err != nil {
+	//goland:noinspection GoNilness
+	if err := pk.UnmarshalText(b); err != nil {
 		return nil, err
 	}
 

@@ -11,7 +11,7 @@ type decryptCmd struct {
 	SecretKey  string   `arg:"" type:"existingfile" help:"The path to the secret key."`
 	Ciphertext string   `arg:"" type:"existingfile" help:"The path to the ciphertext file."`
 	Plaintext  string   `arg:"" type:"path" help:"The path to the plaintext file."`
-	Senders    []string `arg:"" type:"existingfile" repeated:"" help:"The public keys of the possible senders."`
+	Senders    []string `arg:"" repeated:"" help:"The public keys of the possible senders."`
 }
 
 func (cmd *decryptCmd) Run(_ *kong.Context) error {

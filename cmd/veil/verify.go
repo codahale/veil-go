@@ -3,7 +3,7 @@ package main
 import "github.com/alecthomas/kong"
 
 type verifyCmd struct {
-	PublicKey     string `arg:"" type:"existingfile" help:"The path to the public key."`
+	PublicKey     string `arg:"" help:"The signer's public key."`
 	SignedMessage string `arg:"" type:"existingfile" help:"The path to the signed message."`
 	Message       string `arg:"" type:"path" help:"The path to the message."`
 }
