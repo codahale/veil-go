@@ -1,9 +1,9 @@
 package scopedhash
 
 import (
+	"crypto/hmac"
 	"crypto/sha512"
 	"hash"
-	"io"
 )
 
 // NewSecretKeyHash returns a hash instance suitable for deriving ristretto255 secret key scalars
@@ -24,8 +24,5 @@ func NewMessageHash() hash.Hash {
 }
 
 func newHash(scope string) hash.Hash {
-	h := sha512.New()
-	_, _ = io.WriteString(h, scope)
-
-	return h
+	return hmac.New(sha512.New, []byte(scope))
 }
