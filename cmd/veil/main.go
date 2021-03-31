@@ -11,7 +11,8 @@ import (
 )
 
 type cli struct {
-	Generate       generateCmd       `cmd:"" help:"Generate a new key pair."`
+	SecretKey      secretKeyCmd      `cmd:"" help:"Generate a new secret key."`
+	PublicKey      publicKeyCmd      `cmd:"" help:"Generate a public key."`
 	Encrypt        encryptCmd        `cmd:"" help:"Encrypt a message for a set of recipients."`
 	Decrypt        decryptCmd        `cmd:"" help:"Decrypt a message."`
 	Sign           signCmd           `cmd:"" help:"Create a signed message."`
