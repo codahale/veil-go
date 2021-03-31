@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
+	"github.com/codahale/veil/internal/scopedhash"
+	"github.com/gtank/ristretto255"
 )
 
 func TestDiffieHellman(t *testing.T) {
@@ -63,6 +65,38 @@ func TestSignAndVerify(t *testing.T) {
 	if Verify(PublicKey(sk), []byte("other message"), sig) {
 		t.Error("did verify")
 	}
+}
+
+func TestDerivedKeys(t *testing.T) {
+	t.Parallel()
+
+	// Create a secret key.
+	sk, err := NewSecretKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Derive the secret scalar.
+	s := deriveScalar(scopedhash.NewSecretKeyHash(), sk)
+
+	// Calculate the public key.
+	q := ristretto255.NewElement().ScalarBaseMult(s)
+
+	// Derive a secret key.
+	sP := deriveSecretKey(sk, "example1")
+
+	// Separately, derive a public key using the same label.
+	qP, err := derivePublicKey(q.Encode(nil), "example1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Re-calculate the derived public key from the derived secret key.
+	qPP := ristretto255.NewElement().ScalarBaseMult(sP)
+
+	// Ensure the directly derived public key matches the public key calculated from the derived
+	// secret key.
+	assert.Equal(t, "derived public keys", qPP.String(), qP.String())
 }
 
 func BenchmarkNewSecretKey(b *testing.B) {

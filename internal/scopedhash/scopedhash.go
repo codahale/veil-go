@@ -23,6 +23,12 @@ func NewMessageHash() hash.Hash {
 	return newHash("veilmessage")
 }
 
+// NewDerivedKeyHash returns a hash instance suitable for deriving ristretto255 scalars and points
+// from parent scalars and points in parallel.
+func NewDerivedKeyHash() hash.Hash {
+	return newHash("veilmessage")
+}
+
 func newHash(scope string) hash.Hash {
 	return hmac.New(sha512.New, []byte(scope))
 }

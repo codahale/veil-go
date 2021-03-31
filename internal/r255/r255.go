@@ -159,3 +159,32 @@ func decodeScalar(data []byte) (*ristretto255.Scalar, error) {
 
 	return s, nil
 }
+
+// deriveSecretKey returns a scalar derived from the given secret key using the given label.
+func deriveSecretKey(sk []byte, label string) *ristretto255.Scalar {
+	// Derive the secret key.
+	s := deriveScalar(scopedhash.NewSecretKeyHash(), sk)
+
+	// Calculate the delta for the derived key.
+	r := deriveScalar(scopedhash.NewDerivedKeyHash(), []byte(label))
+
+	// Return the secret key plus the delta.
+	return ristretto255.NewScalar().Add(s, r)
+}
+
+// derivePublicKey returns a point derived from the given public key using the given label which
+// corresponds to the secret key produced by deriveSecretKey.
+func derivePublicKey(pk []byte, label string) (*ristretto255.Element, error) {
+	// Decode the public key.
+	q, err := decodePoint(pk)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate the delta for the derived key.
+	r := deriveScalar(scopedhash.NewDerivedKeyHash(), []byte(label))
+	rG := ristretto255.NewElement().ScalarBaseMult(r)
+
+	// Return the secret key plus the delta.
+	return ristretto255.NewElement().Add(q, rG), nil
+}
