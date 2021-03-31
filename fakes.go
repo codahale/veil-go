@@ -31,20 +31,6 @@ func AddFakes(keys []PublicKey, n int) ([]PublicKey, error) {
 		return nil, err
 	}
 
-	for i := len(out) - 1; i > 0; i-- {
-		// Randomly pick a card from the unshuffled deck.
-		b, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
-		if err != nil {
-			return nil, err
-		}
-
-		// Convert to a platform int.
-		j := int(b.Int64())
-
-		// Swap it with the current card.
-		out[i], out[j] = out[j], out[i]
-	}
-
 	return out, nil
 }
 
