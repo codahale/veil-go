@@ -25,8 +25,12 @@ func AddFakes(keys []PublicKey, n int) ([]PublicKey, error) {
 		out = append(out, pk)
 	}
 
-	// Perform a Fisher-Yates shuffle, using crypto/rand to pick indexes. This will randomly
-	// distribute the N fake recipients throughout the slice.
+	// Shuffle the recipients. This will randomly distribute the N fake recipients throughout the
+	// slice.
+	if err := Shuffle(out); err != nil {
+		return nil, err
+	}
+
 	for i := len(out) - 1; i > 0; i-- {
 		// Randomly pick a card from the unshuffled deck.
 		b, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
@@ -42,4 +46,23 @@ func AddFakes(keys []PublicKey, n int) ([]PublicKey, error) {
 	}
 
 	return out, nil
+}
+
+// Shuffle performs an in-place Fisher-Yates shuffle, using crypto/rand to pick indexes.
+func Shuffle(keys []PublicKey) error {
+	for i := len(keys) - 1; i > 0; i-- {
+		// Randomly pick a card from the unshuffled deck.
+		b, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		if err != nil {
+			return err
+		}
+
+		// Convert to a platform int.
+		j := int(b.Int64())
+
+		// Swap it with the current card.
+		keys[i], keys[j] = keys[j], keys[i]
+	}
+
+	return nil
 }
