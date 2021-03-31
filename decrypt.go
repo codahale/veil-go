@@ -41,7 +41,10 @@ func (sk *SecretKey) Decrypt(dst io.Writer, src io.Reader, senders []PublicKey) 
 	}
 
 	// Derive the shared ratchet key between the sender and the ephemeral key.
-	key := kem.Receive(skEH, pkEH, pkS, pkEM, []byte("message"), ratchet.KeySize)
+	key, err := kem.Receive(skEH, pkEH, pkS, pkEM, []byte("message"), ratchet.KeySize)
+	if err != nil {
+		return nil, 0, ErrInvalidCiphertext
+	}
 
 	// Initialize an AEAD reader with the ratchet key, using the encrypted headers as authenticated
 	// data.
@@ -114,8 +117,12 @@ func (sk SecretKey) decryptHeader(pkEH, ciphertext []byte, senders []PublicKey) 
 
 	// Iterate through all possible senders.
 	for _, pkS := range senders {
-		// Re-derive the shared secret between the sender and recipient.
-		secret := kem.Receive(sk, pk, pkS, pkEH, []byte("header"), chacha20.KeySize+chacha20.NonceSize)
+		// Re-derive the shared secret between the sender and recipient. If not possible, try the
+		// next possible sender.
+		secret, err := kem.Receive(sk, pk, pkS, pkEH, []byte("header"), chacha20.KeySize+chacha20.NonceSize)
+		if err != nil {
+			continue
+		}
 
 		// Initialize a ChaCha20Poly1305 AEAD.
 		aead, err := chacha20poly1305.New(secret[:chacha20.KeySize])

@@ -25,7 +25,10 @@ func TestExchange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	secretB := Receive(skB, pkB, pkA, pkW, []byte("boop"), 20)
+	secretB, err := Receive(skB, pkB, pkA, pkW, []byte("boop"), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	assert.Equal(t, "derived secrets", secretA, secretB)
 }
@@ -67,7 +70,7 @@ func BenchmarkReceive(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		Receive(skB, pkB, pkA, pkW, []byte("boop"), 20)
+		_, _ = Receive(skB, pkB, pkA, pkW, []byte("boop"), 20)
 	}
 }
 

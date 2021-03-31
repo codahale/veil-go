@@ -29,11 +29,17 @@ func Send(skS, pkS, pkR, info []byte, n int) ([]byte, []byte, error) {
 
 	// Calculate the ephemeral shared secret between the ephemeral secret key and the recipient's
 	// public key.
-	zzE := r255.DiffieHellman(skE, pkR)
+	zzE, err := r255.DiffieHellman(skE, pkR)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Calculate the static shared secret between the sender's secret key and the recipient's
 	// public key.
-	zzS := r255.DiffieHellman(skS, pkR)
+	zzS, err := r255.DiffieHellman(skS, pkR)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Derive the secret from the shared secrets, the ephemeral public key, the public keys of both
 	// the recipient and the sender, the info parameter, and the length of the secret in bytes.
@@ -46,18 +52,24 @@ func Send(skS, pkS, pkR, info []byte, n int) ([]byte, []byte, error) {
 // Receive generates a shared secret given the recipient's secret key, the recipient's public key,
 // the sender's public key, the ephemeral public key, a domain-specific information parameter,
 // and the length of the shared secret in bytes.
-func Receive(skR, pkR, pkS, pkE, info []byte, n int) []byte {
+func Receive(skR, pkR, pkS, pkE, info []byte, n int) ([]byte, error) {
 	// Calculate the ephemeral shared secret between the recipient's secret key and the ephemeral
 	// public key.
-	zzE := r255.DiffieHellman(skR, pkE)
+	zzE, err := r255.DiffieHellman(skR, pkE)
+	if err != nil {
+		return nil, err
+	}
 
 	// Calculate the static shared secret between the recipient's secret key and the sender's public
 	// key.
-	zzS := r255.DiffieHellman(skR, pkS)
+	zzS, err := r255.DiffieHellman(skR, pkS)
+	if err != nil {
+		return nil, err
+	}
 
 	// Derive the secret from the shared secrets, the ephemeral public key, the public keys of both
 	// the recipient and the sender, the info parameter, and the length of the secret in bytes.
-	return kdf(zzE, zzS, pkE, pkR, pkS, info, n)
+	return kdf(zzE, zzS, pkE, pkR, pkS, info, n), nil
 }
 
 // kdf returns a secret derived from the given ephemeral shared secret, static shared secret, the

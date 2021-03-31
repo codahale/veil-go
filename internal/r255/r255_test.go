@@ -19,8 +19,15 @@ func TestDiffieHellman(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	xA := DiffieHellman(skA, pkB)
-	xB := DiffieHellman(skB, pkA)
+	xA, err := DiffieHellman(skA, pkB)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	xB, err := DiffieHellman(skB, pkA)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	assert.Equal(t, "shared secret", xA, xB)
 }
@@ -78,6 +85,6 @@ func BenchmarkSharedSecret(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		DiffieHellman(skA, pkB)
+		_, _ = DiffieHellman(skA, pkB)
 	}
 }

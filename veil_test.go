@@ -2,7 +2,9 @@ package veil
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
+	"io"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -95,6 +97,23 @@ func TestRoundTrip(t *testing.T) {
 	assert.Equal(t, "plaintext", message, dec.Bytes())
 	assert.Equal(t, "encrypted bytes", int64(368+1234), eb)
 	assert.Equal(t, "decrypted bytes", int64(40), db)
+}
+
+func TestFuzz(t *testing.T) {
+	t.Parallel()
+
+	a, err := NewSecretKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	enc := io.LimitReader(rand.Reader, 64*1024)
+	dec := bytes.NewBuffer(nil)
+
+	_, _, err = a.Decrypt(dec, enc, []PublicKey{a.PublicKey()})
+	if err == nil {
+		t.Fatal("shouldn't have decrypted")
+	}
 }
 
 func TestPublicKey_MarshalText(t *testing.T) {

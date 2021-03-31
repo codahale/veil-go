@@ -23,18 +23,21 @@ const (
 )
 
 // DiffieHellman performs a Diffie-Hellman key exchange using the given public key.
-func DiffieHellman(sk, pk []byte) []byte {
+func DiffieHellman(sk, pk []byte) ([]byte, error) {
 	// Derive the secret key.
 	s := deriveScalar(scopedhash.NewSecretKeyHash(), sk)
 
 	// Decode the public key.
-	q := decodePoint(pk)
+	q, err := decodePoint(pk)
+	if err != nil {
+		return nil, err
+	}
 
 	// Multiply the point by the scalar.
 	x := ristretto255.NewElement().ScalarMult(s, q)
 
 	// Return the shared secret.
-	return x.Encode(nil)
+	return x.Encode(nil), nil
 }
 
 // PublicKey returns the corresponding public key for the given secret key.
@@ -94,13 +97,22 @@ func Verify(pk, message, sig []byte) bool {
 	}
 
 	// Decode the static public key.
-	y := decodePoint(pk)
+	y, err := decodePoint(pk)
+	if err != nil {
+		return false
+	}
 
 	// Decode the ephemeral public key.
-	R := decodePoint(sig[:PublicKeySize])
+	R, err := decodePoint(sig[:PublicKeySize])
+	if err != nil {
+		return false
+	}
 
 	// Decode the signature scalar.
-	s := decodeScalar(sig[PublicKeySize:])
+	s, err := decodeScalar(sig[PublicKeySize:])
+	if err != nil {
+		panic(err)
+	}
 
 	// Derive a scalar from the ephemeral public key and the message.
 	k := deriveScalar(scopedhash.NewSignatureHash(), append(sig[:PublicKeySize], message...))
@@ -122,23 +134,23 @@ func deriveScalar(h hash.Hash, data []byte) *ristretto255.Scalar {
 }
 
 // decodePoint decodes the encoded point and returns it.
-func decodePoint(data []byte) *ristretto255.Element {
+func decodePoint(data []byte) (*ristretto255.Element, error) {
 	p := ristretto255.NewElement()
 	if err := p.Decode(data); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return p
+	return p, nil
 }
 
 // decodeScalar decodes the encoded scalar and returns it.
-func decodeScalar(data []byte) *ristretto255.Scalar {
+func decodeScalar(data []byte) (*ristretto255.Scalar, error) {
 	s := ristretto255.NewScalar()
 	if err := s.Decode(data); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return s
+	return s, nil
 }
 
 // randomKeyPair returns a random 64-byte secret key, its derived scalar, and its public key point.
