@@ -6,8 +6,9 @@ require (
 	github.com/alecthomas/kong v0.2.16
 	github.com/codahale/gubbins v0.0.1
 	github.com/gtank/ristretto255 v0.1.2
+	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
-	golang.org/x/sys v0.0.0-20210320140829-1e4c9ba3b0c4 // indirect
-	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1
+	golang.org/x/sys v0.0.0-20210330210617-4fbd30eecc44 // indirect
+	golang.org/x/term v0.0.0-20210317153231-de623e64d2a6
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 )
