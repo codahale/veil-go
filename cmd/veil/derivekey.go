@@ -6,15 +6,15 @@ import (
 	"github.com/alecthomas/kong"
 )
 
-type publicKeyCmd struct {
-	SecretKey string `arg:"" type:"existingfile" help:"The path to the secret key."`
+type deriveKeyCmd struct {
+	PublicKey string `arg:"" help:"The path to the public key."`
 	Path      string `arg:"" help:"The derivation path."`
 	Output    string `arg:"" type:"path" default:"-" help:"The output path for the public key."`
 }
 
-func (cmd *publicKeyCmd) Run(_ *kong.Context) error {
-	// Decrypt the secret key.
-	sk, err := decryptSecretKey(cmd.SecretKey)
+func (cmd *deriveKeyCmd) Run(_ *kong.Context) error {
+	// Decode the public key.
+	pk, err := decodePublicKey(cmd.PublicKey)
 	if err != nil {
 		return err
 	}
@@ -28,7 +28,7 @@ func (cmd *publicKeyCmd) Run(_ *kong.Context) error {
 	defer func() { _ = dst.Close() }()
 
 	// Derive the public key, encode it, and write it to the output.
-	_, err = io.WriteString(dst, sk.PublicKey(cmd.Path).String())
+	_, err = io.WriteString(dst, pk.Derive(cmd.Path).String())
 
 	return err
 }

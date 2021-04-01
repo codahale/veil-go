@@ -35,14 +35,9 @@ func (sk *SecretKey) String() string {
 
 // PublicKey returns a public key for the given derivation path.
 func (sk *SecretKey) PublicKey(path string) *PublicKey {
-	labels := splitPath(path)
-	key := sk.k.PublicKey(pathSeparator)
+	pk := PublicKey{k: sk.k.PublicKey(pathSeparator)}
 
-	for _, label := range labels {
-		key = key.Derive(label)
-	}
-
-	return &PublicKey{k: key}
+	return pk.Derive(path)
 }
 
 // privateKey returns a private key for the given derivation path.
@@ -107,6 +102,18 @@ func (pk *PublicKey) UnmarshalText(text []byte) error {
 	pk.k = k
 
 	return nil
+}
+
+// Derive returns a public key for the given derivation path.
+func (pk *PublicKey) Derive(path string) *PublicKey {
+	labels := splitPath(path)
+	key := pk.k
+
+	for _, label := range labels {
+		key = key.Derive(label)
+	}
+
+	return &PublicKey{k: key}
 }
 
 // String returns the public key as unpadded base32 text.

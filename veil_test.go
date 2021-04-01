@@ -139,6 +139,20 @@ func TestSecretKey_PublicKey(t *testing.T) {
 	assert.Equal(t, "derived key", abc.String(), abcP.String())
 }
 
+func TestPublicKey_Derive(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewSecretKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	abcd := s.PublicKey("/a/b/c/d").k
+	abcdP := s.PublicKey("/a/b").Derive("/c/d").k
+
+	assert.Equal(t, "derived key", abcd.String(), abcdP.String())
+}
+
 func TestPublicKey_UnmarshalText(t *testing.T) {
 	t.Parallel()
 
