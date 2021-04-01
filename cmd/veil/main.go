@@ -12,7 +12,7 @@ import (
 
 type cli struct {
 	SecretKey      secretKeyCmd      `cmd:"" help:"Generate a new secret key."`
-	PublicKey      publicKeyCmd      `cmd:"" help:"Generate a public key."`
+	PublicKey      publicKeyCmd      `cmd:"" help:"Derive a public key from a secret key."`
 	DeriveKey      deriveKeyCmd      `cmd:"" help:"Derive a public key from another public key."`
 	Encrypt        encryptCmd        `cmd:"" help:"Encrypt a message for a set of recipients."`
 	Decrypt        decryptCmd        `cmd:"" help:"Decrypt a message."`
