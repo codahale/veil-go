@@ -145,8 +145,8 @@ func (pk *PrivateKey) Derive(label string) *PrivateKey {
 // Sign returns a deterministic Schnorr signature of the given message using the given secret key.
 func (pk *PrivateKey) Sign(message []byte) []byte {
 	// Create a deterministic nonce unique to the combination of private key and message by
-	// calculating the HMAC-SHA512 of the message using the encoded private key as the key.
-	h := hmac.New(sha512.New, pk.d.Encode(nil))
+	// calculating the scoped HMAC-SHA512 of the message using the encoded private key as the key.
+	h := hmac.New(scopedhash.NewSignatureNonceHash, pk.d.Encode(nil))
 	_, _ = h.Write(message)
 
 	// Generate an ephemeral key pair (R, r) from the deterministic nonce.

@@ -34,6 +34,12 @@ func NewIdentityHash() hash.Hash {
 	return newHash("veil-identity")
 }
 
+// NewSignatureNonceHash returns a hash instance suitable for deriving signature nonces from private
+// keys and messages.
+func NewSignatureNonceHash() hash.Hash {
+	return newHash("veil-signature-nonce")
+}
+
 func newHash(scope string) hash.Hash {
 	return hmac.New(sha512.New, []byte(scope))
 }
