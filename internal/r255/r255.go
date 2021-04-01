@@ -83,6 +83,11 @@ func (sk *SecretKey) PublicKey(label string) *PublicKey {
 	return sk.PrivateKey(label).PublicKey()
 }
 
+// Encode returns the secret key as a series of bytes.
+func (sk *SecretKey) Encode(b []byte) []byte {
+	return append(b, sk.r...)
+}
+
 // String returns the first 8 bytes of the SHA-512 hash of the secret key as a hexadecimal string.
 // This uniquely identifies the secret key without revealing information about it.
 func (sk *SecretKey) String() string {
@@ -91,11 +96,6 @@ func (sk *SecretKey) String() string {
 	d := h.Sum(nil)
 
 	return hex.EncodeToString(d[:8])
-}
-
-// Encode returns the secret key as a series of bytes.
-func (sk *SecretKey) Encode(b []byte) []byte {
-	return append(b, sk.r...)
 }
 
 var _ fmt.Stringer = &SecretKey{}
@@ -186,11 +186,6 @@ type PublicKey struct {
 	q *ristretto255.Element
 }
 
-// String returns the receiver's ristretto255 point encoded with base64.
-func (pk *PublicKey) String() string {
-	return pk.q.String()
-}
-
 // DecodePublicKey returns a PublicKey for the given encoded public key or, if the data is
 // malformed, an error.
 func DecodePublicKey(b []byte) (*PublicKey, error) {
@@ -246,6 +241,11 @@ func (pk *PublicKey) Verify(message, sig []byte) bool {
 
 	// The signature is verified R and R' are equal.
 	return R.Equal(Rp) == 1
+}
+
+// String returns the receiver's ristretto255 point encoded with base64.
+func (pk *PublicKey) String() string {
+	return pk.q.String()
 }
 
 var _ fmt.Stringer = &PublicKey{}
