@@ -26,10 +26,10 @@ var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 // to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
 // output written to dst should be discarded, as it cannot be ascertained to be authentic.
 func (sk *SecretKey) Decrypt(
-	dst io.Writer, src io.Reader, senders []*PublicKey, label string,
+	dst io.Writer, src io.Reader, senders []*PublicKey, derivationPath string,
 ) (*PublicKey, int64, error) {
 	// Derive the recipient's private key.
-	privR := sk.k.PrivateKey(label)
+	privR := sk.privateKey(derivationPath)
 
 	// Find a decryptable header and recover the ephemeral private key.
 	headers, pkS, privEH, err := sk.findHeader(src, privR, senders)

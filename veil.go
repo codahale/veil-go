@@ -15,6 +15,7 @@ import (
 	"encoding"
 	"encoding/base32"
 	"fmt"
+	"strings"
 
 	"github.com/codahale/veil/internal/r255"
 )
@@ -32,9 +33,28 @@ func (sk *SecretKey) String() string {
 	return sk.k.String()
 }
 
-// PublicKey returns a public key for the given label.
-func (sk *SecretKey) PublicKey(label string) *PublicKey {
-	return &PublicKey{k: sk.k.PublicKey(label)}
+// PublicKey returns a public key for the given derivation path.
+func (sk *SecretKey) PublicKey(path string) *PublicKey {
+	labels := splitPath(path)
+	key := sk.k.PublicKey(pathSeparator)
+
+	for _, label := range labels {
+		key = key.Derive(label)
+	}
+
+	return &PublicKey{k: key}
+}
+
+// privateKey returns a private key for the given derivation path.
+func (sk *SecretKey) privateKey(path string) *r255.PrivateKey {
+	labels := splitPath(path)
+	key := sk.k.PrivateKey(pathSeparator)
+
+	for _, label := range labels {
+		key = key.Derive(label)
+	}
+
+	return key
 }
 
 // NewSecretKey creates a new secret key.
@@ -97,6 +117,12 @@ func (pk *PublicKey) String() string {
 	}
 
 	return string(text)
+}
+
+const pathSeparator = "/"
+
+func splitPath(path string) []string {
+	return strings.Split(strings.Trim(path, pathSeparator), pathSeparator)
 }
 
 var (

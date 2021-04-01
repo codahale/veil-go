@@ -31,6 +31,10 @@ an opaque label value and added to the secret scalar to form a private key. The 
 to derive a private key from another private key. To derive a public key from a public key, the
 delta scalar is first multiplied by the curve's base point, then added to the public key point.
 
+This is used iterative to provide hierarchical key derivation. Public keys are created using
+derivation paths like `/friends/alice`, in which the private key `/` is used to derive the private
+key `friends`, which is in turn used to derive the private key `alice`.
+
 ### Symmetric Key Ratcheting And Streaming AEADs
 
 In order to encrypt arbitrarily large messages, Veil uses a streaming AEAD construction based on a

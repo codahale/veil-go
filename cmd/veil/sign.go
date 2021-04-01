@@ -7,7 +7,7 @@ type signCmd struct {
 	Message       string `arg:"" type:"existingfile" help:"The path to the message."`
 	SignedMessage string `arg:"" type:"path" help:"The path to the signed message."`
 
-	Label string `help:"The derivation label of the public key shared with the recipients."`
+	Path string `help:"The derivation path of the public key shared with the recipients."`
 }
 
 func (cmd *signCmd) Run(_ *kong.Context) error {
@@ -34,7 +34,7 @@ func (cmd *signCmd) Run(_ *kong.Context) error {
 	defer func() { _ = dst.Close() }()
 
 	// Create the signed message.
-	_, err = sk.Sign(dst, src, cmd.Label)
+	_, err = sk.Sign(dst, src, cmd.Path)
 
 	return err
 }

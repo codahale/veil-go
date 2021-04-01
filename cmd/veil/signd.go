@@ -9,7 +9,7 @@ type signDetachedCmd struct {
 	Message   string `arg:"" type:"existingfile" help:"The path to the message."`
 	Signature string `arg:"" type:"path" help:"The path to the signature file."`
 
-	Label string `help:"The derivation label of the public key shared with the recipients."`
+	Path string `help:"The derivation path of the public key shared with the recipients."`
 }
 
 func (cmd *signDetachedCmd) Run(_ *kong.Context) error {
@@ -36,7 +36,7 @@ func (cmd *signDetachedCmd) Run(_ *kong.Context) error {
 	defer func() { _ = dst.Close() }()
 
 	// Sign the message.
-	sig, err := sk.SignDetached(src, cmd.Label)
+	sig, err := sk.SignDetached(src, cmd.Path)
 	if err != nil {
 		return err
 	}

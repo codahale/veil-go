@@ -59,10 +59,10 @@ var (
 // ErrInvalidSignature is returned when a signature, public key, and message do not match.
 var ErrInvalidSignature = errors.New("invalid signature")
 
-// SignDetached returns a detached signature of the contents of src using the given label. The
-// signature can be verified with the public key derived from the same secret key using the same
-// label.
-func (sk *SecretKey) SignDetached(src io.Reader, label string) (Signature, error) {
+// SignDetached returns a detached signature of the contents of src using the given derivation path.
+// The signature can be verified with the public key derived from the same secret key using the same
+// derivation path.
+func (sk *SecretKey) SignDetached(src io.Reader, derivationPath string) (Signature, error) {
 	// Hash the message.
 	h := scopedhash.NewMessageHash()
 	if _, err := io.Copy(h, src); err != nil {
@@ -70,13 +70,13 @@ func (sk *SecretKey) SignDetached(src io.Reader, label string) (Signature, error
 	}
 
 	// Create a signature of the hash.
-	return sk.k.PrivateKey(label).Sign(h.Sum(nil)), nil
+	return sk.privateKey(derivationPath).Sign(h.Sum(nil)), nil
 }
 
-// Sign copies src to dst, creates a signature of the contents of src using the given label, and
-// appends it to src. The signature can be verified with the public key derived from the same secret
-// key using the same label.
-func (sk *SecretKey) Sign(dst io.Writer, src io.Reader, label string) (int64, error) {
+// Sign copies src to dst, creates a signature of the contents of src using the given derivation
+// path, and appends it to src. The signature can be verified with the public key derived from the
+// same secret key using the same derivation path.
+func (sk *SecretKey) Sign(dst io.Writer, src io.Reader, derivationPath string) (int64, error) {
 	// Tee all reads from src into an SHA-512 hash.
 	h := scopedhash.NewMessageHash()
 	r := io.TeeReader(src, h)
@@ -88,7 +88,7 @@ func (sk *SecretKey) Sign(dst io.Writer, src io.Reader, label string) (int64, er
 	}
 
 	// Sign the SHA-512 hash of the message.
-	sig := sk.k.PrivateKey(label).Sign(h.Sum(nil))
+	sig := sk.privateKey(derivationPath).Sign(h.Sum(nil))
 
 	// Append the signature.
 	sn, err := dst.Write(sig)

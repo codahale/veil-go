@@ -20,10 +20,10 @@ import (
 // authenticate it and writes the results to dst. Returns the number of bytes written and the first
 // error reported while encrypting, if any.
 func (sk *SecretKey) Encrypt(
-	dst io.Writer, src io.Reader, recipients []*PublicKey, label string, padding int,
+	dst io.Writer, src io.Reader, recipients []*PublicKey, derivationPath string, padding int,
 ) (int64, error) {
-	// Derive the sender's private key using the given label.
-	privS := sk.k.PrivateKey(label)
+	// Derive the sender's private key using the given path.
+	privS := sk.privateKey(derivationPath)
 
 	// Generate an ephemeral header key pair.
 	privEH, pubEH, err := r255.NewEphemeralKeys()

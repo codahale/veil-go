@@ -18,8 +18,8 @@ func Example() {
 		panic(err)
 	}
 
-	// Alice derives a public key with the label "one" and shares it with Bob.
-	alicePub := alice.PublicKey("one")
+	// Alice derives a public key with the path "/friends/bob" and shares it with Bob.
+	alicePub := alice.PublicKey("/friends/bob")
 
 	// Bob generates a secret key.
 	bob, err := NewSecretKey()
@@ -27,8 +27,8 @@ func Example() {
 		panic(err)
 	}
 
-	// Bob derives a public key with the label "trumpet" and shares it with Alice.
-	bobPub := bob.PublicKey("trumpet")
+	// Bob derives a public key with the label "/friends/alice" and shares it with Alice.
+	bobPub := bob.PublicKey("/friends/alice")
 
 	// Alice writes a message.
 	message := bytes.NewReader([]byte("one two three four I declare a thumb war"))
@@ -42,9 +42,9 @@ func Example() {
 	}
 
 	// Alice encrypts the message for her, Bob, and the 98 fakes, adding random padding to disguise
-	// its true length. She uses the label "one" to create the message because it corresponds with
-	// the public key she sent Bob.
-	_, err = alice.Encrypt(encrypted, message, recipients, "one", 4829)
+	// its true length. She uses the path "/friends/bob" to create the message because it
+	// corresponds with the public key she sent Bob.
+	_, err = alice.Encrypt(encrypted, message, recipients, "/friends/bob", 4829)
 	if err != nil {
 		panic(err)
 	}
@@ -53,9 +53,9 @@ func Example() {
 	received := bytes.NewReader(encrypted.Bytes())
 	decrypted := bytes.NewBuffer(nil)
 
-	// Bob decrypts the message. He uses the label "trumpet" because it corresponds with the public
-	// key he sent Alice.
-	pk, _, err := bob.Decrypt(decrypted, received, []*PublicKey{bobPub, alicePub}, "trumpet")
+	// Bob decrypts the message. He uses the path "/friends/alice" because it corresponds with the
+	// public key he sent Alice.
+	pk, _, err := bob.Decrypt(decrypted, received, []*PublicKey{bobPub, alicePub}, "/friends/alice")
 	if err != nil {
 		panic(err)
 	}
@@ -123,6 +123,20 @@ func TestFuzz(t *testing.T) {
 	if err == nil {
 		t.Fatal("shouldn't have decrypted")
 	}
+}
+
+func TestSecretKey_PublicKey(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewSecretKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	abc := s.k.PublicKey("/").Derive("a").Derive("b").Derive("c")
+	abcP := s.PublicKey("/a/b/c").k
+
+	assert.Equal(t, "derived key", abc.String(), abcP.String())
 }
 
 func TestPublicKey_UnmarshalText(t *testing.T) {

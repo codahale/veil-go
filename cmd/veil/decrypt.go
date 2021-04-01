@@ -13,7 +13,7 @@ type decryptCmd struct {
 	Plaintext  string   `arg:"" type:"path" help:"The path to the plaintext file."`
 	Senders    []string `arg:"" repeated:"" help:"The public keys of the possible senders."`
 
-	Label string `help:"The derivation label of the public key with which the message was encrypted."`
+	Path string `help:"The derivation path of the public key with which the message was encrypted."`
 }
 
 func (cmd *decryptCmd) Run(_ *kong.Context) error {
@@ -46,7 +46,7 @@ func (cmd *decryptCmd) Run(_ *kong.Context) error {
 	defer func() { _ = dst.Close() }()
 
 	// Decrypt the ciphertext.
-	sender, _, err := sk.Decrypt(dst, src, senders, cmd.Label)
+	sender, _, err := sk.Decrypt(dst, src, senders, cmd.Path)
 	if err != nil {
 		return err
 	}
