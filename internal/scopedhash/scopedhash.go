@@ -26,7 +26,7 @@ func NewMessageHash() hash.Hash {
 // NewDerivedKeyHash returns a hash instance suitable for deriving ristretto255 scalars and points
 // from parent scalars and points in parallel.
 func NewDerivedKeyHash() hash.Hash {
-	return newHash("veilmessage")
+	return newHash("veilderivedkey")
 }
 
 // NewIdentityHash returns a hash instance suitable for creating unique identifiers for secret keys.
