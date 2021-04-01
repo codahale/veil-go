@@ -9,29 +9,29 @@ import (
 // NewSecretKeyHash returns a hash instance suitable for deriving ristretto255 secret key scalars
 // from arbitrary strings.
 func NewSecretKeyHash() hash.Hash {
-	return newHash("veilsecretkey")
+	return newHash("veil-secret-key")
 }
 
 // NewSignatureHash returns a hash instance suitable for deriving ristretto255 signature scalars
 // from arbitrary strings.
 func NewSignatureHash() hash.Hash {
-	return newHash("veilsignature")
+	return newHash("veil-signature")
 }
 
 // NewMessageHash returns a hash instance suitable for hashing messages.
 func NewMessageHash() hash.Hash {
-	return newHash("veilmessage")
+	return newHash("veil-message")
 }
 
 // NewDerivedKeyHash returns a hash instance suitable for deriving ristretto255 scalars and points
 // from parent scalars and points in parallel.
 func NewDerivedKeyHash() hash.Hash {
-	return newHash("veilderivedkey")
+	return newHash("veil-derived-key")
 }
 
 // NewIdentityHash returns a hash instance suitable for creating unique identifiers for secret keys.
 func NewIdentityHash() hash.Hash {
-	return newHash("veilidentity")
+	return newHash("veil-identity")
 }
 
 func newHash(scope string) hash.Hash {

@@ -48,7 +48,7 @@ func (sk *SecretKey) Encrypt(
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pubEM, key, err := kem.Send(privS, privS.PublicKey(), pubEH, []byte("message"), ratchet.KeySize)
+	pubEM, key, err := kem.Send(privS, privS.PublicKey(), pubEH, []byte("veil-message"), ratchet.KeySize)
 	if err != nil {
 		return int64(n), err
 	}
@@ -113,7 +113,7 @@ func (sk *SecretKey) encryptHeaders(
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate a header key pair shared secret for the recipient.
-		pubEH, secret, err := kem.Send(privS, pubS, pkR.k, []byte("header"),
+		pubEH, secret, err := kem.Send(privS, pubS, pkR.k, []byte("veil-header"),
 			chacha20.KeySize+chacha20.NonceSize)
 		if err != nil {
 			return nil, err
