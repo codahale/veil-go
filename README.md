@@ -12,8 +12,24 @@ Unlike e.g. GPG messages, Veil messages contain no metadata or format details wh
 encrypted. As a result, a global passive adversary would be unable to gain any information from a
 Veil message beyond traffic analysis. Messages can be padded with random bytes to disguise their
 true length, and fake recipients can be added to disguise their true number from other recipients.
+Further, Veil supports hierarchical key derivation, allowing for domain-specific and disposable
+keys.
 
 ## Algorithms & Constructions
+
+### Scoped Hashing
+
+Veil uses scoped hashing for domain-specific derivation. For example, to derive a secret
+ristretto255 scalar from a secret key, HMAC-SHA-512 is used with a static key of `veilsecretkey`.
+Using purpose-specific hashing separates concerns and hardens the design against misuse.
+
+### Child Key Derivation
+
+Each participant in Veil has a secret key, which is a 64-byte random string. To derive a private key
+from a secret key, the secret key is mapped to a ristretto255 scalar. A delta scalar is derived from
+an opaque label value and added to the secret scalar to form a private key. The process is repeated
+to derive a private key from another private key. To derive a public key from a public key, the
+delta scalar is first multiplied by the curve's base point, then added to the public key point.
 
 ### Symmetric Key Ratcheting And Streaming AEADs
 
@@ -26,25 +42,21 @@ a different salt, thus permanently forking the chain.
 
 ### Key Agreement And Encapsulation
 
-Veil uses ristretto255 for asymmetric cryptography. Secret keys are 64-byte random bytestrings which
-are mapped to ristretto255 scalars via SHA-512. Each person has a key pair and shares their public
-key with each other.
-
 When sending a message, the sender generates an ephemeral key pair and calculates the ephemeral
-shared secret between the recipient's public key and the ephemeral secret key. They then calculate
-the static shared secret between the recipient's public key and their own secret key. The two shared
-secret points are used as HKDF-SHA-512 initial keying material, with the ephemeral, sender's, and
-recipient's public keys included as a salt. The sender creates a symmetric key and nonce from the
-KDF output and encrypts the message with an AEAD. The sender transmits the ephemeral public key and
-the ciphertext.
+shared secret between the recipient's public key and the ephemeral private key. They then calculate
+the static shared secret between the recipient's public key and their own private key. The two
+shared secret points are used as HKDF-SHA-512 initial keying material, with the ephemeral, sender's,
+and recipient's public keys included as a salt. The sender creates a symmetric key and nonce from
+the KDF output and encrypts the message with an AEAD. The sender transmits the ephemeral public key
+and the ciphertext.
 
 To receive a message, the receiver calculates the ephemeral shared secret between the ephemeral
-public key and their own secret key and the static shared secret between the recipient's public key
-and their own secret key. The HKDF-SHA-512 output is re-created, and the message is authenticated
+public key and their own private key and the static shared secret between the recipient's public key
+and their own private key. The HKDF-SHA-512 output is re-created, and the message is authenticated
 and decrypted.
 
 As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
-KEM provides assurance that the message was encrypted by the holder of the sender's secret key. XDH
+KEM provides assurance that the message was encrypted by the holder of the sender's private key. XDH
 mutability issues are mitigated by the inclusion of the ephemeral public key and the recipient's
 public key in the HKDF inputs. Deriving the key and nonce from the ephemeral shared secret
 eliminates the possibility of nonce misuse, results in a shorter ciphertext by eliding the nonce,
@@ -52,16 +64,17 @@ and adds key-commitment with all public keys as openers.
 
 ### Digital Signatures
 
-To make authenticated messages, Veil creates Schnorr signatures using the signer's secret key. The
+To make authenticated messages, Veil creates Schnorr signatures using the signer's private key. The
 actual "message" signed is a SHA-512 hash of the message, and SHA-512 is used to derive ristretto255
-scalars from the message and ephemeral public key.
+scalars from the message and ephemeral public key. In place of a randomly generated ephemeral key
+pair, Veil uses a key pair derived from the private key and the message value.
 
 ### Multi-Recipient Messages
 
 A Veil message combines all of these primitives to provide multi-recipient messages.
 
 First, the sender creates an ephemeral header key pair and creates a header block consisting of the
-ephemeral header secret key and the total length of all encrypted headers plus padding. For each
+ephemeral header private key and the total length of all encrypted headers plus padding. For each
 recipient, the sender encrypts a copy of the header using the described KEM and AEAD. Finally, the
 sender adds optional random padding to the end of the encrypted headers.
 
@@ -73,8 +86,8 @@ Finally, a signature is created of the SHA-512 hash of the plaintext and appende
 inside the AEAD stream.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable header
-using the shared secret between the ephemeral header public key and recipient's secret key. When a
-header is successfully decrypted, the ephemeral header secret key and the sender's public key is
+using the shared secret between the ephemeral header public key and recipient's private key. When a
+header is successfully decrypted, the ephemeral header private key and the sender's public key is
 used to re-derive the shared secret, and the message is decrypted. The signature is verified against
 an SHA-512 hash of the message, assuring authenticity.
 
@@ -98,6 +111,7 @@ ChaCha20Poly1305 key and nonce. The secret key is encrypted with ChaCha20Poly130
 7. The number of recipients in a Veil message can be obscured from recipients by adding fake keys
    to the recipients list.
 8. Veil messages can be arbitrarily big and both encrypted and decrypted in a single pass.
+9. Veil keys can be derived arbitrarily for domain-specific or disposable use.
 
 ## License
 

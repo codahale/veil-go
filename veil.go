@@ -19,15 +19,50 @@ import (
 	"github.com/codahale/veil/internal/r255"
 )
 
-// PublicKey is a ristretto255/XDH public key. It can be marshalled and unmarshalled as a base32
-// string for human consumption.
-type PublicKey []byte
+// SecretKey is a key that's used to sign and decrypt messages.
+//
+// It should never be serialized in plaintext. Use EncryptSecretKey to encrypt it using a
+// passphrase.
+type SecretKey struct {
+	k *r255.SecretKey
+}
+
+// String returns a safe identifier for the key.
+func (sk *SecretKey) String() string {
+	return sk.k.String()
+}
+
+// PublicKey returns a public key for the given label.
+func (sk *SecretKey) PublicKey(label string) *PublicKey {
+	return &PublicKey{k: sk.k.PublicKey(label)}
+}
+
+// NewSecretKey creates a new secret key.
+func NewSecretKey() (*SecretKey, error) {
+	sk, err := r255.NewSecretKey()
+	if err != nil {
+		return nil, err
+	}
+
+	return &SecretKey{k: sk}, nil
+}
+
+var _ fmt.Stringer = &SecretKey{}
+
+// PublicKey is a key that's used to verify and encrypt messages.
+//
+// It can be marshalled and unmarshalled as a base32 string for human consumption.
+type PublicKey struct {
+	k *r255.PublicKey
+}
 
 // MarshalText encodes the public key into unpadded base32 text and returns the result.
-func (pk PublicKey) MarshalText() (text []byte, err error) {
-	text = make([]byte, asciiEncoding.EncodedLen(len(pk)))
+func (pk *PublicKey) MarshalText() (text []byte, err error) {
+	b := pk.k.Encode(nil)
 
-	asciiEncoding.Encode(text, pk)
+	text = make([]byte, asciiEncoding.EncodedLen(len(b)))
+
+	asciiEncoding.Encode(text, b)
 
 	return
 }
@@ -37,18 +72,25 @@ func (pk PublicKey) MarshalText() (text []byte, err error) {
 func (pk *PublicKey) UnmarshalText(text []byte) error {
 	data := make([]byte, r255.PublicKeySize)
 
+	// Decode from base32.
 	_, err := asciiEncoding.Decode(data, text)
 	if err != nil {
 		return fmt.Errorf("invalid public key: %w", err)
 	}
 
-	*pk = data
+	// Decode as a ristretto255 point.
+	k, err := r255.DecodePublicKey(data)
+	if err != nil {
+		return fmt.Errorf("invalid public key: %w", err)
+	}
+
+	pk.k = k
 
 	return nil
 }
 
 // String returns the public key as unpadded base32 text.
-func (pk PublicKey) String() string {
+func (pk *PublicKey) String() string {
 	text, err := pk.MarshalText()
 	if err != nil {
 		panic(err)
@@ -57,34 +99,10 @@ func (pk PublicKey) String() string {
 	return string(text)
 }
 
-// SecretKey is a ristretto255/XDH secret key.
-//
-// Technically, it's 64 bytes of random data from which a ristretto255 scalar is derived using
-// SHA-512. It should never be serialized in plaintext. Use EncryptSecretKey to encrypt it using a
-// passphrase.
-type SecretKey []byte
-
-// String returns the secret key's corresponding public key as unpadded base32 text.
-func (sk SecretKey) String() string {
-	return sk.PublicKey().String()
-}
-
-// PublicKey returns the public key for the given secret key.
-func (sk SecretKey) PublicKey() PublicKey {
-	return r255.PublicKey(sk)
-}
-
-// NewSecretKey creates a new secret key.
-func NewSecretKey() (SecretKey, error) {
-	sk, err := r255.NewSecretKey()
-	return sk, err
-}
-
 var (
-	_ encoding.TextMarshaler   = PublicKey{}
+	_ encoding.TextMarshaler   = &PublicKey{}
 	_ encoding.TextUnmarshaler = &PublicKey{}
-	_ fmt.Stringer             = PublicKey{}
-	_ fmt.Stringer             = SecretKey{}
+	_ fmt.Stringer             = &PublicKey{}
 
 	//nolint:gochecknoglobals // reusable constant
 	asciiEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)

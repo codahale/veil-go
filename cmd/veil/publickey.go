@@ -9,6 +9,8 @@ import (
 type publicKeyCmd struct {
 	SecretKey string `arg:"" type:"existingfile" help:"The path to the secret key."`
 	Output    string `arg:"" type:"path" default:"-" help:"The output path for the encrypted secret key."`
+
+	Label string `help:"The derivation label."`
 }
 
 func (cmd *publicKeyCmd) Run(_ *kong.Context) error {
@@ -27,7 +29,7 @@ func (cmd *publicKeyCmd) Run(_ *kong.Context) error {
 	defer func() { _ = dst.Close() }()
 
 	// Derive the public key, encode it, and write it to the output.
-	_, err = io.WriteString(dst, sk.PublicKey().String())
+	_, err = io.WriteString(dst, sk.PublicKey(cmd.Label).String())
 
 	return err
 }

@@ -19,20 +19,23 @@ import (
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
 // authenticate it and writes the results to dst. Returns the number of bytes written and the first
 // error reported while encrypting, if any.
-func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey, padding int) (int64, error) {
+func (sk *SecretKey) Encrypt(
+	dst io.Writer, src io.Reader, recipients []*PublicKey, label string, padding int,
+) (int64, error) {
+	// Derive the sender's private key using the given label.
+	privS := sk.k.PrivateKey(label)
+
 	// Generate an ephemeral header key pair.
-	skEH, err := r255.NewSecretKey()
+	privEH, pubEH, err := r255.NewEphemeralKeys()
 	if err != nil {
 		return 0, err
 	}
 
-	pkEH := r255.PublicKey(skEH)
-
-	// Encode the ephemeral header secret key and offset into a header.
-	header := sk.encodeHeader(skEH, len(recipients), padding)
+	// Encode the ephemeral header private key and offset into a header.
+	header := sk.encodeHeader(privEH, len(recipients), padding)
 
 	// Encrypt copies of the header for each recipient.
-	headers, err := sk.encryptHeaders(header, recipients, padding)
+	headers, err := sk.encryptHeaders(privS, header, recipients, padding)
 	if err != nil {
 		return 0, err
 	}
@@ -45,13 +48,13 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pkEM, key, err := kem.Send(sk, sk.PublicKey(), pkEH, []byte("message"), ratchet.KeySize)
+	pubEM, key, err := kem.Send(privS, privS.PublicKey(), pubEH, []byte("message"), ratchet.KeySize)
 	if err != nil {
 		return int64(n), err
 	}
 
 	// Write the ephemeral message public key.
-	an, err := dst.Write(pkEM)
+	an, err := dst.Write(pubEM.Encode(nil))
 	if err != nil {
 		return int64(n + an), err
 	}
@@ -71,10 +74,7 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 	}
 
 	// Create a signature of the SHA-512 hash of the plaintext.
-	sig, err := r255.Sign(sk, h.Sum(nil))
-	if err != nil {
-		return bn + int64(n+an), err
-	}
+	sig := privS.Sign(h.Sum(nil))
 
 	// Append the signature to the plaintext.
 	cn, err := w.Write(sig)
@@ -86,32 +86,35 @@ func (sk SecretKey) Encrypt(dst io.Writer, src io.Reader, recipients []PublicKey
 	return bn + int64(n+an+cn), w.Close()
 }
 
-// encodeHeader encodes the ephemeral header secret key and the message offset.
-func (sk SecretKey) encodeHeader(skEH []byte, recipients, padding int) []byte {
-	// Copy the secret key.
+// encodeHeader encodes the ephemeral header private key and the message offset.
+func (sk *SecretKey) encodeHeader(privEH *r255.PrivateKey, recipients, padding int) []byte {
+	// Copy the private key.
 	header := make([]byte, headerSize)
-	copy(header, skEH)
+	copy(header, privEH.Encode(nil))
 
 	// Calculate the message offset and encode it.
 	offset := encryptedHeaderSize*recipients + padding
-	binary.BigEndian.PutUint32(header[r255.SecretKeySize:], uint32(offset))
+	binary.BigEndian.PutUint32(header[r255.PrivateKeySize:], uint32(offset))
 
 	return header
 }
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
 // fake recipients.
-func (sk SecretKey) encryptHeaders(header []byte, publicKeys []PublicKey, padding int) ([]byte, error) {
+func (sk *SecretKey) encryptHeaders(
+	privS *r255.PrivateKey, header []byte, publicKeys []*PublicKey, padding int,
+) ([]byte, error) {
 	// Allocate a buffer for the entire header.
 	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
 
-	// Re-derive the sender's public key.
-	pk := sk.PublicKey()
+	// Derive the sender's public key.
+	pubS := privS.PublicKey()
 
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate a header key pair shared secret for the recipient.
-		pkEH, secret, err := kem.Send(sk, pk, pkR, []byte("header"), chacha20.KeySize+chacha20.NonceSize)
+		pubEH, secret, err := kem.Send(privS, pubS, pkR.k, []byte("header"),
+			chacha20.KeySize+chacha20.NonceSize)
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +129,7 @@ func (sk SecretKey) encryptHeaders(header []byte, publicKeys []PublicKey, paddin
 		b := aead.Seal(nil, secret[chacha20.KeySize:], header, nil)
 
 		// Write the ephemeral header public key and the ciphertext.
-		_, _ = buf.Write(pkEH)
+		_, _ = buf.Write(pubEH.Encode(nil))
 		_, _ = buf.Write(b)
 	}
 
@@ -141,7 +144,7 @@ func (sk SecretKey) encryptHeaders(header []byte, publicKeys []PublicKey, paddin
 }
 
 const (
-	blockSize           = 64 * 1024              // 64KiB
-	headerSize          = r255.SecretKeySize + 4 // 4 bytes for message offset
+	blockSize           = 64 * 1024               // 64KiB
+	headerSize          = r255.PrivateKeySize + 4 // 4 bytes for message offset
 	encryptedHeaderSize = r255.PublicKeySize + headerSize + poly1305.TagSize
 )

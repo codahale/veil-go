@@ -20,7 +20,7 @@ type Argon2idParams struct {
 
 // EncryptSecretKey encrypts the given secret key with the given passphrase and optional Argon2id
 // parameters. Returns the encrypted key.
-func EncryptSecretKey(sk SecretKey, passphrase []byte, params *Argon2idParams) ([]byte, error) {
+func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *Argon2idParams) ([]byte, error) {
 	var esk encryptedSecretKey
 
 	// Use default parameters if none are provided.
@@ -50,7 +50,7 @@ func EncryptSecretKey(sk SecretKey, passphrase []byte, params *Argon2idParams) (
 	}
 
 	// Encrypt the secret key.
-	copy(esk.Ciphertext[:], aead.Seal(esk.Ciphertext[:0], nonce, sk, nil))
+	copy(esk.Ciphertext[:], aead.Seal(esk.Ciphertext[:0], nonce, sk.k.Encode(nil), nil))
 
 	// Encode the Argon2id params, the salt, and the ciphertext.
 	buf := bytes.NewBuffer(nil)
@@ -63,7 +63,7 @@ func EncryptSecretKey(sk SecretKey, passphrase []byte, params *Argon2idParams) (
 
 // DecryptSecretKey decrypts the given secret key with the given passphrase. Returns the decrypted
 // secret key.
-func DecryptSecretKey(sk, passphrase []byte) (SecretKey, error) {
+func DecryptSecretKey(sk, passphrase []byte) (*SecretKey, error) {
 	// Decode the encrypted secret key.
 	var esk encryptedSecretKey
 	if err := binary.Read(bytes.NewReader(sk), binary.BigEndian, &esk); err != nil {
@@ -81,9 +81,18 @@ func DecryptSecretKey(sk, passphrase []byte) (SecretKey, error) {
 
 	// Decrypt the secret key.
 	plaintext, err := aead.Open(nil, nonce, esk.Ciphertext[:], nil)
+	if err != nil {
+		return nil, err
+	}
 
-	// Return it or any error in decryption.
-	return plaintext, err
+	// Decode the secret key.
+	dsk, err := r255.DecodeSecretKey(plaintext)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return it.
+	return &SecretKey{k: dsk}, nil
 }
 
 // encryptedSecretKey is a fixed-size struct of the encoded values for an encrypted secret key.

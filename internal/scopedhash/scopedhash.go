@@ -29,6 +29,11 @@ func NewDerivedKeyHash() hash.Hash {
 	return newHash("veilmessage")
 }
 
+// NewIdentityHash returns a hash instance suitable for creating unique identifiers for secret keys.
+func NewIdentityHash() hash.Hash {
+	return newHash("veilidentity")
+}
+
 func newHash(scope string) hash.Hash {
 	return hmac.New(sha512.New, []byte(scope))
 }

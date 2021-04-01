@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"github.com/codahale/veil/internal/scopedhash"
-	"github.com/gtank/ristretto255"
 )
 
 func TestDiffieHellman(t *testing.T) {
@@ -21,17 +19,31 @@ func TestDiffieHellman(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	xA, err := DiffieHellman(skA, PublicKey(skB))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	xB, err := DiffieHellman(skB, PublicKey(skA))
-	if err != nil {
-		t.Fatal(err)
-	}
+	xA := skA.PrivateKey("dh").DiffieHellman(skB.PublicKey("misc"))
+	xB := skB.PrivateKey("misc").DiffieHellman(skA.PublicKey("dh"))
 
 	assert.Equal(t, "shared secret", xA, xB)
+}
+
+func TestDerivedKeys(t *testing.T) {
+	t.Parallel()
+
+	// Create a new secret key.
+	sk, err := NewSecretKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Derive a key pair from the secret key.
+	privA, pubA := sk.PrivateKey("one"), sk.PublicKey("one")
+
+	// Derive another key pair in parallel.
+	privB, pubB := privA.Derive("two"), pubA.Derive("two")
+
+	// Calculate the public key for the final private key.
+	pubBp := privB.PublicKey()
+
+	assert.Equal(t, "derived keys", pubB.String(), pubBp.String())
 }
 
 func TestSignAndVerify(t *testing.T) {
@@ -39,97 +51,118 @@ func TestSignAndVerify(t *testing.T) {
 
 	message := []byte("ok bud")
 
+	// Create a new secret key.
 	sk, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sig, err := Sign(sk, message)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Sign it with a private key derived from the secret key.
+	sig := sk.PrivateKey("signing").Sign(message)
 
-	if Verify(PublicKey(sk), []byte("other message"), sig) {
+	// Verify it with a public key derived from the secret key.
+	if sk.PublicKey("signing").Verify([]byte("other message"), sig) {
 		t.Error("did verify")
 	}
 
+	// Test that the signature doesn't verify another message.
+	if sk.PublicKey("signing").Verify([]byte("other message"), sig) {
+		t.Error("did verify")
+	}
+
+	// Test that another public key doesn't verify the message.
+	if sk.PublicKey("drawing").Verify([]byte("other message"), sig) {
+		t.Error("did verify")
+	}
+
+	// Create a new secret key and test that the signature cannot be verified with its private key.
 	sk2, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if Verify(PublicKey(sk2), message, sig) {
+	if sk2.PublicKey("signing").Verify(message, sig) {
 		t.Error("didn't verify")
 	}
-
-	if Verify(PublicKey(sk), []byte("other message"), sig) {
-		t.Error("did verify")
-	}
 }
 
-func TestDerivedKeys(t *testing.T) {
+func TestPublicKey_Encode(t *testing.T) {
 	t.Parallel()
 
-	// Create a secret key.
+	// Create a new secret key.
 	sk, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Derive the secret scalar.
-	s := deriveScalar(scopedhash.NewSecretKeyHash(), sk)
+	// Derive a public key.
+	pk := sk.PublicKey("example")
 
-	// Calculate the public key.
-	q := ristretto255.NewElement().ScalarBaseMult(s)
+	// Encode the public key.
+	buf := pk.Encode(nil)
 
-	// Derive a secret key.
-	sP := deriveSecretKey(sk, "example1")
-
-	// Separately, derive a public key using the same label.
-	qP, err := derivePublicKey(q.Encode(nil), "example1")
+	// Decode it again.
+	pk2, err := DecodePublicKey(buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Re-calculate the derived public key from the derived secret key.
-	qPP := ristretto255.NewElement().ScalarBaseMult(sP)
-
-	// Ensure the directly derived public key matches the public key calculated from the derived
-	// secret key.
-	assert.Equal(t, "derived public keys", qPP.String(), qP.String())
+	assert.Equal(t, "public key", pk.String(), pk2.String())
 }
 
-func BenchmarkNewSecretKey(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_, _ = NewSecretKey()
-	}
-}
-
-func BenchmarkPublicKey(b *testing.B) {
-	sk, err := NewSecretKey()
+func BenchmarkPrivateKey_DiffieHellman(b *testing.B) {
+	priv, pub, err := NewEphemeralKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
 
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
-		PublicKey(sk)
+		_ = priv.DiffieHellman(pub)
 	}
 }
 
-func BenchmarkSharedSecret(b *testing.B) {
-	skA, err := NewSecretKey()
+func BenchmarkPrivateKey_Derive(b *testing.B) {
+	priv, _, err := NewEphemeralKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	skB, err := NewSecretKey()
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	pkB := PublicKey(skB)
+	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, _ = DiffieHellman(skA, pkB)
+		_ = priv.Derive("label-example-text")
+	}
+}
+
+func BenchmarkPrivateKey_Sign(b *testing.B) {
+	priv, _, err := NewEphemeralKeys()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	message := []byte("an example message containing text")
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = priv.Sign(message)
+	}
+}
+
+func BenchmarkPublicKey_Verify(b *testing.B) {
+	priv, pub, err := NewEphemeralKeys()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	message := []byte("an example message containing text")
+	sig := priv.Sign(message)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = pub.Verify(message, sig)
 	}
 }

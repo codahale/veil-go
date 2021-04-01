@@ -17,12 +17,12 @@ func TestSignAndVerifyDetached(t *testing.T) {
 
 	message := []byte("ok there bud")
 
-	sig, err := sk.SignDetached(bytes.NewReader(message))
+	sig, err := sk.SignDetached(bytes.NewReader(message), "example")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := sk.PublicKey().VerifyDetached(bytes.NewReader(message), sig); err != nil {
+	if err := sk.PublicKey("example").VerifyDetached(bytes.NewReader(message), sig); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -39,14 +39,14 @@ func TestSignAndVerify(t *testing.T) {
 	signed := bytes.NewBuffer(nil)
 	verified := bytes.NewBuffer(nil)
 
-	sn, err := sk.Sign(signed, bytes.NewReader(message))
+	sn, err := sk.Sign(signed, bytes.NewReader(message), "example")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assert.Equal(t, "bytes written", int64(76), sn)
 
-	vn, err := sk.PublicKey().Verify(verified, signed)
+	vn, err := sk.PublicKey("example").Verify(verified, signed)
 	if err != nil {
 		t.Fatal(err)
 	}

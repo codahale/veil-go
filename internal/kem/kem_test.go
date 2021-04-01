@@ -15,20 +15,21 @@ func TestExchange(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	privA, pubA := skA.PrivateKey("kem"), skA.PublicKey("kem")
+
 	skB, err := r255.NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pkW, secretA, err := Send(skA, r255.PublicKey(skA), r255.PublicKey(skB), []byte("boop"), 20)
+	privB, pubB := skB.PrivateKey("kem"), skB.PublicKey("kem")
+
+	pkW, secretA, err := Send(privA, pubA, pubB, []byte("boop"), 20)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	secretB, err := Receive(skB, r255.PublicKey(skB), r255.PublicKey(skA), pkW, []byte("boop"), 20)
-	if err != nil {
-		t.Fatal(err)
-	}
+	secretB := Receive(privB, pubB, pubA, pkW, []byte("boop"), 20)
 
 	assert.Equal(t, "derived secrets", secretA, secretB)
 }
@@ -39,19 +40,20 @@ func BenchmarkSend(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	pkA := r255.PublicKey(skA)
+	privA, pubA := skA.PrivateKey("kem"), skA.PublicKey("kem")
 
 	skB, err := r255.NewSecretKey()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	pkB := r255.PublicKey(skB)
+	pubB := skB.PublicKey("kem")
+	info := []byte("boop")
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, _, _ = Send(skA, pkA, pkB, []byte("boop"), 20)
+		_, _, _ = Send(privA, pubA, pubB, info, 20)
 	}
 }
 
@@ -61,16 +63,18 @@ func BenchmarkReceive(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	pkA := r255.PublicKey(skA)
+	privA, pubA := skA.PrivateKey("kem"), skA.PublicKey("kem")
 
 	skB, err := r255.NewSecretKey()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	pkB := r255.PublicKey(skB)
+	privB, pubB := skB.PrivateKey("kem"), skB.PublicKey("kem")
 
-	pkW, _, err := Send(skA, pkA, pkB, []byte("boop"), 20)
+	info := []byte("boop")
+
+	pkW, _, err := Send(privA, pubA, pubB, info, 20)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -78,14 +82,27 @@ func BenchmarkReceive(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, _ = Receive(skB, pkB, pkA, pkW, []byte("boop"), 20)
+		_ = Receive(privB, pubB, pubA, pkW, info, 20)
 	}
 }
 
 func BenchmarkKDF(b *testing.B) {
-	buf := make([]byte, 32)
+	zzE := make([]byte, r255.PublicKeySize)
+	zzS := make([]byte, r255.PublicKeySize)
+
+	_, pubE, err := r255.NewEphemeralKeys()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	pubR := pubE.Derive("one")
+	pubS := pubE.Derive("two")
+
+	info := []byte("boop")
+
+	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		kdf(buf, buf, buf, buf, buf, buf, 64)
+		_ = kdf(zzE, zzS, pubE, pubR, pubS, info, 20)
 	}
 }

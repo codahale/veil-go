@@ -59,8 +59,10 @@ var (
 // ErrInvalidSignature is returned when a signature, public key, and message do not match.
 var ErrInvalidSignature = errors.New("invalid signature")
 
-// SignDetached returns a detached signature of the contents of src.
-func (sk SecretKey) SignDetached(src io.Reader) (Signature, error) {
+// SignDetached returns a detached signature of the contents of src using the given label. The
+// signature can be verified with the public key derived from the same secret key using the same
+// label.
+func (sk *SecretKey) SignDetached(src io.Reader, label string) (Signature, error) {
 	// Hash the message.
 	h := scopedhash.NewMessageHash()
 	if _, err := io.Copy(h, src); err != nil {
@@ -68,11 +70,13 @@ func (sk SecretKey) SignDetached(src io.Reader) (Signature, error) {
 	}
 
 	// Create a signature of the hash.
-	return r255.Sign(sk, h.Sum(nil))
+	return sk.k.PrivateKey(label).Sign(h.Sum(nil)), nil
 }
 
-// Sign copies src to dst, creates a signature of the contents of src, and appends it to src.
-func (sk SecretKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
+// Sign copies src to dst, creates a signature of the contents of src using the given label, and
+// appends it to src. The signature can be verified with the public key derived from the same secret
+// key using the same label.
+func (sk *SecretKey) Sign(dst io.Writer, src io.Reader, label string) (int64, error) {
 	// Tee all reads from src into an SHA-512 hash.
 	h := scopedhash.NewMessageHash()
 	r := io.TeeReader(src, h)
@@ -84,10 +88,7 @@ func (sk SecretKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	}
 
 	// Sign the SHA-512 hash of the message.
-	sig, err := r255.Sign(sk, h.Sum(nil))
-	if err != nil {
-		return n, err
-	}
+	sig := sk.k.PrivateKey(label).Sign(h.Sum(nil))
 
 	// Append the signature.
 	sn, err := dst.Write(sig)
@@ -98,7 +99,7 @@ func (sk SecretKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 
 // VerifyDetached returns nil if the given signature was created by the owner of the given public
 // key for the contents of src, otherwise ErrInvalidSignature.
-func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
+func (pk *PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 	// Hash the message.
 	h := scopedhash.NewMessageHash()
 	if _, err := io.Copy(h, src); err != nil {
@@ -106,7 +107,7 @@ func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 	}
 
 	// Verify the signature against the hash of the message.
-	if !r255.Verify(pk, h.Sum(nil), sig) {
+	if !pk.k.Verify(h.Sum(nil), sig) {
 		return ErrInvalidSignature
 	}
 
@@ -114,7 +115,7 @@ func (pk PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 }
 
 // Verify copies src to dst, removing the appended signature and verifying it.
-func (pk PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
+func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	// Hash the message and detach the signature.
 	h := scopedhash.NewMessageHash()
 	sr := stream.NewSignatureReader(src, h, r255.SignatureSize)
@@ -126,7 +127,7 @@ func (pk PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	}
 
 	// Verify the signature.
-	if !r255.Verify(pk, h.Sum(nil), sr.Signature) {
+	if !pk.k.Verify(h.Sum(nil), sr.Signature) {
 		return n, ErrInvalidSignature
 	}
 
