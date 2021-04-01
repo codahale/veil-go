@@ -20,8 +20,13 @@ keys.
 ### Scoped Hashing
 
 Veil uses scoped hashing for domain-specific derivation. For example, to derive a secret
-ristretto255 scalar from a secret key, HMAC-SHA-512 is used with a static key of `veilsecretkey`.
+ristretto255 scalar from a secret key, HMAC-SHA-512 is used with a static key of `veil-secret-key`.
 Using purpose-specific hashing separates concerns and hardens the design against misuse.
+
+```
+s = scalarFromBytes(hmacSHA512('veil-secret-key', sk))
+Q = sG
+```
 
 ### Child Key Derivation
 
@@ -31,6 +36,12 @@ an opaque label value and added to the secret scalar to form a private key. The 
 to derive a private key from another private key. To derive a public key from a public key, the
 delta scalar is first multiplied by the curve's base point, then added to the public key point.
 
+```
+r = scalarFromBytes(hmacSHA512('veil-derived-key', label))
+s' = s + r
+Q' = Q + rG
+```
+
 This is used iterative to provide hierarchical key derivation. Public keys are created using
 derivation paths like `/friends/alice`, in which the private key `/` is used to derive the private
 key `friends`, which is in turn used to derive the private key `alice`.
@@ -38,11 +49,18 @@ key `friends`, which is in turn used to derive the private key `alice`.
 ### Symmetric Key Ratcheting And Streaming AEADs
 
 In order to encrypt arbitrarily large messages, Veil uses a streaming AEAD construction based on a
-Signal-style HKDF ratchet. An initial 64-byte chain key is used to create an HKDF-SHA-512 instance,
-and the first 64 bytes of its output are used to create a new chain key. The next 32 bytes of KDF
-output are used to create a ChaCha20Poly1305 key, and the following 12 bytes are used to create a
-nonce. To prevent attacker appending blocks to a message, the final block of a stream is keyed using
-a different salt, thus permanently forking the chain.
+Signal-style HKDF ratchet. An initial 64-byte ratchet key is used to create an HKDF-SHA-512
+instance, and the first 64 bytes of its output are used to create a new ratchet key. The next 32
+bytes of KDF output are used to create a ChaCha20Poly1305 key, and the following 12 bytes are used
+to create a nonce. To prevent attacker appending blocks to a message, the final block of a stream is
+keyed using a different salt, thus permanently forking the chain.
+
+```
+rk1, oK0, oN0 = hkdfSHA512(rk0, 'veil-ratchet', 'next')
+rk2, oK1, oN1 = hkdfSHA512(rk1, 'veil-ratchet', 'next')
+rk3, oK2, oN2 = hkdfSHA512(rk2, 'veil-ratchet', 'next')
+rk4, oK3, oN3 = hkdfSHA512(rk3, 'veil-ratchet', 'last')
+```
 
 ### Key Agreement And Encapsulation
 
@@ -54,10 +72,28 @@ and recipient's public keys included as a salt. The sender creates a symmetric k
 the KDF output and encrypts the message with an AEAD. The sender transmits the ephemeral public key
 and the ciphertext.
 
+``` 
+e = scalarFromBytes(rand(64))
+E = eG
+zzE = eR
+zzS = sR
+zz = hkdfSHA512(zzE || zzS, E || S || R, info, n)
+
+return E, zz
+```
+
 To receive a message, the receiver calculates the ephemeral shared secret between the ephemeral
 public key and their own private key and the static shared secret between the recipient's public key
 and their own private key. The HKDF-SHA-512 output is re-created, and the message is authenticated
 and decrypted.
+
+``` 
+zzE = rE
+zzS = rS
+zz = hkdfSHA512(zzE || zzS, E || S || R, info, n)
+
+return zz
+```
 
 As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
 KEM provides assurance that the message was encrypted by the holder of the sender's private key. XDH
@@ -72,6 +108,27 @@ To make authenticated messages, Veil creates Schnorr signatures using the signer
 actual "message" signed is a SHA-512 hash of the message, and SHA-512 is used to derive ristretto255
 scalars from the message and ephemeral public key. In place of a randomly generated ephemeral key
 pair, Veil uses a key pair derived from the private key and the message value.
+
+To create a signature, the signer uses a private key `d` to create a signature point and scalar:
+
+``` 
+r = scalarFromBytes(hmacSHA512(s, m))
+R = rG
+k = scalarFromBytes(hmacSHA512('veil-signature', R || m))
+s = kd + r
+
+return R, s
+```
+
+To validate a signature, the verifier uses the signer's public key `Q` to re-create the signature
+point for the given message:
+
+``` 
+k = scalarFromBytes(hmacSHA512('veil-signature', R || m'))
+R' = -kQ + sG
+
+return R == R'
+```
 
 ### Multi-Recipient Messages
 
