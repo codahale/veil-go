@@ -35,8 +35,7 @@ func (cmd *verifyDetachedCmd) Run(_ *kong.Context) error {
 	}
 
 	// Decode the signature.
-	var sig veil.Signature
-	//goland:noinspection GoNilness
+	sig := veil.Signature{}
 	if err := sig.UnmarshalText(text); err != nil {
 		return err
 	}

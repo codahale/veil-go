@@ -48,7 +48,6 @@ func decodePublicKeys(pathsOrKeys []string) ([]*veil.PublicKey, error) {
 func decodePublicKey(pathOrKey string) (*veil.PublicKey, error) {
 	// Try decoding the key directly.
 	var pk veil.PublicKey
-	//goland:noinspection GoNilness
 	if err := pk.UnmarshalText([]byte(pathOrKey)); err == nil {
 		return &pk, nil
 	}
@@ -60,7 +59,6 @@ func decodePublicKey(pathOrKey string) (*veil.PublicKey, error) {
 	}
 
 	// Decode the public key.
-	//goland:noinspection GoNilness
 	if err := pk.UnmarshalText(b); err != nil {
 		return nil, err
 	}

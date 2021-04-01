@@ -73,9 +73,7 @@ func TestSignature_MarshalText(t *testing.T) {
 func TestSignature_UnmarshalText(t *testing.T) {
 	t.Parallel()
 
-	var s Signature
-
-	//goland:noinspection GoNilness
+	s := Signature{}
 	if err := s.UnmarshalText([]byte("MF4WK3DMN53XG5LCNVQXE2LOMVQXSZLMNRXXO43VMJWWC4TJNZSWC6LFNRW" +
 		"G653TOVRG2YLSNFXGKYLZMVWGY33XON2WE3LBOJUW4ZI")); err != nil {
 		t.Fatal(err)
