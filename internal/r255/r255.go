@@ -114,11 +114,8 @@ func NewEphemeralKeys() (*PrivateKey, *PublicKey, error) {
 		return nil, nil, err
 	}
 
-	// Hash it with SHA-512.
-	h := sha512.Sum512(b)
-
-	// Create a private key using the hash as a scalar.
-	priv := &PrivateKey{d: ristretto255.NewScalar().FromUniformBytes(h[:])}
+	// Create a private key scalar from the SHA-512 hash of the data.
+	priv := &PrivateKey{d: deriveScalar(sha512.New(), b)}
 
 	// Return it and its public key.
 	return priv, priv.PublicKey(), nil
