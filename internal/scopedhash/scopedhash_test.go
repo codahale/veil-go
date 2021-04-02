@@ -11,7 +11,7 @@ import (
 func TestScopedHashing(t *testing.T) {
 	t.Parallel()
 
-	sh := newScopedHash("scope")
+	sh := newScopedHash([]byte("scope"))
 	_, _ = io.WriteString(sh, "message")
 	digest := sh.Sum(nil)
 

@@ -12,35 +12,35 @@ import (
 // NewSecretKeyHash returns a hash instance suitable for deriving ristretto255 secret key scalars
 // from arbitrary strings.
 func NewSecretKeyHash() hash.Hash {
-	return newScopedHash("veil-secret-key")
+	return newScopedHash([]byte("veil-secret-key"))
 }
 
 // NewSignatureHash returns a hash instance suitable for deriving ristretto255 signature scalars
 // from arbitrary strings.
 func NewSignatureHash() hash.Hash {
-	return newScopedHash("veil-signature")
+	return newScopedHash([]byte("veil-signature"))
 }
 
 // NewMessageHash returns a hash instance suitable for hashing messages.
 func NewMessageHash() hash.Hash {
-	return newScopedHash("veil-message")
+	return newScopedHash([]byte("veil-message"))
 }
 
 // NewDerivedKeyHash returns a hash instance suitable for deriving ristretto255 scalars and points
 // from parent scalars and points in parallel.
 func NewDerivedKeyHash() hash.Hash {
-	return newScopedHash("veil-derived-key")
+	return newScopedHash([]byte("veil-derived-key"))
 }
 
 // NewIdentityHash returns a hash instance suitable for creating unique identifiers for secret keys.
 func NewIdentityHash() hash.Hash {
-	return newScopedHash("veil-identity")
+	return newScopedHash([]byte("veil-identity"))
 }
 
 // NewSignatureNonceHash returns a hash instance suitable for deriving signature nonces from private
-// keys and messages.
-func NewSignatureNonceHash() hash.Hash {
-	return newScopedHash("veil-signature-nonce")
+// keys and messages. Uses the encoded private key as part of the HMAC key.
+func NewSignatureNonceHash(privateKey []byte) hash.Hash {
+	return newScopedHash(append([]byte("veil-signature-nonce"), privateKey...))
 }
 
 // NewMessageKDF returns a KDF suitable for deriving message keys from a KEM exchange.
@@ -64,6 +64,6 @@ func NewHash() hash.Hash {
 }
 
 // newScopedHash returns an HMAC-SHA512 keyed with the given scope.
-func newScopedHash(scope string) hash.Hash {
-	return hmac.New(NewHash, []byte(scope))
+func newScopedHash(scope []byte) hash.Hash {
+	return hmac.New(NewHash, scope)
 }
