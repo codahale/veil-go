@@ -71,6 +71,23 @@ type PublicKey struct {
 	k *r255.PublicKey
 }
 
+// MarshalBinary encodes the public key into a 32-byte slice.
+func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
+	return pk.k.Encode(nil), nil
+}
+
+// UnmarshalBinary decodes the public key from a 32-byte slice.
+func (pk *PublicKey) UnmarshalBinary(data []byte) error {
+	k, err := r255.DecodePublicKey(data)
+	if err != nil {
+		return err
+	}
+
+	pk.k = k
+
+	return nil
+}
+
 // MarshalText encodes the public key into unpadded base32 text and returns the result.
 func (pk *PublicKey) MarshalText() (text []byte, err error) {
 	b := pk.k.Encode(nil)
@@ -133,9 +150,11 @@ func splitPath(path string) []string {
 }
 
 var (
-	_ encoding.TextMarshaler   = &PublicKey{}
-	_ encoding.TextUnmarshaler = &PublicKey{}
-	_ fmt.Stringer             = &PublicKey{}
+	_ encoding.BinaryMarshaler   = &PublicKey{}
+	_ encoding.BinaryUnmarshaler = &PublicKey{}
+	_ encoding.TextMarshaler     = &PublicKey{}
+	_ encoding.TextUnmarshaler   = &PublicKey{}
+	_ fmt.Stringer               = &PublicKey{}
 
 	//nolint:gochecknoglobals // reusable constant
 	asciiEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)

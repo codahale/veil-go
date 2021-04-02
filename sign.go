@@ -11,16 +11,38 @@ import (
 	"github.com/codahale/veil/internal/stream"
 )
 
-// Signature is a ristretto255/Schnorr signature. Technically, it's a ristretto255 point prepended
-// to a ristretto255 scalar. It can be marshalled and unmarshalled as a base32 string for human
-// consumption.
-type Signature []byte
+// Signature is a digital signature of a message, created by the holder of a secret key, which can
+// be verified by anyone with the corresponding public key.
+type Signature struct {
+	b []byte
+}
+
+// MarshalBinary encodes the signature into bytes.
+func (s *Signature) MarshalBinary() (data []byte, err error) {
+	return s.b, nil
+}
+
+// UnmarshalBinary decodes the signature from bytes.
+func (s *Signature) UnmarshalBinary(data []byte) error {
+	if len(data) != r255.SignatureSize {
+		return ErrInvalidSignature
+	}
+
+	s.b = data
+
+	return nil
+}
 
 // MarshalText encodes the signature into unpadded base32 text and returns the result.
-func (s Signature) MarshalText() (text []byte, err error) {
-	text = make([]byte, asciiEncoding.EncodedLen(len(s)))
+func (s *Signature) MarshalText() (text []byte, err error) {
+	data, err := s.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
 
-	asciiEncoding.Encode(text, s)
+	text = make([]byte, asciiEncoding.EncodedLen(len(data)))
+
+	asciiEncoding.Encode(text, data)
 
 	return
 }
@@ -28,20 +50,18 @@ func (s Signature) MarshalText() (text []byte, err error) {
 // UnmarshalText decodes the results of MarshalText and updates the receiver to contain the decoded
 // signature.
 func (s *Signature) UnmarshalText(text []byte) error {
-	data := make([]byte, r255.SignatureSize)
+	data := make([]byte, asciiEncoding.DecodedLen(len(text)))
 
 	_, err := asciiEncoding.Decode(data, text)
 	if err != nil {
 		return fmt.Errorf("invalid signature: %w", err)
 	}
 
-	*s = data
-
-	return nil
+	return s.UnmarshalBinary(data)
 }
 
 // String returns the signature as unpadded base32 text.
-func (s Signature) String() string {
+func (s *Signature) String() string {
 	text, err := s.MarshalText()
 	if err != nil {
 		panic(err)
@@ -51,9 +71,11 @@ func (s Signature) String() string {
 }
 
 var (
-	_ encoding.TextMarshaler   = Signature{}
-	_ encoding.TextUnmarshaler = &Signature{}
-	_ fmt.Stringer             = Signature{}
+	_ encoding.BinaryMarshaler   = &Signature{}
+	_ encoding.BinaryUnmarshaler = &Signature{}
+	_ encoding.TextMarshaler     = &Signature{}
+	_ encoding.TextUnmarshaler   = &Signature{}
+	_ fmt.Stringer               = &Signature{}
 )
 
 // ErrInvalidSignature is returned when a signature, public key, and message do not match.
@@ -62,7 +84,7 @@ var ErrInvalidSignature = errors.New("invalid signature")
 // SignDetached returns a detached signature of the contents of src using the given derivation path.
 // The signature can be verified with the public key derived from the same secret key using the same
 // derivation path.
-func (sk *SecretKey) SignDetached(src io.Reader, derivationPath string) (Signature, error) {
+func (sk *SecretKey) SignDetached(src io.Reader, derivationPath string) (*Signature, error) {
 	// Hash the message.
 	h := scopedhash.NewMessageHash()
 	if _, err := io.Copy(h, src); err != nil {
@@ -70,7 +92,7 @@ func (sk *SecretKey) SignDetached(src io.Reader, derivationPath string) (Signatu
 	}
 
 	// Create a signature of the hash.
-	return sk.privateKey(derivationPath).Sign(h.Sum(nil)), nil
+	return &Signature{b: sk.privateKey(derivationPath).Sign(h.Sum(nil))}, nil
 }
 
 // Sign copies src to dst, creates a signature of the contents of src using the given derivation
@@ -99,7 +121,7 @@ func (sk *SecretKey) Sign(dst io.Writer, src io.Reader, derivationPath string) (
 
 // VerifyDetached returns nil if the given signature was created by the owner of the given public
 // key for the contents of src, otherwise ErrInvalidSignature.
-func (pk *PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
+func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 	// Hash the message.
 	h := scopedhash.NewMessageHash()
 	if _, err := io.Copy(h, src); err != nil {
@@ -107,7 +129,7 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig Signature) error {
 	}
 
 	// Verify the signature against the hash of the message.
-	if !pk.k.Verify(h.Sum(nil), sig) {
+	if !pk.k.Verify(h.Sum(nil), sig.b) {
 		return ErrInvalidSignature
 	}
 

@@ -58,7 +58,10 @@ func TestSignAndVerify(t *testing.T) {
 func TestSignature_MarshalText(t *testing.T) {
 	t.Parallel()
 
-	s := Signature("ayellowsubmarineayellowsubmarineayellowsubmarineayellowsubmarine")
+	var s Signature
+	if err := s.UnmarshalBinary([]byte("ayellowsubmarineayellowsubmarineayellowsubmarineayellowsubmarine")); err != nil {
+		t.Fatal(err)
+	}
 
 	text, err := s.MarshalText()
 	if err != nil {
@@ -73,20 +76,28 @@ func TestSignature_MarshalText(t *testing.T) {
 func TestSignature_UnmarshalText(t *testing.T) {
 	t.Parallel()
 
-	s := Signature{}
+	var s Signature
 	if err := s.UnmarshalText([]byte("MF4WK3DMN53XG5LCNVQXE2LOMVQXSZLMNRXXO43VMJWWC4TJNZSWC6LFNRW" +
 		"G653TOVRG2YLSNFXGKYLZMVWGY33XON2WE3LBOJUW4ZI")); err != nil {
 		t.Fatal(err)
 	}
 
+	b, err := s.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	assert.Equal(t, "unmarshalled key",
-		Signature("ayellowsubmarineayellowsubmarineayellowsubmarineayellowsubmarine"), s)
+		[]byte("ayellowsubmarineayellowsubmarineayellowsubmarineayellowsubmarine"), b)
 }
 
 func TestSignature_String(t *testing.T) {
 	t.Parallel()
 
-	s := Signature("ayellowsubmarineayellowsubmarineayellowsubmarineayellowsubmarine")
+	var s Signature
+	if err := s.UnmarshalBinary([]byte("ayellowsubmarineayellowsubmarineayellowsubmarineayellowsubmarine")); err != nil {
+		t.Fatal(err)
+	}
 
 	assert.Equal(t, "string representation",
 		"MF4WK3DMN53XG5LCNVQXE2LOMVQXSZLMNRXXO43VMJWWC4TJNZSWC6LFNRWG653TOVRG2YLSNFXGKYLZMVWGY33XON2WE3LBOJUW4ZI",

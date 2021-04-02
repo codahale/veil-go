@@ -35,11 +35,11 @@ func (cmd *verifyDetachedCmd) Run(_ *kong.Context) error {
 	}
 
 	// Decode the signature.
-	sig := veil.Signature{}
+	var sig veil.Signature
 	if err := sig.UnmarshalText(text); err != nil {
 		return err
 	}
 
 	// Verify the signature.
-	return pk.VerifyDetached(src, sig)
+	return pk.VerifyDetached(src, &sig)
 }
