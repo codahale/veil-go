@@ -14,32 +14,32 @@ func TestAddFakes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bob, err := NewSecretKey()
+	bea, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	all, err := AddFakes([]*PublicKey{alice.PublicKey("one"), bob.PublicKey("one")}, 20)
+	all, err := AddFakes([]*PublicKey{alice.PublicKey("one"), bea.PublicKey("one")}, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assert.Equal(t, "total count", 22, len(all))
 
-	alices, bobs, others := 0, 0, 0
+	alices, beas, others := 0, 0, 0
 
 	for _, pk := range all {
 		switch pk.String() {
 		case alice.PublicKey("one").String():
 			alices++
-		case bob.PublicKey("one").String():
-			bobs++
+		case bea.PublicKey("one").String():
+			beas++
 		default:
 			others++
 		}
 	}
 
 	assert.Equal(t, "alice count", 1, alices)
-	assert.Equal(t, "bob count", 1, bobs)
+	assert.Equal(t, "bea count", 1, beas)
 	assert.Equal(t, "other count", 20, others)
 }

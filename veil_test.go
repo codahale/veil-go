@@ -18,56 +18,56 @@ func Example() {
 		panic(err)
 	}
 
-	// Alice derives a public key with the path "/friends/bob" and shares it with Bob.
-	alicePub := alice.PublicKey("/friends/bob")
+	// Alice derives a public key with the path "/friends/bea" and shares it with Bea.
+	alicePub := alice.PublicKey("/friends/bea")
 
-	// Bob generates a secret key.
-	bob, err := NewSecretKey()
+	// Bea generates a secret key.
+	bea, err := NewSecretKey()
 	if err != nil {
 		panic(err)
 	}
 
-	// Bob derives a public key with the label "/friends/alice" and shares it with Alice.
-	bobPub := bob.PublicKey("/friends/alice")
+	// Bea derives a public key with the label "/friends/alice" and shares it with Alice.
+	beaPub := bea.PublicKey("/friends/alice")
 
 	// Alice writes a message.
 	message := bytes.NewReader([]byte("one two three four I declare a thumb war"))
 	encrypted := bytes.NewBuffer(nil)
 
-	// Alice creates a list of recipients -- her and Bob -- but adds 98 fake recipients so Bob won't
+	// Alice creates a list of recipients -- her and Bea -- but adds 98 fake recipients so Bea won't
 	// know the true number of recipients.
-	recipients, err := AddFakes([]*PublicKey{alicePub, bobPub}, 98)
+	recipients, err := AddFakes([]*PublicKey{alicePub, beaPub}, 98)
 	if err != nil {
 		panic(err)
 	}
 
-	// Alice encrypts the message for her, Bob, and the 98 fakes, adding random padding to disguise
-	// its true length. She uses the path "/friends/bob" to create the message because it
-	// corresponds with the public key she sent Bob.
-	_, err = alice.Encrypt(encrypted, message, recipients, "/friends/bob", 4829)
+	// Alice encrypts the message for her, Bea, and the 98 fakes, adding random padding to disguise
+	// its true length. She uses the path "/friends/bea" to create the message because it
+	// corresponds with the public key she sent Bea.
+	_, err = alice.Encrypt(encrypted, message, recipients, "/friends/bea", 4829)
 	if err != nil {
 		panic(err)
 	}
 
-	// Alice sends the message to Bob.
+	// Alice sends the message to Bea.
 	received := bytes.NewReader(encrypted.Bytes())
 	decrypted := bytes.NewBuffer(nil)
 
-	// Bob decrypts the message. He uses the path "/friends/alice" because it corresponds with the
-	// public key he sent Alice.
-	pk, _, err := bob.Decrypt(decrypted, received, []*PublicKey{bobPub, alicePub}, "/friends/alice")
+	// Bea decrypts the message. She uses the path "/friends/alice" because it corresponds with the
+	// public key she sent Alice.
+	pk, _, err := bea.Decrypt(decrypted, received, []*PublicKey{beaPub, alicePub}, "/friends/alice")
 	if err != nil {
 		panic(err)
 	}
 
-	// Bob checks that the sender of the message was indeed Alice.
+	// Bea checks that the sender of the message was indeed Alice.
 	if pk.String() == alicePub.String() {
 		fmt.Println("sent by A")
 	} else {
 		fmt.Println("sent by B")
 	}
 
-	// Bob views the decrypted message.
+	// Bea views the decrypted message.
 	fmt.Println(decrypted.String())
 	// Output:
 	// sent by A
