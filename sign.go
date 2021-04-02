@@ -32,7 +32,7 @@ func (s *Signature) UnmarshalText(text []byte) error {
 
 	_, err := asciiEncoding.Decode(data, text)
 	if err != nil {
-		return fmt.Errorf("invalid public key: %w", err)
+		return fmt.Errorf("invalid signature: %w", err)
 	}
 
 	*s = data
