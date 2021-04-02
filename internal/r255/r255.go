@@ -115,7 +115,7 @@ func NewEphemeralKeys() (*PrivateKey, *PublicKey, error) {
 	}
 
 	// Create a private key scalar from the SHA-512 hash of the data.
-	priv := &PrivateKey{d: deriveScalar(sha512.New(), b)}
+	priv := &PrivateKey{d: deriveScalar(scopedhash.NewHash(), b)}
 
 	// Return it and its public key.
 	return priv, priv.PublicKey(), nil

@@ -9,17 +9,19 @@
 package kem
 
 import (
-	"crypto/sha512"
 	"io"
 
 	"github.com/codahale/veil/internal/r255"
-	"golang.org/x/crypto/hkdf"
 )
 
+// KDF is a generic key derivation function, accepting a secret and a salt and returning an
+// io.Reader of derived data.
+type KDF func(secret, salt []byte) io.Reader
+
 // Send returns an ephemeral public key and a shared secret given the sender's private key, the
-// sender's public key, the recipient's public key, a domain-specific information parameter, and the
-// length of the secret in bytes.
-func Send(privS *r255.PrivateKey, pubS, pubR *r255.PublicKey, info []byte, n int) (*r255.PublicKey, []byte, error) {
+// sender's public key, the recipient's public key, a domain-specific KDF, and the length of the
+// secret in bytes.
+func Send(privS *r255.PrivateKey, pubS, pubR *r255.PublicKey, kdf KDF, n int) (*r255.PublicKey, []byte, error) {
 	// Generate an ephemeral key pair.
 	privE, pubE, err := r255.NewEphemeralKeys()
 	if err != nil {
@@ -36,16 +38,16 @@ func Send(privS *r255.PrivateKey, pubS, pubR *r255.PublicKey, info []byte, n int
 
 	// Derive the secret from the shared secrets, the ephemeral public key, the public keys of both
 	// the recipient and the sender, the info parameter, and the length of the secret in bytes.
-	secret := kdf(zzE, zzS, pubE, pubR, pubS, info, n)
+	secret := extract(zzE, zzS, pubE, pubR, pubS, kdf, n)
 
 	// Return the ephemeral public key and the shared secret.
 	return pubE, secret, nil
 }
 
 // Receive generates a shared secret given the recipient's private key, the recipient's public key,
-// the sender's public key, the ephemeral public key, a domain-specific information parameter,
-// and the length of the shared secret in bytes.
-func Receive(privR *r255.PrivateKey, pubR, pubS, pubE *r255.PublicKey, info []byte, n int) []byte {
+// the sender's public key, the ephemeral public key, a domain-specific KDF, and the length of the
+// shared secret in bytes.
+func Receive(privR *r255.PrivateKey, pubR, pubS, pubE *r255.PublicKey, kdf KDF, n int) []byte {
 	// Calculate the ephemeral shared secret between the recipient's secret key and the ephemeral
 	// public key.
 	zzE := privR.DiffieHellman(pubE)
@@ -56,13 +58,13 @@ func Receive(privR *r255.PrivateKey, pubR, pubS, pubE *r255.PublicKey, info []by
 
 	// Derive the secret from the shared secrets, the ephemeral public key, the public keys of both
 	// the recipient and the sender, the info parameter, and the length of the secret in bytes.
-	return kdf(zzE, zzS, pubE, pubR, pubS, info, n)
+	return extract(zzE, zzS, pubE, pubR, pubS, kdf, n)
 }
 
-// kdf returns a secret derived from the given ephemeral shared secret, static shared secret, the
-// ephemeral public key, the recipient's public key, the sender's public key, an info parameter, and
-// the length of the secret in bytes.
-func kdf(zzE, zzS []byte, pubE, pubR, pubS *r255.PublicKey, info []byte, n int) []byte {
+// extract returns a secret derived from the given ephemeral shared secret, static shared secret,
+// the ephemeral public key, the recipient's public key, the sender's public key, a domain-specific
+// KDF, and the length of the secret in bytes.
+func extract(zzE, zzS []byte, pubE, pubR, pubS *r255.PublicKey, kdf KDF, n int) []byte {
 	// Concatenate the ephemeral and static shared secrets to form the initial keying material.
 	ikm := append(zzE, zzS...)
 
@@ -70,13 +72,12 @@ func kdf(zzE, zzS []byte, pubE, pubR, pubS *r255.PublicKey, info []byte, n int) 
 	// sender's public key.
 	salt := pubS.Encode(pubE.Encode(pubR.Encode(make([]byte, 0, r255.PublicKeySize*3))))
 
-	// Create an HKDF-SHA-512 instance from the initial keying material and the salt, using the
-	// domain-specific info parameter to distinguish between header keys and message keys.
-	h := hkdf.New(sha512.New, ikm, salt, info)
+	// Create an KDF instance from the initial keying material and the salt.
+	k := kdf(ikm, salt)
 
 	// Derive the secret from the HKDF output.
 	secret := make([]byte, n)
-	if _, err := io.ReadFull(h, secret); err != nil {
+	if _, err := io.ReadFull(k, secret); err != nil {
 		panic(err)
 	}
 

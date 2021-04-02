@@ -1,10 +1,13 @@
 package kem
 
 import (
+	"crypto/sha512"
+	"io"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
 	"github.com/codahale/veil/internal/r255"
+	"golang.org/x/crypto/hkdf"
 )
 
 func TestExchange(t *testing.T) {
@@ -24,12 +27,12 @@ func TestExchange(t *testing.T) {
 
 	privB, pubB := skB.PrivateKey("kem"), skB.PublicKey("kem")
 
-	pkW, secretA, err := Send(privA, pubA, pubB, []byte("boop"), 20)
+	pkW, secretA, err := Send(privA, pubA, pubB, testKDF, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	secretB := Receive(privB, pubB, pubA, pkW, []byte("boop"), 20)
+	secretB := Receive(privB, pubB, pubA, pkW, testKDF, 20)
 
 	assert.Equal(t, "derived secrets", secretA, secretB)
 }
@@ -48,12 +51,11 @@ func BenchmarkSend(b *testing.B) {
 	}
 
 	pubB := skB.PublicKey("kem")
-	info := []byte("boop")
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, _, _ = Send(privA, pubA, pubB, info, 20)
+		_, _, _ = Send(privA, pubA, pubB, testKDF, 20)
 	}
 }
 
@@ -72,9 +74,7 @@ func BenchmarkReceive(b *testing.B) {
 
 	privB, pubB := skB.PrivateKey("kem"), skB.PublicKey("kem")
 
-	info := []byte("boop")
-
-	pkW, _, err := Send(privA, pubA, pubB, info, 20)
+	pkW, _, err := Send(privA, pubA, pubB, testKDF, 20)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -82,27 +82,10 @@ func BenchmarkReceive(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_ = Receive(privB, pubB, pubA, pkW, info, 20)
+		_ = Receive(privB, pubB, pubA, pkW, testKDF, 20)
 	}
 }
 
-func BenchmarkKDF(b *testing.B) {
-	zzE := make([]byte, r255.PublicKeySize)
-	zzS := make([]byte, r255.PublicKeySize)
-
-	_, pubE, err := r255.NewEphemeralKeys()
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	pubR := pubE.Derive("one")
-	pubS := pubE.Derive("two")
-
-	info := []byte("boop")
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		_ = kdf(zzE, zzS, pubE, pubR, pubS, info, 20)
-	}
+func testKDF(secret, salt []byte) io.Reader {
+	return hkdf.New(sha512.New, secret, salt, []byte("test"))
 }

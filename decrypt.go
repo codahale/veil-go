@@ -53,7 +53,7 @@ func (sk *SecretKey) Decrypt(
 	}
 
 	// Derive the shared ratchet key between the sender's public key and the ephemeral private key.
-	key := kem.Receive(privEH, pubEH, pkS.k, pubEM, []byte("veil-message"), ratchet.KeySize)
+	key := kem.Receive(privEH, pubEH, pkS.k, pubEM, scopedhash.NewMessageKDF, ratchet.KeySize)
 
 	// Initialize an AEAD reader with the ratchet key, using the encrypted headers as authenticated
 	// data.
@@ -136,7 +136,7 @@ func (sk *SecretKey) decryptHeader(
 	// Iterate through all possible senders.
 	for _, pubS := range senders {
 		// Re-derive the shared secret between the sender and recipient.
-		secret := kem.Receive(privR, pubR, pubS.k, pubEH, []byte("veil-header"),
+		secret := kem.Receive(privR, pubR, pubS.k, pubEH, scopedhash.NewHeaderKDF,
 			chacha20.KeySize+chacha20.NonceSize)
 
 		// Initialize a ChaCha20Poly1305 AEAD.
