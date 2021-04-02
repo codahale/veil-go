@@ -11,9 +11,7 @@ import (
 	"github.com/codahale/veil/internal/ratchet"
 	"github.com/codahale/veil/internal/scopedhash"
 	"github.com/codahale/veil/internal/stream"
-	"golang.org/x/crypto/chacha20"
-	"golang.org/x/crypto/chacha20poly1305"
-	"golang.org/x/crypto/poly1305"
+	"github.com/codahale/veil/internal/sym"
 )
 
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
@@ -115,19 +113,19 @@ func (sk *SecretKey) encryptHeaders(
 	for _, pkR := range publicKeys {
 		// Generate a header key pair shared secret for the recipient.
 		pubEH, secret, err := kem.Send(privS, pubS, pkR.k, scopedhash.NewHeaderKDF,
-			chacha20.KeySize+chacha20.NonceSize)
+			sym.KeySize+sym.NonceSize)
 		if err != nil {
 			return nil, err
 		}
 
-		// Initialize a ChaCha20Poly1305 AEAD.
-		aead, err := chacha20poly1305.New(secret[:chacha20.KeySize])
+		// Initialize an AEAD.
+		aead, err := sym.NewAEAD(secret[:sym.KeySize])
 		if err != nil {
 			panic(err)
 		}
 
 		// Encrypt the header for the recipient.
-		b := aead.Seal(nil, secret[chacha20.KeySize:], header, nil)
+		b := aead.Seal(nil, secret[sym.KeySize:], header, nil)
 
 		// Write the ephemeral header public key and the ciphertext.
 		_, _ = buf.Write(pubEH.Encode(nil))
@@ -147,5 +145,5 @@ func (sk *SecretKey) encryptHeaders(
 const (
 	blockSize           = 64 * 1024               // 64KiB
 	headerSize          = r255.PrivateKeySize + 4 // 4 bytes for message offset
-	encryptedHeaderSize = r255.PublicKeySize + headerSize + poly1305.TagSize
+	encryptedHeaderSize = r255.PublicKeySize + headerSize + sym.TagSize
 )

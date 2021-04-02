@@ -6,10 +6,8 @@ import (
 	"encoding/binary"
 
 	"github.com/codahale/veil/internal/r255"
+	"github.com/codahale/veil/internal/sym"
 	"golang.org/x/crypto/argon2"
-	"golang.org/x/crypto/chacha20"
-	"golang.org/x/crypto/chacha20poly1305"
-	"golang.org/x/crypto/poly1305"
 )
 
 // Argon2idParams contains the parameters of the Argon2id passphrase-based KDF algorithm.
@@ -43,8 +41,8 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *Argon2idParams) 
 	// Use Argon2id to derive a key and nonce from the passphrase and salt.
 	key, nonce := pbeKDF(passphrase, esk.Salt[:], &esk.Params)
 
-	// Initialize a ChaCha20Poly1305 AEAD.
-	aead, err := chacha20poly1305.New(key)
+	// Initialize an AEAD.
+	aead, err := sym.NewAEAD(key)
 	if err != nil {
 		panic(err)
 	}
@@ -73,8 +71,8 @@ func DecryptSecretKey(sk, passphrase []byte) (*SecretKey, error) {
 	// Use Argon2id to re-derive the key and nonce from the passphrase and salt.
 	key, nonce := pbeKDF(passphrase, esk.Salt[:], &esk.Params)
 
-	// Initialize a ChaCha20Poly1305 AEAD.
-	aead, err := chacha20poly1305.New(key)
+	// Initialize an AEAD.
+	aead, err := sym.NewAEAD(key)
 	if err != nil {
 		panic(err)
 	}
@@ -102,16 +100,16 @@ type encryptedSecretKey struct {
 	Ciphertext [ciphertextSize]byte
 }
 
-// pbeKDF uses Argon2id to derive a ChaCha20Poly1305 key and nonce from the passphrase, salt, and
+// pbeKDF uses Argon2id to derive a symmetric key and nonce from the passphrase, salt, and
 // parameters.
 func pbeKDF(passphrase, salt []byte, params *Argon2idParams) ([]byte, []byte) {
 	kn := argon2.IDKey(passphrase, salt, params.Time, params.Memory, params.Parallelism,
-		chacha20.KeySize+chacha20.NonceSize)
+		sym.KeySize+sym.NonceSize)
 
-	return kn[:chacha20.KeySize], kn[chacha20.KeySize:]
+	return kn[:sym.KeySize], kn[sym.KeySize:]
 }
 
 const (
 	saltSize       = 16 // per https://tools.ietf.org/html/draft-irtf-cfrg-argon2-12#section-3.1
-	ciphertextSize = r255.SecretKeySize + poly1305.TagSize
+	ciphertextSize = r255.SecretKeySize + sym.TagSize
 )

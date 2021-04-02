@@ -10,8 +10,7 @@ import (
 	"github.com/codahale/veil/internal/ratchet"
 	"github.com/codahale/veil/internal/scopedhash"
 	"github.com/codahale/veil/internal/stream"
-	"golang.org/x/crypto/chacha20"
-	"golang.org/x/crypto/chacha20poly1305"
+	"github.com/codahale/veil/internal/sym"
 )
 
 // ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an
@@ -137,17 +136,17 @@ func (sk *SecretKey) decryptHeader(
 	for _, pubS := range senders {
 		// Re-derive the shared secret between the sender and recipient.
 		secret := kem.Receive(privR, pubR, pubS.k, pubEH, scopedhash.NewHeaderKDF,
-			chacha20.KeySize+chacha20.NonceSize)
+			sym.KeySize+sym.NonceSize)
 
-		// Initialize a ChaCha20Poly1305 AEAD.
-		aead, err := chacha20poly1305.New(secret[:chacha20.KeySize])
+		// Initialize an AEAD.
+		aead, err := sym.NewAEAD(secret[:sym.KeySize])
 		if err != nil {
 			panic(err)
 		}
 
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.
-		header, err := aead.Open(nil, secret[chacha20.KeySize:], ciphertext, nil)
+		header, err := aead.Open(nil, secret[sym.KeySize:], ciphertext, nil)
 		if err != nil {
 			continue
 		}
