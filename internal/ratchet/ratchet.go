@@ -33,18 +33,19 @@ func New(key []byte, n int) *Sequence {
 }
 
 // Next returns the next key in the sequence. The previous chain key is used to create a new
-// domain-specific KDF instance. If this is the final key in the sequence, a salt of "last" is used;
-// otherwise, a salt of "next" is used. The first 64 bytes of KDF output are used to create a new
-// chain key; the next N bytes of KDF output are returned as the next key.
+// domain-specific KDF instance. If this is the final key in the sequence, a KDF specific to the
+// final block is used; otherwise, another KDF is used. The first 64 bytes of KDF output are used to
+// create a new chain key; the next N bytes of KDF output are returned as the next key.
 func (kr *Sequence) Next(final bool) []byte {
-	salt := []byte("next")
+	// Create a new domain-specific KDF instance with the current ratchet key.
+	var kdf io.Reader
 	if final {
-		// If this is the final key in the sequence, use a different salt.
-		salt = []byte("last")
+		// If this is the final key in the sequence, use a different KDF.
+		kdf = scopedhash.NewFinalRatchetKDF(kr.buf[:KeySize])
+	} else {
+		// Otherwise, use the same KDF.
+		kdf = scopedhash.NewNextRatchetKDF(kr.buf[:KeySize])
 	}
-
-	// Create a new domain-specific KDF instance with the current chain key and the salt.
-	kdf := scopedhash.NewRatchetKDF(kr.buf[:KeySize], salt)
 
 	// Advance the ratchet.
 	if _, err := io.ReadFull(kdf, kr.buf); err != nil {

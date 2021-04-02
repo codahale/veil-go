@@ -53,9 +53,14 @@ func NewHeaderKDF(secret, salt []byte) io.Reader {
 	return hkdf.New(NewHash, secret, salt, []byte("veil-header"))
 }
 
-// NewRatchetKDF returns a KDF suitable for deriving header keys from a KEM exchange.
-func NewRatchetKDF(secret, salt []byte) io.Reader {
-	return hkdf.New(NewHash, secret, salt, []byte("veil-ratchet"))
+// NewNextRatchetKDF returns a KDF suitable for deriving a non-final ratchet key.
+func NewNextRatchetKDF(secret []byte) io.Reader {
+	return hkdf.New(NewHash, secret, []byte("veil-next"), []byte("veil-ratchet"))
+}
+
+// NewFinalRatchetKDF returns a KDF suitable for deriving a final ratchet key.
+func NewFinalRatchetKDF(secret []byte) io.Reader {
+	return hkdf.New(NewHash, secret, []byte("veil-final"), []byte("veil-ratchet"))
 }
 
 // NewHash returns an SHA512 hash. This is the only hash algorithm used by Veil.

@@ -7,7 +7,7 @@ import (
 	"github.com/codahale/gubbins/assert"
 )
 
-func TestKeyRatchet(t *testing.T) {
+func TestSequence_Next(t *testing.T) {
 	t.Parallel()
 
 	var keys []string
@@ -21,14 +21,14 @@ func TestKeyRatchet(t *testing.T) {
 	}
 
 	assert.Equal(t, "keys", []string{
-		"14d195c0516c827e634ae01d597bbf89",
-		"d726b635a43ae6d1c8f336bc91c0e2ac",
-		"39b0bdf24cba1018de94b6d4ca43d640",
-		"c94d06eb90587d00a38dcfeae887607c",
+		"af1227e20adee7a7ea44ce5e6889fa07",
+		"13f3ac089cfcf98469b966a46cb66de8",
+		"fcf535968bbefef4826ee5c06dc34226",
+		"00cf8029c2a3f5bd248f27a06ae7988f",
 	}, keys)
 }
 
-func BenchmarkKeyRatchet(b *testing.B) {
+func BenchmarkSequence_Next(b *testing.B) {
 	kr := New([]byte("this is ok"), 48)
 
 	for i := 0; i < b.N; i++ {
