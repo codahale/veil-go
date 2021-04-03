@@ -17,7 +17,7 @@ func TestSignAndVerifyDetached(t *testing.T) {
 
 	message := []byte("ok there bud")
 
-	sig, err := sk.SignDetached(bytes.NewReader(message), "example")
+	sig, err := sk.PrivateKey("example").SignDetached(bytes.NewReader(message))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestSignAndVerify(t *testing.T) {
 	signed := bytes.NewBuffer(nil)
 	verified := bytes.NewBuffer(nil)
 
-	sn, err := sk.Sign(signed, bytes.NewReader(message), "example")
+	sn, err := sk.PrivateKey("example").Sign(signed, bytes.NewReader(message))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,13 +7,13 @@ import (
 
 type encryptCmd struct {
 	SecretKey  string   `arg:"" type:"existingfile" help:"The path to the secret key."`
+	KeyID      string   `arg:"" help:"The ID of the private key to use."`
 	Plaintext  string   `arg:"" type:"existingfile" help:"The path to the plaintext file."`
 	Ciphertext string   `arg:"" type:"path" help:"The path to the ciphertext file."`
 	Recipients []string `arg:"" repeated:"" help:"The public keys of the recipients."`
 
-	Path    string `help:"The derivation path of the public key shared with the recipients."`
-	Fakes   int    `help:"The number of fake recipients to add."`
-	Padding int    `help:"The number of bytes of random padding to add."`
+	Fakes   int `help:"The number of fake recipients to add."`
+	Padding int `help:"The number of bytes of random padding to add."`
 }
 
 func (cmd *encryptCmd) Run(_ *kong.Context) error {
@@ -54,7 +54,7 @@ func (cmd *encryptCmd) Run(_ *kong.Context) error {
 	defer func() { _ = dst.Close() }()
 
 	// Encrypt the plaintext.
-	_, err = sk.Encrypt(dst, src, recipients, cmd.Path, cmd.Padding)
+	_, err = sk.PrivateKey(cmd.KeyID).Encrypt(dst, src, recipients, cmd.Padding)
 
 	return err
 }

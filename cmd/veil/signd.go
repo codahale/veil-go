@@ -6,10 +6,9 @@ import (
 
 type signDetachedCmd struct {
 	SecretKey string `arg:"" type:"existingfile" help:"The path to the secret key."`
+	KeyID     string `arg:"" help:"The ID of the private key to use."`
 	Message   string `arg:"" type:"existingfile" help:"The path to the message."`
 	Signature string `arg:"" type:"path" help:"The path to the signature file."`
-
-	Path string `help:"The derivation path of the public key shared with the recipients."`
 }
 
 func (cmd *signDetachedCmd) Run(_ *kong.Context) error {
@@ -36,7 +35,7 @@ func (cmd *signDetachedCmd) Run(_ *kong.Context) error {
 	defer func() { _ = dst.Close() }()
 
 	// Sign the message.
-	sig, err := sk.SignDetached(src, cmd.Path)
+	sig, err := sk.PrivateKey(cmd.KeyID).SignDetached(src)
 	if err != nil {
 		return err
 	}

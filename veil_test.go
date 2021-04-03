@@ -18,8 +18,10 @@ func Example() {
 		panic(err)
 	}
 
-	// Alice derives a public key with the path "/friends/bea" and shares it with Bea.
-	alicePub := alice.PublicKey("/friends/bea")
+	// Alice derives a private key with the ID "/friends/bea", generates a public key from that, and
+	// shares the public key with Bea.
+	aliceBeaPriv := alice.PrivateKey("/friends/bea")
+	aliceBeaPub := aliceBeaPriv.PublicKey()
 
 	// Bea generates a secret key.
 	bea, err := NewSecretKey()
@@ -27,8 +29,10 @@ func Example() {
 		panic(err)
 	}
 
-	// Bea derives a public key with the label "/friends/alice" and shares it with Alice.
-	beaPub := bea.PublicKey("/friends/alice")
+	// Bea derives a private key with the ID "/friends/alice", generates a public key from that, and
+	// shares the public key with Alice.
+	beaAlicePriv := bea.PrivateKey("/friends/alice")
+	beaAlicePub := beaAlicePriv.PublicKey()
 
 	// Alice writes a message.
 	message := bytes.NewReader([]byte("one two three four I declare a thumb war"))
@@ -36,15 +40,15 @@ func Example() {
 
 	// Alice creates a list of recipients -- her and Bea -- but adds 98 fake recipients so Bea won't
 	// know the true number of recipients.
-	recipients, err := AddFakes([]*PublicKey{alicePub, beaPub}, 98)
+	recipients, err := AddFakes([]*PublicKey{aliceBeaPub, beaAlicePub}, 98)
 	if err != nil {
 		panic(err)
 	}
 
 	// Alice encrypts the message for her, Bea, and the 98 fakes, adding random padding to disguise
-	// its true length. She uses the path "/friends/bea" to create the message because it
+	// its true length. She uses the "/friends/bea" private key to encrypt the message because it
 	// corresponds with the public key she sent Bea.
-	_, err = alice.Encrypt(encrypted, message, recipients, "/friends/bea", 4829)
+	_, err = aliceBeaPriv.Encrypt(encrypted, message, recipients, 4829)
 	if err != nil {
 		panic(err)
 	}
@@ -53,15 +57,15 @@ func Example() {
 	received := bytes.NewReader(encrypted.Bytes())
 	decrypted := bytes.NewBuffer(nil)
 
-	// Bea decrypts the message. She uses the path "/friends/alice" because it corresponds with the
-	// public key she sent Alice.
-	pk, _, err := bea.Decrypt(decrypted, received, []*PublicKey{beaPub, alicePub}, "/friends/alice")
+	// Bea decrypts the message. She uses the "/friends/alice" private key because it corresponds
+	// with the public key she sent Alice.
+	pk, _, err := beaAlicePriv.Decrypt(decrypted, received, []*PublicKey{beaAlicePub, aliceBeaPub})
 	if err != nil {
 		panic(err)
 	}
 
 	// Bea checks that the sender of the message was indeed Alice.
-	if pk.String() == alicePub.String() {
+	if pk.String() == aliceBeaPub.String() {
 		fmt.Println("sent by A")
 	} else {
 		fmt.Println("sent by B")
@@ -92,12 +96,12 @@ func TestRoundTrip(t *testing.T) {
 	dec := bytes.NewBuffer(nil)
 	publicKeys := []*PublicKey{a.PublicKey("b"), b.PublicKey("a")}
 
-	eb, err := a.Encrypt(enc, bytes.NewReader(message), publicKeys, "b", 1234)
+	eb, err := a.PrivateKey("b").Encrypt(enc, bytes.NewReader(message), publicKeys, 1234)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pk, db, err := b.Decrypt(dec, enc, publicKeys, "a")
+	pk, db, err := b.PrivateKey("a").Decrypt(dec, enc, publicKeys)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +123,7 @@ func TestFuzz(t *testing.T) {
 	enc := io.LimitReader(rand.Reader, 64*1024)
 	dec := bytes.NewBuffer(nil)
 
-	_, _, err = a.Decrypt(dec, enc, []*PublicKey{a.PublicKey("two")}, "two")
+	_, _, err = a.PrivateKey("two").Decrypt(dec, enc, []*PublicKey{a.PublicKey("two")})
 	if err == nil {
 		t.Fatal("shouldn't have decrypted")
 	}

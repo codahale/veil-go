@@ -43,7 +43,7 @@ Q' = Q + rG
 ```
 
 This is used iterative to provide hierarchical key derivation. Public keys are created using
-derivation paths like `/friends/alice`, in which the private key `/` is used to derive the private
+hierarchical IDs like `/friends/alice`, in which the private key `/` is used to derive the private
 key `friends`, which is in turn used to derive the private key `alice`.
 
 ### Symmetric Key Ratcheting And Streaming AEADs

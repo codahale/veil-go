@@ -12,150 +12,15 @@
 package veil
 
 import (
-	"encoding"
 	"encoding/base32"
-	"fmt"
 	"strings"
-
-	"github.com/codahale/veil/internal/r255"
 )
 
-// SecretKey is a key that's used to sign and decrypt messages.
-//
-// It should never be serialized in plaintext. Use EncryptSecretKey to encrypt it using a
-// passphrase.
-type SecretKey struct {
-	k *r255.SecretKey
+const idSeparator = "/"
+
+func splitID(id string) []string {
+	return strings.Split(strings.Trim(id, idSeparator), idSeparator)
 }
 
-// String returns a safe identifier for the key.
-func (sk *SecretKey) String() string {
-	return sk.k.String()
-}
-
-// PublicKey returns a public key for the given derivation path.
-func (sk *SecretKey) PublicKey(path string) *PublicKey {
-	pk := PublicKey{k: sk.k.PublicKey(pathSeparator)}
-
-	return pk.Derive(path)
-}
-
-// privateKey returns a private key for the given derivation path.
-func (sk *SecretKey) privateKey(path string) *r255.PrivateKey {
-	labels := splitPath(path)
-	key := sk.k.PrivateKey(pathSeparator)
-
-	for _, label := range labels {
-		key = key.Derive(label)
-	}
-
-	return key
-}
-
-// NewSecretKey creates a new secret key.
-func NewSecretKey() (*SecretKey, error) {
-	sk, err := r255.NewSecretKey()
-	if err != nil {
-		return nil, err
-	}
-
-	return &SecretKey{k: sk}, nil
-}
-
-var _ fmt.Stringer = &SecretKey{}
-
-// PublicKey is a key that's used to verify and encrypt messages.
-//
-// It can be marshalled and unmarshalled as a base32 string for human consumption.
-type PublicKey struct {
-	k *r255.PublicKey
-}
-
-// MarshalBinary encodes the public key into a 32-byte slice.
-func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
-	return pk.k.Encode(nil), nil
-}
-
-// UnmarshalBinary decodes the public key from a 32-byte slice.
-func (pk *PublicKey) UnmarshalBinary(data []byte) error {
-	k, err := r255.DecodePublicKey(data)
-	if err != nil {
-		return err
-	}
-
-	pk.k = k
-
-	return nil
-}
-
-// MarshalText encodes the public key into unpadded base32 text and returns the result.
-func (pk *PublicKey) MarshalText() (text []byte, err error) {
-	b := pk.k.Encode(nil)
-
-	text = make([]byte, asciiEncoding.EncodedLen(len(b)))
-
-	asciiEncoding.Encode(text, b)
-
-	return
-}
-
-// UnmarshalText decodes the results of MarshalText and updates the receiver to contain the decoded
-// public key.
-func (pk *PublicKey) UnmarshalText(text []byte) error {
-	data := make([]byte, r255.PublicKeySize)
-
-	// Decode from base32.
-	_, err := asciiEncoding.Decode(data, text)
-	if err != nil {
-		return fmt.Errorf("invalid public key: %w", err)
-	}
-
-	// Decode as a ristretto255 point.
-	k, err := r255.DecodePublicKey(data)
-	if err != nil {
-		return fmt.Errorf("invalid public key: %w", err)
-	}
-
-	pk.k = k
-
-	return nil
-}
-
-// Derive returns a public key for the given derivation path.
-func (pk *PublicKey) Derive(path string) *PublicKey {
-	labels := splitPath(path)
-	key := pk.k
-
-	for _, label := range labels {
-		key = key.Derive(label)
-	}
-
-	return &PublicKey{k: key}
-}
-
-// String returns the public key as unpadded base32 text.
-func (pk *PublicKey) String() string {
-	text, err := pk.MarshalText()
-	if err != nil {
-		panic(err)
-	}
-
-	return string(text)
-}
-
-const pathSeparator = "/"
-
-func splitPath(path string) []string {
-	return strings.Split(strings.Trim(path, pathSeparator), pathSeparator)
-}
-
-var (
-	_ encoding.BinaryMarshaler   = &PublicKey{}
-	_ encoding.BinaryUnmarshaler = &PublicKey{}
-	_ encoding.TextMarshaler     = &PublicKey{}
-	_ encoding.TextUnmarshaler   = &PublicKey{}
-	_ fmt.Stringer               = &PublicKey{}
-
-	//nolint:gochecknoglobals // reusable constant
-	asciiEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
-)
+//nolint:gochecknoglobals // reusable constant
+var asciiEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)

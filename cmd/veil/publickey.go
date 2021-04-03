@@ -8,7 +8,7 @@ import (
 
 type publicKeyCmd struct {
 	SecretKey string `arg:"" type:"existingfile" help:"The path to the secret key."`
-	Path      string `arg:"" help:"The derivation path."`
+	KeyID     string `arg:"" help:"The ID of the public key to generate."`
 	Output    string `arg:"" type:"path" default:"-" help:"The output path for the public key."`
 }
 
@@ -28,7 +28,7 @@ func (cmd *publicKeyCmd) Run(_ *kong.Context) error {
 	defer func() { _ = dst.Close() }()
 
 	// Derive the public key, encode it, and write it to the output.
-	_, err = io.WriteString(dst, sk.PublicKey(cmd.Path).String())
+	_, err = io.WriteString(dst, sk.PublicKey(cmd.KeyID).String())
 
 	return err
 }

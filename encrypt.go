@@ -17,11 +17,9 @@ import (
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
 // authenticate it and writes the results to dst. Returns the number of bytes written and the first
 // error reported while encrypting, if any.
-func (sk *SecretKey) Encrypt(
-	dst io.Writer, src io.Reader, recipients []*PublicKey, derivationPath string, padding int,
-) (int64, error) {
-	// Derive the sender's private key using the given path.
-	privS := sk.privateKey(derivationPath)
+func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
+	// Re-derive the sender's public key.
+	pubS := pk.k.PublicKey()
 
 	// Generate an ephemeral header key pair.
 	privEH, pubEH, err := r255.NewEphemeralKeys()
@@ -30,10 +28,10 @@ func (sk *SecretKey) Encrypt(
 	}
 
 	// Encode the ephemeral header private key and offset into a header.
-	header := sk.encodeHeader(privEH, len(recipients), padding)
+	header := pk.encodeHeader(privEH, len(recipients), padding)
 
 	// Encrypt copies of the header for each recipient.
-	headers, err := sk.encryptHeaders(privS, header, recipients, padding)
+	headers, err := pk.encryptHeaders(pubS, header, recipients, padding)
 	if err != nil {
 		return 0, err
 	}
@@ -46,7 +44,7 @@ func (sk *SecretKey) Encrypt(
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pubEM, key, err := kem.Send(privS, privS.PublicKey(), pubEH, scopedhash.NewMessageKDF,
+	pubEM, key, err := kem.Send(pk.k, pubS, pubEH, scopedhash.NewMessageKDF,
 		ratchet.KeySize)
 	if err != nil {
 		return int64(n), err
@@ -73,7 +71,7 @@ func (sk *SecretKey) Encrypt(
 	}
 
 	// Create a signature of the SHA-512 hash of the plaintext.
-	sig := privS.Sign(h.Sum(nil))
+	sig := pk.k.Sign(h.Sum(nil))
 
 	// Append the signature to the plaintext.
 	cn, err := w.Write(sig)
@@ -86,7 +84,7 @@ func (sk *SecretKey) Encrypt(
 }
 
 // encodeHeader encodes the ephemeral header private key and the message offset.
-func (sk *SecretKey) encodeHeader(privEH *r255.PrivateKey, recipients, padding int) []byte {
+func (pk *PrivateKey) encodeHeader(privEH *r255.PrivateKey, recipients, padding int) []byte {
 	// Copy the private key.
 	header := make([]byte, headerSize)
 	copy(header, privEH.Encode(nil))
@@ -100,19 +98,16 @@ func (sk *SecretKey) encodeHeader(privEH *r255.PrivateKey, recipients, padding i
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
 // fake recipients.
-func (sk *SecretKey) encryptHeaders(
-	privS *r255.PrivateKey, header []byte, publicKeys []*PublicKey, padding int,
+func (pk *PrivateKey) encryptHeaders(
+	pubS *r255.PublicKey, header []byte, publicKeys []*PublicKey, padding int,
 ) ([]byte, error) {
 	// Allocate a buffer for the entire header.
 	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
 
-	// Derive the sender's public key.
-	pubS := privS.PublicKey()
-
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate a header key pair shared secret for the recipient.
-		pubEH, secret, err := kem.Send(privS, pubS, pkR.k, scopedhash.NewHeaderKDF,
+		pubEH, secret, err := kem.Send(pk.k, pubS, pkR.k, scopedhash.NewHeaderKDF,
 			sym.KeySize+sym.NonceSize)
 		if err != nil {
 			return nil, err

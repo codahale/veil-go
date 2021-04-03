@@ -24,14 +24,9 @@ var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 // N.B.: Because Veil messages are streamed, it is possible that this may write some decrypted data
 // to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
 // output written to dst should be discarded, as it cannot be ascertained to be authentic.
-func (sk *SecretKey) Decrypt(
-	dst io.Writer, src io.Reader, senders []*PublicKey, derivationPath string,
-) (*PublicKey, int64, error) {
-	// Derive the recipient's private key.
-	privR := sk.privateKey(derivationPath)
-
+func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey) (*PublicKey, int64, error) {
 	// Find a decryptable header and recover the ephemeral private key.
-	headers, pkS, privEH, err := sk.findHeader(src, privR, senders)
+	headers, pkS, privEH, err := pk.findHeader(src, senders)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -79,12 +74,12 @@ func (sk *SecretKey) Decrypt(
 
 // findHeader scans src for header blocks encrypted by any of the given possible senders. Returns
 // the full slice of encrypted headers, the sender's public key, and the ephemeral private key.
-func (sk *SecretKey) findHeader(
-	src io.Reader, privR *r255.PrivateKey, senders []*PublicKey,
+func (pk *PrivateKey) findHeader(
+	src io.Reader, senders []*PublicKey,
 ) ([]byte, *PublicKey, *r255.PrivateKey, error) {
 	headers := make([]byte, 0, len(senders)*encryptedHeaderSize) // a guess at initial capacity
 	buf := make([]byte, encryptedHeaderSize)
-	pubR := privR.PublicKey()
+	pubR := pk.k.PublicKey()
 
 	for {
 		// Iterate through src in header-sized blocks.
@@ -101,7 +96,7 @@ func (sk *SecretKey) findHeader(
 		headers = append(headers, buf...)
 
 		// Attempt to decrypt the header.
-		pkS, skEH, offset := sk.decryptHeader(privR, pubR, buf, senders)
+		pkS, skEH, offset := pk.decryptHeader(pubR, buf, senders)
 
 		// If we successfully decrypt the header, use the message offset to read the remaining
 		// encrypted headers.
@@ -120,8 +115,8 @@ func (sk *SecretKey) findHeader(
 
 // decryptHeader attempts to decrypt the given header block if sent from any of the given public
 // keys.
-func (sk *SecretKey) decryptHeader(
-	privR *r255.PrivateKey, pubR *r255.PublicKey, buf []byte, senders []*PublicKey,
+func (pk *PrivateKey) decryptHeader(
+	pubR *r255.PublicKey, buf []byte, senders []*PublicKey,
 ) (*PublicKey, *r255.PrivateKey, int) {
 	// Decode the possible public key.
 	pubEH, err := r255.DecodePublicKey(buf[:r255.PublicKeySize])
@@ -135,7 +130,7 @@ func (sk *SecretKey) decryptHeader(
 	// Iterate through all possible senders.
 	for _, pubS := range senders {
 		// Re-derive the shared secret between the sender and recipient.
-		secret := kem.Receive(privR, pubR, pubS.k, pubEH, scopedhash.NewHeaderKDF,
+		secret := kem.Receive(pk.k, pubR, pubS.k, pubEH, scopedhash.NewHeaderKDF,
 			sym.KeySize+sym.NonceSize)
 
 		// Initialize an AEAD.

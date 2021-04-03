@@ -81,44 +81,6 @@ var (
 // ErrInvalidSignature is returned when a signature, public key, and message do not match.
 var ErrInvalidSignature = errors.New("invalid signature")
 
-// SignDetached returns a detached signature of the contents of src using the given derivation path.
-// The signature can be verified with the public key derived from the same secret key using the same
-// derivation path.
-func (sk *SecretKey) SignDetached(src io.Reader, derivationPath string) (*Signature, error) {
-	// Hash the message.
-	h := scopedhash.NewMessageHash()
-	if _, err := io.Copy(h, src); err != nil {
-		return nil, err
-	}
-
-	// Create a signature of the hash.
-	return &Signature{b: sk.privateKey(derivationPath).Sign(h.Sum(nil))}, nil
-}
-
-// Sign copies src to dst, creates a signature of the contents of src using the given derivation
-// path, and appends it to src. The signature can be verified with the public key derived from the
-// same secret key using the same derivation path.
-func (sk *SecretKey) Sign(dst io.Writer, src io.Reader, derivationPath string) (int64, error) {
-	// Tee all reads from src into an SHA-512 hash.
-	h := scopedhash.NewMessageHash()
-	r := io.TeeReader(src, h)
-
-	// Copy all data from src into dst via h.
-	n, err := io.Copy(dst, r)
-	if err != nil {
-		return n, err
-	}
-
-	// Sign the SHA-512 hash of the message.
-	sig := sk.privateKey(derivationPath).Sign(h.Sum(nil))
-
-	// Append the signature.
-	sn, err := dst.Write(sig)
-
-	// Return the bytes written and any errors.
-	return n + int64(sn), err
-}
-
 // VerifyDetached returns nil if the given signature was created by the owner of the given public
 // key for the contents of src, otherwise ErrInvalidSignature.
 func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
