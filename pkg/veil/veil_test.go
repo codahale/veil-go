@@ -2,9 +2,7 @@ package veil
 
 import (
 	"bytes"
-	"crypto/rand"
 	"fmt"
-	"io"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -77,53 +75,40 @@ func Example() {
 	// one two three four I declare a thumb war
 }
 
-func TestRoundTrip(t *testing.T) {
+func TestAddFakes(t *testing.T) {
 	t.Parallel()
 
-	a, err := NewSecretKey()
+	alice, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b, err := NewSecretKey()
+	bea, err := NewSecretKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	message := []byte("one two three four I declare a thumb war")
-	enc := bytes.NewBuffer(nil)
-	dec := bytes.NewBuffer(nil)
-	publicKeys := []*PublicKey{a.PublicKey("b"), b.PublicKey("a")}
-
-	eb, err := a.PrivateKey("b").Encrypt(enc, bytes.NewReader(message), publicKeys, 1234)
+	all, err := AddFakes([]*PublicKey{alice.PublicKey("one"), bea.PublicKey("one")}, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pk, db, err := b.PrivateKey("a").Decrypt(dec, enc, publicKeys)
-	if err != nil {
-		t.Fatal(err)
+	assert.Equal(t, "total count", 22, len(all))
+
+	alices, beas, others := 0, 0, 0
+
+	for _, pk := range all {
+		switch pk.String() {
+		case alice.PublicKey("one").String():
+			alices++
+		case bea.PublicKey("one").String():
+			beas++
+		default:
+			others++
+		}
 	}
 
-	assert.Equal(t, "public key", pk.String(), a.PublicKey("b").String())
-	assert.Equal(t, "plaintext", message, dec.Bytes())
-	assert.Equal(t, "encrypted bytes", int64(304+1234), eb)
-	assert.Equal(t, "decrypted bytes", int64(40), db)
-}
-
-func TestFuzz(t *testing.T) {
-	t.Parallel()
-
-	a, err := NewSecretKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	enc := io.LimitReader(rand.Reader, 64*1024)
-	dec := bytes.NewBuffer(nil)
-
-	_, _, err = a.PrivateKey("two").Decrypt(dec, enc, []*PublicKey{a.PublicKey("two")})
-	if err == nil {
-		t.Fatal("shouldn't have decrypted")
-	}
+	assert.Equal(t, "alice count", 1, alices)
+	assert.Equal(t, "bea count", 1, beas)
+	assert.Equal(t, "other count", 20, others)
 }
