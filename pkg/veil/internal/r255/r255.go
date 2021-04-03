@@ -19,9 +19,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal/dxof"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
 	"github.com/gtank/ristretto255"
 )
 
@@ -42,15 +42,11 @@ type SecretKey struct {
 
 // NewSecretKey creates a new secret key.
 func NewSecretKey() (*SecretKey, error) {
-	// Read a large buffer of random data.
-	xof := dxof.SecretKeyScalar()
-	if _, err := io.CopyN(xof, rand.Reader, SecretKeySize*4); err != nil {
+	// Generate a random 64-byte key.
+	var r [SecretKeySize]byte
+	if _, err := rand.Read(r[:]); err != nil {
 		return nil, err
 	}
-
-	// Derive a 64-byte secret key from that data.
-	var r [SecretKeySize]byte
-	_, _ = io.ReadFull(xof, r[:])
 
 	return DecodeSecretKey(r[:])
 }
@@ -67,10 +63,10 @@ func DecodeSecretKey(b []byte) (*SecretKey, error) {
 // PrivateKey derives a PrivateKey instance from the receiver using the given label.
 func (sk *SecretKey) PrivateKey(label string) *PrivateKey {
 	// Derive the secret scalar.
-	s := deriveScalar(dxof.SecretKeyScalar(), sk.r)
+	s := deriveScalar(scaldf.SecretKey(), sk.r)
 
 	// Calculate the delta for the derived key.
-	r := deriveScalar(dxof.LabelScalar(), []byte(label))
+	r := deriveScalar(scaldf.Label(), []byte(label))
 
 	// Return the secret scalar plus the delta.
 	return &PrivateKey{d: ristretto255.NewScalar().Add(s, r)}
@@ -102,14 +98,14 @@ type PrivateKey struct {
 // NewEphemeralKeys returns a new, random private key, unassociated with any secret key, and its
 // corresponding public key.
 func NewEphemeralKeys() (*PrivateKey, *PublicKey, error) {
-	// Read a large buffer of random data.
-	b := make([]byte, SecretKeySize*4)
-	if _, err := rand.Read(b); err != nil {
+	// Generate a random secret key.
+	var r [SecretKeySize]byte
+	if _, err := rand.Read(r[:]); err != nil {
 		return nil, nil, err
 	}
 
 	// Create a private key scalar from the random data.
-	priv := &PrivateKey{d: deriveScalar(dxof.PrivateKeyScalar(), b)}
+	priv := &PrivateKey{d: ristretto255.NewScalar().FromUniformBytes(r[:])}
 
 	// Return it and its public key.
 	return priv, priv.PublicKey(), nil
@@ -128,7 +124,7 @@ func DecodePrivateKey(b []byte) (*PrivateKey, error) {
 // Derive derives a PrivateKey instance from the receiver using the given label.
 func (pk *PrivateKey) Derive(label string) *PrivateKey {
 	// Calculate the delta for the derived key.
-	r := deriveScalar(dxof.LabelScalar(), []byte(label))
+	r := deriveScalar(scaldf.Label(), []byte(label))
 
 	return &PrivateKey{d: ristretto255.NewScalar().Add(pk.d, r)}
 }
@@ -136,12 +132,12 @@ func (pk *PrivateKey) Derive(label string) *PrivateKey {
 // Sign returns a deterministic Schnorr signature of the given message using the given secret key.
 func (pk *PrivateKey) Sign(message []byte) []byte {
 	// Generate a deterministic ephemeral key pair (R, r) from the private key and the message.
-	r := deriveScalar(dxof.SignatureNonceScalar(pk.d.Encode(nil)), message)
+	r := deriveScalar(scaldf.SignatureNonce(pk.d), message)
 	R := ristretto255.NewElement().ScalarBaseMult(r)
 	Rb := R.Encode(nil)
 
 	// Derive a scalar from the ephemeral public key and the message.
-	k := deriveScalar(dxof.SignatureScalar(Rb), message)
+	k := deriveScalar(scaldf.Signature(R), message)
 
 	// Calculate the signature scalar (kd + r).
 	s := ristretto255.NewScalar().Multiply(k, pk.d)
@@ -192,7 +188,7 @@ func (pk *PublicKey) Encode(b []byte) []byte {
 // Derive derives a PublicKey instance from the receiver using the given label.
 func (pk *PublicKey) Derive(label string) *PublicKey {
 	// Calculate the delta for the derived key.
-	r := deriveScalar(dxof.LabelScalar(), []byte(label))
+	r := deriveScalar(scaldf.Label(), []byte(label))
 	rG := ristretto255.NewElement().ScalarBaseMult(r)
 
 	// Return the current public key plus the delta.
@@ -219,7 +215,7 @@ func (pk *PublicKey) Verify(message, sig []byte) bool {
 	}
 
 	// Derive a scalar from the ephemeral public key and the message.
-	k := deriveScalar(dxof.SignatureScalar(sig[:PublicKeySize]), message)
+	k := deriveScalar(scaldf.Signature(R), message)
 
 	// R' = -kQ + gs
 	ky := ristretto255.NewElement().ScalarMult(k, pk.q)
@@ -238,11 +234,10 @@ func (pk *PublicKey) String() string {
 var _ fmt.Stringer = &PublicKey{}
 
 // deriveScalar hashes the given data with the given XOF and maps the digest to a scalar.
-func deriveScalar(xof io.ReadWriter, data []byte) *ristretto255.Scalar {
+func deriveScalar(sdf scaldf.ScalarDerivationFunc, data []byte) *ristretto255.Scalar {
 	var buf [64]byte
 
-	_, _ = xof.Write(data)
-	_, _ = io.ReadFull(xof, buf[:])
+	sdf(&buf, data)
 
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }
