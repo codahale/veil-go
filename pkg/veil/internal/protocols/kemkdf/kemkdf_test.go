@@ -1,18 +1,20 @@
 package kemkdf
 
 import (
+	"bytes"
 	"encoding/base64"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/gtank/ristretto255"
 )
 
 func TestDeriveKey(t *testing.T) {
 	t.Parallel()
 
-	zzE := []byte("AYELLOWSUBMARINEAYELLOWSUBMARINE")
-	zzS := []byte("ayellowsubmarineayellowsubmarine")
+	zzE := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x04}, 64))
+	zzS := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x49}, 64))
 
 	pubE, _ := r255.DecodePublicKey([]byte{
 		0x16, 0x1d, 0xba, 0x1e, 0x8d, 0xa2, 0x6d, 0x86, 0x01, 0xc2, 0x89, 0x0c, 0xa5, 0xcd, 0x01, 0x3f,
@@ -35,7 +37,7 @@ func TestDeriveKey(t *testing.T) {
 		key := DeriveKey(zzE, zzS, pubE, pubR, pubS, 16, true)
 
 		assert.Equal(t, "derived header key",
-			"crAw/8Y5Qeo5qocZvQqKGw", base64.RawStdEncoding.EncodeToString(key))
+			"66+8FaH1eIZUiRe232LNSg", base64.RawStdEncoding.EncodeToString(key))
 	})
 
 	t.Run("message key", func(t *testing.T) {
@@ -44,6 +46,6 @@ func TestDeriveKey(t *testing.T) {
 		key := DeriveKey(zzE, zzS, pubE, pubR, pubS, 16, false)
 
 		assert.Equal(t, "derived header key",
-			"EK8jYQjpOEh9+QYS398eqA", base64.RawStdEncoding.EncodeToString(key))
+			"MwiNu7SPOmiHWJkh2Os3wA", base64.RawStdEncoding.EncodeToString(key))
 	})
 }

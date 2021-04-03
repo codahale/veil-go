@@ -152,10 +152,8 @@ func (pk *PrivateKey) Sign(message []byte) []byte {
 }
 
 // DiffieHellman performs a Diffie-Hellman key exchange using the given public key.
-func (pk *PrivateKey) DiffieHellman(pub *PublicKey) []byte {
-	x := ristretto255.NewElement().ScalarMult(pk.d, pub.q)
-
-	return x.Encode(nil)
+func (pk *PrivateKey) DiffieHellman(pub *PublicKey) *ristretto255.Element {
+	return ristretto255.NewElement().ScalarMult(pk.d, pub.q)
 }
 
 // PublicKey returns the public key for this private key without derivation.

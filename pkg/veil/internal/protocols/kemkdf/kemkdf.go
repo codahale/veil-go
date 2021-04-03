@@ -19,13 +19,14 @@ package kemkdf
 import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
 
 // DeriveKey returns a key derived from the given ephemeral shared secret, static shared secret,
 // the ephemeral public key, the recipient's public key, the sender's public key, the length of the
 // secret in bytes, and whether or not the key is for a header or a message.
-func DeriveKey(zzE, zzS []byte, pubE, pubR, pubS *r255.PublicKey, n int, header bool) []byte {
+func DeriveKey(zzE, zzS *ristretto255.Element, pubE, pubR, pubS *r255.PublicKey, n int, header bool) []byte {
 	// Allocate a buffer for encoding ristretto255 points.
 	b := make([]byte, r255.PublicKeySize)
 
@@ -46,12 +47,12 @@ func DeriveKey(zzE, zzS []byte, pubE, pubR, pubS *r255.PublicKey, n int, header 
 	}
 
 	// Add the ephemeral shared secret to the protocol.
-	if err := kdf.AD(zzE, &strobe.Options{}); err != nil {
+	if err := kdf.AD(zzE.Encode(b[:0]), &strobe.Options{}); err != nil {
 		panic(err)
 	}
 
 	// Add the static shared secret to the protocol.
-	if err := kdf.AD(zzS, &strobe.Options{}); err != nil {
+	if err := kdf.AD(zzS.Encode(b[:0]), &strobe.Options{}); err != nil {
 		panic(err)
 	}
 

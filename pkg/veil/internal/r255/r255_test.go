@@ -22,7 +22,7 @@ func TestDiffieHellman(t *testing.T) {
 	xA := skA.PrivateKey("dh").DiffieHellman(skB.PublicKey("misc"))
 	xB := skB.PrivateKey("misc").DiffieHellman(skA.PublicKey("dh"))
 
-	assert.Equal(t, "shared secret", xA, xB)
+	assert.Equal(t, "shared secret", 1, xA.Equal(xB))
 }
 
 func TestDerivedKeys(t *testing.T) {
