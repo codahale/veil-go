@@ -3,7 +3,7 @@ package veil
 import (
 	"fmt"
 
-	"github.com/codahale/veil/internal/r255"
+	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
 // SecretKey is a key that's used to derive PrivateKey instances (and thus PublicKey instances).

@@ -11,7 +11,7 @@ package kem
 import (
 	"io"
 
-	"github.com/codahale/veil/internal/r255"
+	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
 // KDF is a generic key derivation function, accepting a secret and a salt and returning an

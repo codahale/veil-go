@@ -5,8 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 
-	"github.com/codahale/veil/internal/r255"
-	"github.com/codahale/veil/internal/sym"
+	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/codahale/veil/pkg/veil/internal/sym"
 	"golang.org/x/crypto/argon2"
 )
 

@@ -5,12 +5,12 @@ import (
 	"errors"
 	"io"
 
-	"github.com/codahale/veil/internal/kem"
-	"github.com/codahale/veil/internal/r255"
-	"github.com/codahale/veil/internal/ratchet"
-	"github.com/codahale/veil/internal/scopedhash"
-	"github.com/codahale/veil/internal/stream"
-	"github.com/codahale/veil/internal/sym"
+	"github.com/codahale/veil/pkg/veil/internal/kem"
+	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/codahale/veil/pkg/veil/internal/ratchet"
+	"github.com/codahale/veil/pkg/veil/internal/scopedhash"
+	"github.com/codahale/veil/pkg/veil/internal/stream"
+	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
 
 // ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an

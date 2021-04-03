@@ -3,8 +3,8 @@ package veil
 import (
 	"io"
 
-	"github.com/codahale/veil/internal/r255"
-	"github.com/codahale/veil/internal/scopedhash"
+	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/codahale/veil/pkg/veil/internal/scopedhash"
 )
 
 // PrivateKey is a private key derived from a SecretKey, used to decrypt and sign messages.

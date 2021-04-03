@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
-	"github.com/codahale/veil"
+	"github.com/codahale/veil/pkg/veil"
 )
 
 type secretKeyCmd struct {

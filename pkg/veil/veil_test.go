@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"github.com/codahale/veil/internal/r255"
+	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
 func Example() {

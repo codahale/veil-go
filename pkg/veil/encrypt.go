@@ -6,12 +6,12 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/codahale/veil/internal/kem"
-	"github.com/codahale/veil/internal/r255"
-	"github.com/codahale/veil/internal/ratchet"
-	"github.com/codahale/veil/internal/scopedhash"
-	"github.com/codahale/veil/internal/stream"
-	"github.com/codahale/veil/internal/sym"
+	"github.com/codahale/veil/pkg/veil/internal/kem"
+	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/codahale/veil/pkg/veil/internal/ratchet"
+	"github.com/codahale/veil/pkg/veil/internal/scopedhash"
+	"github.com/codahale/veil/pkg/veil/internal/stream"
+	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
 
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and

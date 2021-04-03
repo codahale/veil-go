@@ -3,8 +3,8 @@ package stream
 import (
 	"io"
 
-	"github.com/codahale/veil/internal/ratchet"
-	"github.com/codahale/veil/internal/sym"
+	"github.com/codahale/veil/pkg/veil/internal/ratchet"
+	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
 
 // writer writes blocks of AEAD-encrypted data using a ratcheting key.

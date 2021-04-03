@@ -4,8 +4,8 @@ import (
 	"errors"
 	"io"
 
-	"github.com/codahale/veil/internal/ratchet"
-	"github.com/codahale/veil/internal/sym"
+	"github.com/codahale/veil/pkg/veil/internal/ratchet"
+	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
 
 // reader reads blocks of AEAD-encrypted data and decrypts them using a ratcheting key.

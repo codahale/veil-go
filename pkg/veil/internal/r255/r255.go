@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/codahale/veil/internal/scopedhash"
+	"github.com/codahale/veil/pkg/veil/internal/scopedhash"
 	"github.com/gtank/ristretto255"
 )
 

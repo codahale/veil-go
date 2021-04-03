@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
-	"github.com/codahale/veil"
+	"github.com/codahale/veil/pkg/veil"
 )
 
 type encryptCmd struct {

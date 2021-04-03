@@ -11,7 +11,7 @@ package ratchet
 import (
 	"io"
 
-	"github.com/codahale/veil/internal/scopedhash"
+	"github.com/codahale/veil/pkg/veil/internal/scopedhash"
 )
 
 // Sequence implements a symmetric key ratchet system based on a KDF.

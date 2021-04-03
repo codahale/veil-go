@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"math/big"
 
-	"github.com/codahale/veil/internal/r255"
+	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
 // AddFakes adds n randomly-generated public keys to the given set of public keys, shuffles the
