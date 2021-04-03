@@ -55,6 +55,7 @@ func DeriveKey(zzE, zzS *ristretto255.Element, pubE, pubR, pubS *r255.PublicKey,
 	if err := kdf.KEY(zzS.Encode(b[:0]), false); err != nil {
 		panic(err)
 	}
+
 	// Add the ephemeral public key to the protocol.
 	if err := kdf.AD(pubE.Encode(b[:0]), &strobe.Options{}); err != nil {
 		panic(err)
