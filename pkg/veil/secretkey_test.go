@@ -47,5 +47,5 @@ func TestSecretKey_String(t *testing.T) {
 		k: k,
 	}
 
-	assert.Equal(t, "string representation", "9f86b70f34746ce1", sk.String())
+	assert.Equal(t, "string representation", "bdfce8855974226c", sk.String())
 }

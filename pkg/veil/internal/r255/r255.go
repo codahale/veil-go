@@ -20,8 +20,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/skid"
 	"github.com/gtank/ristretto255"
 )
 
@@ -85,7 +85,7 @@ func (sk *SecretKey) Encode(b []byte) []byte {
 // String returns the first 8 bytes of a hash of the secret key as a hexadecimal string. This
 // uniquely identifies the secret key without revealing information about it.
 func (sk *SecretKey) String() string {
-	return hex.EncodeToString(dxof.SecretKeyIdentity(sk.r, 8))
+	return hex.EncodeToString(skid.ID(sk.r, 8))
 }
 
 var _ fmt.Stringer = &SecretKey{}
