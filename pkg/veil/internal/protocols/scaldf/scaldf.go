@@ -1,3 +1,31 @@
+// Package scaldf provides the underlying STROBE protocols for Veil's various scalar derivation
+// functions, which derive ristretto255 scalars from various pieces of data.
+//
+// SignatureNonce scalars are generated as follows, given a private key D and message M:
+//
+//     INIT('veil.scaldf.signature-nonce', level=256)
+//     AD(D,                               meta=false, streaming=false)
+//     AD(M,                               meta=false, streaming=false)
+//     PRF(64,                             streaming=false)
+//
+// Signature scalars are generated as follows, given a public key Q and message digest H:
+//
+//     INIT('veil.scaldf.signature', level=256)
+//     AD(Q,                         meta=false, streaming=false)
+//     AD(H,                         meta=false, streaming=false)
+//     PRF(64,                       streaming=false)
+//
+// Label scalars are generated as follows, given a label L:
+//
+//     INIT('veil.scaldf.label', level=256)
+//     AD(L,                     meta=false, streaming=false)
+//     PRF(64,                   streaming=false)
+//
+// SecretKey scalars are generated as follows, given a secret key K:
+//
+//     INIT('veil.scaldf.secret-key', level=256)
+//     AD(K,                          meta=false, streaming=false)
+//     PRF(64,                        streaming=false)
 package scaldf
 
 import (
