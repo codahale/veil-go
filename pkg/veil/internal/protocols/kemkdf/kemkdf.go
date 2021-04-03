@@ -30,49 +30,49 @@ func DeriveKey(zzE, zzS []byte, pubE, pubR, pubS *r255.PublicKey, n int, header 
 	b := make([]byte, r255.PublicKeySize)
 
 	// Initialize the protocol.
-	s, err := strobe.New("veil.kdf.kem", strobe.Bit256)
+	kdf, err := strobe.New("veil.kdf.kem", strobe.Bit256)
 	if err != nil {
 		panic(err)
 	}
 
 	// Add the intent tag to the protocol.
-	if err := s.AD(intentTag(header), &strobe.Options{Meta: true}); err != nil {
+	if err := kdf.AD(intentTag(header), &strobe.Options{Meta: true}); err != nil {
 		panic(err)
 	}
 
 	// Add the output size to the protocol.
-	if err := s.AD(protocols.BigEndianU32(n), &strobe.Options{Meta: true}); err != nil {
+	if err := kdf.AD(protocols.BigEndianU32(n), &strobe.Options{Meta: true}); err != nil {
 		panic(err)
 	}
 
 	// Add the ephemeral shared secret to the protocol.
-	if err := s.AD(zzE, &strobe.Options{}); err != nil {
+	if err := kdf.AD(zzE, &strobe.Options{}); err != nil {
 		panic(err)
 	}
 
 	// Add the static shared secret to the protocol.
-	if err := s.AD(zzS, &strobe.Options{}); err != nil {
+	if err := kdf.AD(zzS, &strobe.Options{}); err != nil {
 		panic(err)
 	}
 
 	// Add the ephemeral public key to the protocol.
-	if err := s.AD(pubE.Encode(b[:0]), &strobe.Options{}); err != nil {
+	if err := kdf.AD(pubE.Encode(b[:0]), &strobe.Options{}); err != nil {
 		panic(err)
 	}
 
 	// Add the recipient's public key to the protocol.
-	if err := s.AD(pubR.Encode(b[:0]), &strobe.Options{}); err != nil {
+	if err := kdf.AD(pubR.Encode(b[:0]), &strobe.Options{}); err != nil {
 		panic(err)
 	}
 
 	// Add the sender's public key to the protocol.
-	if err := s.AD(pubS.Encode(b[:0]), &strobe.Options{}); err != nil {
+	if err := kdf.AD(pubS.Encode(b[:0]), &strobe.Options{}); err != nil {
 		panic(err)
 	}
 
 	// Extract an n-byte derived secret and return it.
 	k := make([]byte, n)
-	if err := s.PRF(k, false); err != nil {
+	if err := kdf.PRF(k, false); err != nil {
 		panic(err)
 	}
 
