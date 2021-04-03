@@ -47,27 +47,6 @@ func MessageDigest() XOF {
 	return sha3.NewCShake256([]byte("veil-message-digest"), nil)
 }
 
-// MessageKEM returns a KDF suitable for deriving message keys from a KEM exchange.
-func MessageKEM(secret, salt []byte) io.Reader {
-	xof := sha3.NewCShake256([]byte("veil-message-kdf"), salt)
-	_, _ = xof.Write(secret)
-
-	return xof
-}
-
-// HeaderKEM returns a KDF suitable for deriving header keys from a KEM exchange.
-func HeaderKEM(secret, salt []byte) io.Reader {
-	xof := sha3.NewCShake256([]byte("veil-header-kdf"), salt)
-	_, _ = xof.Write(secret)
-
-	return xof
-}
-
-// RatchetShakeHash returns an XOF suitable for use in a key ratchet.
-func RatchetShakeHash(key []byte) XOF {
-	return sha3.NewCShake256([]byte("veil-key-ratchet"), key)
-}
-
 // SecretKeyIdentity returns a n-byte digest suitable for creating safe, unique identifiers for
 // secret keys.
 func SecretKeyIdentity(sk []byte, n int) []byte {
