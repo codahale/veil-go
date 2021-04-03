@@ -1,18 +1,17 @@
-package stream
+package streamio
 
 import (
 	"errors"
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/ratchet"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/stream"
 	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
 
 // reader reads blocks of AEAD-encrypted data and decrypts them using a ratcheting key.
 type reader struct {
 	r             io.Reader
-	keys          *ratchet.Sequence
-	ad            []byte
+	protocol      *stream.Protocol
 	plaintext     []byte
 	plaintextPos  int
 	ciphertext    []byte
@@ -21,9 +20,8 @@ type reader struct {
 
 func NewReader(src io.Reader, key, additionalData []byte, blockSize int) io.Reader {
 	return &reader{
-		keys:       ratchet.New(key, sym.KeySize+sym.NonceSize),
+		protocol:   stream.New(key, additionalData, blockSize, sym.TagSize),
 		r:          src,
-		ad:         additionalData,
 		ciphertext: make([]byte, blockSize+sym.TagSize+1), // extra byte for determining last block
 	}
 }
@@ -62,7 +60,7 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	}
 
 	// Decrypt the block we just read.
-	r.plaintext, err = r.decrypt(r.ciphertext[:segment], lastSegment)
+	r.plaintext, err = r.protocol.Decrypt(r.ciphertext[:segment], lastSegment)
 	if err != nil {
 		return 0, err
 	}
@@ -80,17 +78,6 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	r.plaintextPos = n
 
 	return n, nil
-}
-
-func (r *reader) decrypt(ciphertext []byte, final bool) ([]byte, error) {
-	key := r.keys.Next(final)
-
-	aead, err := sym.NewAEAD(key[:sym.KeySize])
-	if err != nil {
-		panic(err)
-	}
-
-	return aead.Open(nil, key[sym.KeySize:], ciphertext, r.ad)
 }
 
 var _ io.Reader = &reader{}

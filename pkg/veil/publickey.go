@@ -7,7 +7,7 @@ import (
 
 	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
-	"github.com/codahale/veil/pkg/veil/internal/stream"
+	"github.com/codahale/veil/pkg/veil/internal/streamio"
 )
 
 // PublicKey is a key that's used to verify and encrypt messages.
@@ -53,7 +53,7 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	// Copy the message contents to dst and an XOF and detatch the signature.
 	xof := dxof.MessageDigest()
-	sr := stream.NewSignatureReader(src, r255.SignatureSize)
+	sr := streamio.NewSignatureReader(src, r255.SignatureSize)
 	tr := io.TeeReader(sr, xof)
 
 	// Copy all data from src into dst via xof, skipping the appended signature.

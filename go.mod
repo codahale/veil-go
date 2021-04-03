@@ -7,6 +7,7 @@ require (
 	github.com/codahale/gubbins v0.0.1
 	github.com/gtank/ristretto255 v0.1.2
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/sammyne/strobe v0.0.0-20201028005755-1a7dc1020420
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	golang.org/x/sys v0.0.0-20210402192133-700132347e07 // indirect
 	golang.org/x/term v0.0.0-20210317153231-de623e64d2a6

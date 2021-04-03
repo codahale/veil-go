@@ -8,8 +8,7 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
-	"github.com/codahale/veil/pkg/veil/internal/ratchet"
-	"github.com/codahale/veil/pkg/veil/internal/stream"
+	"github.com/codahale/veil/pkg/veil/internal/streamio"
 	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
 
@@ -47,15 +46,15 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	}
 
 	// Derive the shared ratchet key between the sender's public key and the ephemeral private key.
-	key := kem.Receive(privEH, pubEH, pkS.k, pubEM, dxof.MessageKEM, ratchet.KeySize)
+	key := kem.Receive(privEH, pubEH, pkS.k, pubEM, dxof.MessageKEM, sym.KeySize)
 
 	// Initialize an AEAD reader with the ratchet key, using the encrypted headers as authenticated
 	// data.
-	r := stream.NewReader(src, key, headers, blockSize)
+	r := streamio.NewReader(src, key, headers, blockSize)
 
 	// Detach the signature from the plaintext and calculate a digest of it.
 	xof := dxof.MessageDigest()
-	sr := stream.NewSignatureReader(r, r255.SignatureSize)
+	sr := streamio.NewSignatureReader(r, r255.SignatureSize)
 	tr := io.TeeReader(sr, xof)
 
 	// Decrypt the plaintext as a stream.

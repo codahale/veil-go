@@ -1,17 +1,16 @@
-package stream
+package streamio
 
 import (
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/ratchet"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/stream"
 	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
 
 // writer writes blocks of AEAD-encrypted data using a ratcheting key.
 type writer struct {
-	keys         *ratchet.Sequence
 	w            io.Writer
-	ad           []byte
+	protocol     *stream.Protocol
 	plaintext    []byte
 	plaintextPos int
 	ciphertext   []byte
@@ -20,9 +19,8 @@ type writer struct {
 
 func NewWriter(dst io.Writer, key, additionalData []byte, blockSize int) io.WriteCloser {
 	return &writer{
-		keys:      ratchet.New(key, sym.KeySize+sym.NonceSize),
 		w:         dst,
-		ad:        additionalData,
+		protocol:  stream.New(key, additionalData, blockSize, sym.TagSize),
 		plaintext: make([]byte, blockSize),
 	}
 }
@@ -48,7 +46,7 @@ func (w *writer) Write(p []byte) (n int, err error) {
 		}
 
 		// Otherwise, encrypt the plaintext buffer.
-		w.ciphertext = w.encrypt(w.plaintext[:ptLim], false)
+		w.ciphertext = w.protocol.Encrypt(w.plaintext[:ptLim], false)
 
 		// And write the ciphertext to the underlying writer.
 		if _, err := w.w.Write(w.ciphertext); err != nil {
@@ -66,7 +64,7 @@ func (w *writer) Close() error {
 		return nil
 	}
 
-	w.ciphertext = w.encrypt(w.plaintext[:w.plaintextPos], true)
+	w.ciphertext = w.protocol.Encrypt(w.plaintext[:w.plaintextPos], true)
 
 	if _, err := w.w.Write(w.ciphertext); err != nil {
 		return err
@@ -76,17 +74,6 @@ func (w *writer) Close() error {
 	w.closed = true
 
 	return nil
-}
-
-func (w *writer) encrypt(plaintext []byte, final bool) []byte {
-	key := w.keys.Next(final)
-
-	aead, err := sym.NewAEAD(key[:sym.KeySize])
-	if err != nil {
-		panic(err)
-	}
-
-	return aead.Seal(nil, key[sym.KeySize:], plaintext, w.ad)
 }
 
 var _ io.WriteCloser = &writer{}

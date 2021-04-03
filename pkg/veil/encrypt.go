@@ -9,8 +9,7 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
-	"github.com/codahale/veil/pkg/veil/internal/ratchet"
-	"github.com/codahale/veil/pkg/veil/internal/stream"
+	"github.com/codahale/veil/pkg/veil/internal/streamio"
 	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
 
@@ -44,8 +43,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pubEM, key, err := kem.Send(pk.k, pubS, pubEH, dxof.MessageKEM,
-		ratchet.KeySize)
+	pubEM, key, err := kem.Send(pk.k, pubS, pubEH, dxof.MessageKEM, sym.KeySize)
 	if err != nil {
 		return int64(n), err
 	}
@@ -58,7 +56,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 
 	// Initialize an AEAD writer with the ratchet key, using the encrypted headers as authenticated
 	// data.
-	w := stream.NewWriter(dst, key, headers, blockSize)
+	w := streamio.NewWriter(dst, key, headers, blockSize)
 
 	// Tee reads from the input into an XOF.
 	xof := dxof.MessageDigest()

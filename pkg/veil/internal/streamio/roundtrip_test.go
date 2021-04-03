@@ -1,4 +1,4 @@
-package stream
+package streamio
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"github.com/codahale/gubbins/assert"
 )
 
-func TestAEADStream(t *testing.T) {
+func TestRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	// Constants.
@@ -59,7 +59,7 @@ func TestAEADStream(t *testing.T) {
 }
 
 //nolint:gocognit // It's just loops, guy.
-func BenchmarkStreamEncrypt(b *testing.B) {
+func BenchmarkWriter(b *testing.B) {
 	key := []byte("this is ok")
 	ad := make([]byte, 19)
 	sizes := []int64{100, 1_000, 10_000, 100_000, 1_000_000}

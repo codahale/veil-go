@@ -1,4 +1,4 @@
-package stream
+package streamio
 
 import (
 	"errors"
