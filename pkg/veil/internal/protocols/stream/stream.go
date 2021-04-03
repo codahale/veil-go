@@ -30,8 +30,7 @@
 package stream
 
 import (
-	"encoding/binary"
-
+	"github.com/codahale/veil/pkg/veil/internal/protocols"
 	"github.com/sammyne/strobe"
 )
 
@@ -51,12 +50,12 @@ func New(key, associatedData []byte, blockSize, tagSize int) *Protocol {
 	}
 
 	// Add the block size to the protocol.
-	if err := stream.AD(beUint32(blockSize), &strobe.Options{Meta: true}); err != nil {
+	if err := stream.AD(protocols.BigEndianU32(blockSize), &strobe.Options{Meta: true}); err != nil {
 		panic(err)
 	}
 
 	// Add the tag size to the protocol.
-	if err := stream.AD(beUint32(tagSize), &strobe.Options{Meta: true}); err != nil {
+	if err := stream.AD(protocols.BigEndianU32(tagSize), &strobe.Options{Meta: true}); err != nil {
 		panic(err)
 	}
 
@@ -154,15 +153,6 @@ func (p *Protocol) ratchet(final bool) {
 	if err := p.s.RATCHET(ratchetSize); err != nil {
 		panic(err)
 	}
-}
-
-// beUint32 returns n as a 32-bit big endian bit string.
-func beUint32(n int) []byte {
-	var b [4]byte
-
-	binary.BigEndian.PutUint32(b[:], uint32(n))
-
-	return b[:]
 }
 
 const (
