@@ -1,3 +1,5 @@
+TODO re-write to describe XOFs
+
 # veil
 
 _Stupid crypto tricks._
@@ -17,16 +19,14 @@ keys.
 
 ## Algorithms & Constructions
 
-### Scoped Hashing
+### Domain-Separated eXtensible Output Functions (XOFs)
 
-Veil uses scoped hashing for domain-specific derivation. For example, to derive a secret
-ristretto255 scalar from a secret key, HMAC-SHA-512 is used with a static key of `veil-secret-key`.
-Using purpose-specific hashing separates concerns and hardens the design against misuse.
+Veil uses domain-separated cSHAKE-256 instances for all hashing responsibilities.
 
-```
-s = scalarFromBytes(hmacSHA512('veil-secret-key', sk))
-Q = sG
-```
+For example, to derive a secret ristretto255 scalar from a secret key, cSHAKE-256 is used with an
+`N` parameter of `veil-secret-key`. The secret key data is written to the XOF, 64 bytes are then
+read from the XOF and mapped to a scalar value. Using domain-separated XOFs separates concerns and
+hardens the design against misuse.
 
 ### Child Key Derivation
 
@@ -36,12 +36,6 @@ an opaque label value and added to the secret scalar to form a private key. The 
 to derive a private key from another private key. To derive a public key from a public key, the
 delta scalar is first multiplied by the curve's base point, then added to the public key point.
 
-```
-r = scalarFromBytes(hmacSHA512('veil-derived-key', label))
-s' = s + r
-Q' = Q + rG
-```
-
 This is used iterative to provide hierarchical key derivation. Public keys are created using
 hierarchical IDs like `/friends/alice`, in which the private key `/` is used to derive the private
 key `friends`, which is in turn used to derive the private key `alice`.
@@ -49,17 +43,18 @@ key `friends`, which is in turn used to derive the private key `alice`.
 ### Symmetric Key Ratcheting And Streaming AEADs
 
 In order to encrypt arbitrarily large messages, Veil uses a streaming AEAD construction based on a
-Signal-style HKDF ratchet. An initial 64-byte ratchet key is used to create an HKDF-SHA-512
-instance, and the first 64 bytes of its output are used to create a new ratchet key. The next 32
-bytes of KDF output are used to create a ChaCha20Poly1305 key, and the following 12 bytes are used
-to create a nonce. To prevent attacker appending blocks to a message, the final block of a stream is
-keyed using a different salt, thus permanently forking the chain.
+Signal-style XOF ratchet. An initial 64-byte ratchet key is used to create a cSHAKE-256 instance,
+and the first 64 bytes of its output are used to create a new ratchet key. For each block, the XOF
+is reset, reseeded with the ratchet key, and for the final block, additionally seeded with a
+constant value. The first 64 bytes of XOF output as used as the next ratchet key; additional XOF
+output is used to generate a symmetric key and nonce for the block.
 
 ```
-rk1, oK0, oN0 = hkdfSHA512(rk0, 'veil-ratchet', 'next')
-rk2, oK1, oN1 = hkdfSHA512(rk1, 'veil-ratchet', 'next')
-rk3, oK2, oN2 = hkdfSHA512(rk2, 'veil-ratchet', 'next')
-rk4, oK3, oN3 = hkdfSHA512(rk3, 'veil-ratchet', 'last')
+rk0 = cSHAKE256('veil-ratchet', rk, '')
+rk1, oK0, oN0 = cSHAKE256('veil-ratchet', rk, '', rk0)
+rk2, oK1, oN1 = cSHAKE256('veil-ratchet', rk, '', rk1)
+rk3, oK2, oN2 = cSHAKE256('veil-ratchet', rk, '', rk2)
+rk4, oK3, oN3 = cSHAKE256('veil-ratchet', rk, '', rk3 || 'veil-final')
 ```
 
 ### Key Agreement And Encapsulation
@@ -67,30 +62,30 @@ rk4, oK3, oN3 = hkdfSHA512(rk3, 'veil-ratchet', 'last')
 When sending a message, the sender generates an ephemeral key pair and calculates the ephemeral
 shared secret between the recipient's public key and the ephemeral private key. They then calculate
 the static shared secret between the recipient's public key and their own private key. The two
-shared secret points are used as HKDF-SHA-512 initial keying material, with the ephemeral, sender's,
-and recipient's public keys included as a salt. The sender creates a symmetric key and nonce from
-the KDF output and encrypts the message with an AEAD. The sender transmits the ephemeral public key
-and the ciphertext.
+shared secret points are used as initial keying material for a cSHAKE-256 XOF, with the ephemeral,
+sender's, and recipient's public keys included as customization parameter.. The sender creates a
+symmetric key and nonce from the XOF output and encrypts the message with an AEAD. The sender
+transmits the ephemeral public key and the ciphertext.
 
 ``` 
 e = scalarFromBytes(rand(64))
 E = eG
 zzE = eR
 zzS = sR
-zz = hkdfSHA512(zzE || zzS, E || S || R, info, n)
+zz = cSHAKE256('veil-message-kdf', E || S || R, zzE || zzS)
 
 return E, zz
 ```
 
 To receive a message, the receiver calculates the ephemeral shared secret between the ephemeral
 public key and their own private key and the static shared secret between the recipient's public key
-and their own private key. The HKDF-SHA-512 output is re-created, and the message is authenticated
-and decrypted.
+and their own private key. The XOF output is re-created, and the message is authenticated and
+decrypted.
 
 ``` 
 zzE = rE
 zzS = rS
-zz = hkdfSHA512(zzE || zzS, E || S || R, info, n)
+zz = cSHAKE256(zzE || zzS, E || S || R, info, n)
 
 return zz
 ```
@@ -98,23 +93,23 @@ return zz
 As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
 KEM provides assurance that the message was encrypted by the holder of the sender's private key. XDH
 mutability issues are mitigated by the inclusion of the ephemeral public key and the recipient's
-public key in the HKDF inputs. Deriving the key and nonce from the ephemeral shared secret
-eliminates the possibility of nonce misuse, results in a shorter ciphertext by eliding the nonce,
-and adds key-commitment with all public keys as openers.
+public key in the KDF inputs. Deriving the key and nonce from the ephemeral shared secret eliminates
+the possibility of nonce misuse, results in a shorter ciphertext by eliding the nonce, and adds
+key-commitment with all public keys as openers.
 
 ### Digital Signatures
 
 To make authenticated messages, Veil creates Schnorr signatures using the signer's private key. The
-actual "message" signed is a SHA-512 hash of the message, and SHA-512 is used to derive ristretto255
-scalars from the message and ephemeral public key. In place of a randomly generated ephemeral key
-pair, Veil uses a key pair derived from the private key and the message value.
+actual "message" signed is a cSHAKE-256 hash of the message, and cSHAKE-256 is used to derive
+ristretto255 scalars from the message and ephemeral public key. In place of a randomly generated
+ephemeral key pair, Veil uses a key pair derived from the private key and the message value.
 
 To create a signature, the signer uses a private key `d` to create a signature point and scalar:
 
 ``` 
-r = scalarFromBytes(hmacSHA512(s, m))
+r = scalarFromBytes(cSHAKE256('veil-signature-nonce', s, m))
 R = rG
-k = scalarFromBytes(hmacSHA512('veil-signature', R || m))
+k = scalarFromBytes(cSHAKE256('veil-signature', R, m))
 s = kd + r
 
 return R, s
@@ -124,7 +119,7 @@ To validate a signature, the verifier uses the signer's public key `Q` to re-cre
 point for the given message:
 
 ``` 
-k = scalarFromBytes(hmacSHA512('veil-signature', R || m'))
+k = scalarFromBytes(cSHAKE256('veil-signature', R, m'))
 R' = -kQ + sG
 
 return R == R'
@@ -143,14 +138,14 @@ Second, the sender uses the KEM mechanism to encrypt the message using the ephem
 key. Instead of a single AEAD pass, the shared secret is used to begin a KDF key ratchet, and each
 block of the input is encrypted using ChaCha20Poly1305 with a new ratchet key and nonce.
 
-Finally, a signature is created of the SHA-512 hash of the plaintext and appended to the plaintext
-inside the AEAD stream.
+Finally, a signature is created of the cSHAKE-256 hash of the plaintext and appended to the
+plaintext inside the AEAD stream.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable header
 using the shared secret between the ephemeral header public key and recipient's private key. When a
 header is successfully decrypted, the ephemeral header private key and the sender's public key is
 used to re-derive the shared secret, and the message is decrypted. The signature is verified against
-an SHA-512 hash of the message, assuring authenticity.
+a cSHAKE-256 hash of the message, assuring authenticity.
 
 ### Passphrase-Based Encryption
 

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
-	"github.com/codahale/veil/pkg/veil/internal/scopedhash"
 	"github.com/codahale/veil/pkg/veil/internal/stream"
 )
 
@@ -31,14 +31,18 @@ func (pk *PublicKey) Derive(subKeyID string) *PublicKey {
 // VerifyDetached returns nil if the given signature was created by the owner of the given public
 // key for the contents of src, otherwise ErrInvalidSignature.
 func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
-	// Hash the message.
-	h := scopedhash.NewMessageHash()
-	if _, err := io.Copy(h, src); err != nil {
+	// Write the message contents to an XOF.
+	xof := dxof.MessageDigest()
+	if _, err := io.Copy(xof, src); err != nil {
 		return err
 	}
 
-	// Verify the signature against the hash of the message.
-	if !pk.k.Verify(h.Sum(nil), sig.b) {
+	// Calculate a digest of the message.
+	digest := make([]byte, digestSize)
+	_, _ = io.ReadFull(xof, digest)
+
+	// Verify the signature against the digest.
+	if !pk.k.Verify(digest, sig.b) {
 		return ErrInvalidSignature
 	}
 
@@ -47,18 +51,23 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 
 // Verify copies src to dst, removing the appended signature and verifying it.
 func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
-	// Hash the message and detach the signature.
-	h := scopedhash.NewMessageHash()
-	sr := stream.NewSignatureReader(src, h, r255.SignatureSize)
+	// Copy the message contents to dst and an XOF and detatch the signature.
+	xof := dxof.MessageDigest()
+	sr := stream.NewSignatureReader(src, r255.SignatureSize)
+	tr := io.TeeReader(sr, xof)
 
-	// Copy all data from src into dst, skipping the appended signature.
-	n, err := io.Copy(dst, sr)
+	// Copy all data from src into dst via xof, skipping the appended signature.
+	n, err := io.Copy(dst, tr)
 	if err != nil {
 		return n, err
 	}
 
+	// Calculate a digest of the message.
+	digest := make([]byte, digestSize)
+	_, _ = io.ReadFull(xof, digest)
+
 	// Verify the signature.
-	if !pk.k.Verify(h.Sum(nil), sr.Signature) {
+	if !pk.k.Verify(digest, sr.Signature) {
 		return n, ErrInvalidSignature
 	}
 

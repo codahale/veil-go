@@ -3,8 +3,8 @@ package veil
 import (
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
-	"github.com/codahale/veil/pkg/veil/internal/scopedhash"
 )
 
 // PrivateKey is a private key derived from a SecretKey, used to decrypt and sign messages.
@@ -30,30 +30,38 @@ func (pk *PrivateKey) Derive(subKeyID string) *PrivateKey {
 
 // SignDetached returns a detached signature of the contents of src.
 func (pk *PrivateKey) SignDetached(src io.Reader) (*Signature, error) {
-	// Hash the message.
-	h := scopedhash.NewMessageHash()
-	if _, err := io.Copy(h, src); err != nil {
+	// Write the message contents to an XOF.
+	xof := dxof.MessageDigest()
+	if _, err := io.Copy(xof, src); err != nil {
 		return nil, err
 	}
 
-	// Create a signature of the hash.
-	return &Signature{b: pk.k.Sign(h.Sum(nil))}, nil
+	// Calculate a digest of the message.
+	digest := make([]byte, digestSize)
+	_, _ = io.ReadFull(xof, digest)
+
+	// Create a signature of the digest.
+	return &Signature{b: pk.k.Sign(digest)}, nil
 }
 
 // Sign copies src to dst, creates a signature of the contents of src, and appends it to dst.
 func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
-	// Tee all reads from src into an SHA-512 hash.
-	h := scopedhash.NewMessageHash()
-	r := io.TeeReader(src, h)
+	// Tee all reads from src into an XOF.
+	xof := dxof.MessageDigest()
+	r := io.TeeReader(src, xof)
 
-	// Copy all data from src into dst via h.
+	// Copy all data from src into dst via xof.
 	n, err := io.Copy(dst, r)
 	if err != nil {
 		return n, err
 	}
 
-	// Sign the SHA-512 hash of the message.
-	sig := pk.k.Sign(h.Sum(nil))
+	// Calculate a digest of the message.
+	digest := make([]byte, digestSize)
+	_, _ = io.ReadFull(xof, digest)
+
+	// Sign the digest.
+	sig := pk.k.Sign(digest)
 
 	// Append the signature.
 	sn, err := dst.Write(sig)
@@ -61,3 +69,5 @@ func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	// Return the bytes written and any errors.
 	return n + int64(sn), err
 }
+
+const digestSize = 64

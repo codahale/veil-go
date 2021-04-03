@@ -2,14 +2,12 @@ package stream
 
 import (
 	"errors"
-	"hash"
 	"io"
 )
 
 type SignatureReader struct {
 	Signature []byte
 
-	h           hash.Hash
 	in          io.Reader
 	scratch     []byte
 	trailerUsed int
@@ -17,10 +15,9 @@ type SignatureReader struct {
 	eof         bool
 }
 
-func NewSignatureReader(src io.Reader, h hash.Hash, sigSize int) *SignatureReader {
+func NewSignatureReader(src io.Reader, sigSize int) *SignatureReader {
 	return &SignatureReader{
 		Signature: make([]byte, sigSize),
-		h:         h,
 		in:        src,
 		scratch:   make([]byte, sigSize),
 	}
@@ -71,7 +68,6 @@ func (tr *SignatureReader) Read(buf []byte) (n int, err error) {
 	if len(buf) <= len(tr.Signature) {
 		n, err = readFull(tr.in, tr.scratch[:len(buf)])
 		copy(buf, tr.Signature[:n])
-		tr.h.Write(buf[:n])
 		copy(tr.Signature, tr.Signature[n:])
 		copy(tr.Signature[len(tr.Signature)-n:], tr.scratch)
 
@@ -85,7 +81,6 @@ func (tr *SignatureReader) Read(buf []byte) (n int, err error) {
 
 	n, err = tr.in.Read(buf[len(tr.Signature):])
 	copy(buf, tr.Signature)
-	tr.h.Write(buf[:n])
 	copy(tr.Signature, buf[n:])
 
 	if errors.Is(err, io.EOF) {

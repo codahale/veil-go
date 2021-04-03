@@ -9,49 +9,60 @@
 package ratchet
 
 import (
-	"io"
-
-	"github.com/codahale/veil/pkg/veil/internal/scopedhash"
+	"github.com/codahale/veil/pkg/veil/internal/dxof"
 )
 
-// Sequence implements a symmetric key ratchet system based on a KDF.
+// Sequence implements a symmetric key ratchet system based on an XOF.
 type Sequence struct {
-	buf []byte
+	xof dxof.XOF
+	key []byte
+	out []byte
 }
 
 const (
 	KeySize = 64 // KeySize is the size of a ratchet sequence key in bytes.
 )
 
-// New returns a new Sequence instance which uses the initial key to create a sequence of keys of
-// size n.
+// New returns a new Sequence instance which uses the initial key to create a sequence of keys.
 func New(key []byte, n int) *Sequence {
-	buf := make([]byte, KeySize+n)
-	copy(buf, key)
+	// Create a new XOF instance with the key.
+	xof := dxof.RatchetShakeHash(key)
 
-	return &Sequence{buf: buf}
+	// Generate a new ratchet key from the output.
+	k := make([]byte, KeySize)
+	_, _ = xof.Read(k)
+
+	// Create a new sequence.
+	s := &Sequence{
+		xof: xof,
+		key: k,
+		out: make([]byte, n),
+	}
+
+	return s
 }
 
-// Next returns the next key in the sequence. The previous chain key is used to create a new
-// domain-specific KDF instance. If this is the final key in the sequence, a KDF specific to the
-// final block is used; otherwise, another KDF is used. The first 64 bytes of KDF output are used to
-// create a new chain key; the next N bytes of KDF output are returned as the next key.
+// Next returns the next key in the sequence. The XOF is reset and reseeded with the ratchet key
+// generated during the last iteration. If this is the final block, the XOF is finalized by writing
+// `veil-final` to it. The first 64 bytes of XOF output are used to create a new chain key; the next
+// N bytes of XOF output are returned as the next key.
 func (kr *Sequence) Next(final bool) []byte {
-	// Create a new domain-specific KDF instance with the current ratchet key.
-	var kdf io.Reader
+	// Reset the XOF to its original state.
+	kr.xof.Reset()
+
+	// Reseed the XOF with the ratchet key.
+	_, _ = kr.xof.Write(kr.key)
+
+	// Finalize the XOF if needed.
 	if final {
-		// If this is the final key in the sequence, use a different KDF.
-		kdf = scopedhash.NewFinalRatchetKDF(kr.buf[:KeySize])
-	} else {
-		// Otherwise, use the same KDF.
-		kdf = scopedhash.NewNextRatchetKDF(kr.buf[:KeySize])
+		_, _ = kr.xof.Write([]byte("veil-final"))
 	}
 
-	// Advance the ratchet.
-	if _, err := io.ReadFull(kdf, kr.buf); err != nil {
-		panic(err)
-	}
+	// Generate a new ratchet key.
+	_, _ = kr.xof.Read(kr.key)
 
-	// Return the new key.
-	return kr.buf[KeySize:]
+	// Generate a new output key.
+	_, _ = kr.xof.Read(kr.out)
+
+	return kr.out
 }

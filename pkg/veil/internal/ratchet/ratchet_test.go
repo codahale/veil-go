@@ -21,10 +21,32 @@ func TestSequence_Next(t *testing.T) {
 	}
 
 	assert.Equal(t, "keys", []string{
-		"af1227e20adee7a7ea44ce5e6889fa07",
-		"13f3ac089cfcf98469b966a46cb66de8",
-		"fcf535968bbefef4826ee5c06dc34226",
-		"00cf8029c2a3f5bd248f27a06ae7988f",
+		"2e24c6695cc5a33d5ccd95ea3840a254",
+		"a962a3d204ec244d0a91cc3deb25bbbe",
+		"27dc9c75d4470f36bd37b926d9508bc8",
+		"bea653ab34fb8e21f4407d28a354acac",
+	}, keys)
+}
+
+func TestSequence_NextFinal(t *testing.T) {
+	t.Parallel()
+
+	var keys []string
+
+	kr := New([]byte("this is ok"), 16)
+
+	for i := 0; i < 5; i++ {
+		key := kr.Next(i == 4)
+
+		keys = append(keys, hex.EncodeToString(key))
+	}
+
+	assert.Equal(t, "keys", []string{
+		"2e24c6695cc5a33d5ccd95ea3840a254",
+		"a962a3d204ec244d0a91cc3deb25bbbe",
+		"27dc9c75d4470f36bd37b926d9508bc8",
+		"255e2227796aafba1fcfc1ce7eb30dcb",
+		"e7d74e6ba3a3644f15d66f3e133d67ee",
 	}, keys)
 }
 

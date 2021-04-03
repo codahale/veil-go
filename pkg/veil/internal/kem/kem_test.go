@@ -1,13 +1,12 @@
 package kem
 
 import (
-	"crypto/sha512"
 	"io"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
+	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
-	"golang.org/x/crypto/hkdf"
 )
 
 func TestExchange(t *testing.T) {
@@ -87,5 +86,5 @@ func BenchmarkReceive(b *testing.B) {
 }
 
 func testKDF(secret, salt []byte) io.Reader {
-	return hkdf.New(sha512.New, secret, salt, []byte("test"))
+	return dxof.MessageKEM(secret, salt)
 }

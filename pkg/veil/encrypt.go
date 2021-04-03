@@ -6,10 +6,10 @@ import (
 	"encoding/binary"
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/codahale/veil/pkg/veil/internal/ratchet"
-	"github.com/codahale/veil/pkg/veil/internal/scopedhash"
 	"github.com/codahale/veil/pkg/veil/internal/stream"
 	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
@@ -44,7 +44,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pubEM, key, err := kem.Send(pk.k, pubS, pubEH, scopedhash.NewMessageKDF,
+	pubEM, key, err := kem.Send(pk.k, pubS, pubEH, dxof.MessageKEM,
 		ratchet.KeySize)
 	if err != nil {
 		return int64(n), err
@@ -60,9 +60,9 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	// data.
 	w := stream.NewWriter(dst, key, headers, blockSize)
 
-	// Tee reads from the input into a SHA-512 hash.
-	h := scopedhash.NewMessageHash()
-	r := io.TeeReader(src, h)
+	// Tee reads from the input into an XOF.
+	xof := dxof.MessageDigest()
+	r := io.TeeReader(src, xof)
 
 	// Encrypt the plaintext as a stream.
 	bn, err := io.Copy(w, r)
@@ -70,8 +70,12 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 		return bn + int64(n+an), err
 	}
 
-	// Create a signature of the SHA-512 hash of the plaintext.
-	sig := pk.k.Sign(h.Sum(nil))
+	// Calculate the digest of the plaintext.
+	digest := make([]byte, digestSize)
+	_, _ = io.ReadFull(xof, digest)
+
+	// Create a signature of the digest.
+	sig := pk.k.Sign(digest)
 
 	// Append the signature to the plaintext.
 	cn, err := w.Write(sig)
@@ -107,7 +111,7 @@ func (pk *PrivateKey) encryptHeaders(
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate a header key pair shared secret for the recipient.
-		pubEH, secret, err := kem.Send(pk.k, pubS, pkR.k, scopedhash.NewHeaderKDF,
+		pubEH, secret, err := kem.Send(pk.k, pubS, pkR.k, dxof.HeaderKEM,
 			sym.KeySize+sym.NonceSize)
 		if err != nil {
 			return nil, err

@@ -3,26 +3,25 @@
 // Veil uses ristretto255 for asymmetric cryptography. Each person has a secret key from which
 // multiple private/public key pairs can be derived.
 //
-// To derive a private key, a secret scalar is derived from the secret key using a scoped hash. A
-// delta scalar is derived from an opaque label using another scoped hash and added to the secret
-// scalar to produce a new private key.
+// To derive a private key, a secret scalar is derived from the secret key using an domain-separated
+// XOF. A delta scalar is derived from an opaque label using a different domain-separated XOF and
+// added to the secret scalar to produce a new private key.
 //
 // To derive a public key, the same delta scalar is derived, multiplied by the risotto255 base
 // point, and added to the public key point.
 //
 // To sign messages, Veil creates Schnorr signatures using a private key derived from the signer's
-// secret key and an ephemeral key derived from both the seceret key and the message.
+// secret key and an ephemeral key derived from both the seceret key and the message using an XOF.
 package r255
 
 import (
 	"crypto/rand"
-	"crypto/sha512"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"hash"
+	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/scopedhash"
+	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/gtank/ristretto255"
 )
 
@@ -44,15 +43,15 @@ type SecretKey struct {
 // NewSecretKey creates a new secret key.
 func NewSecretKey() (*SecretKey, error) {
 	// Read a large buffer of random data.
-	b := make([]byte, SecretKeySize*4)
-	if _, err := rand.Read(b); err != nil {
+	xof := dxof.SecretKeyScalar()
+	if _, err := io.CopyN(xof, rand.Reader, SecretKeySize*4); err != nil {
 		return nil, err
 	}
 
-	// Hash the random data with SHA-512.
-	r := sha512.Sum512(b)
+	// Derive a 64-byte secret key from that data.
+	var r [SecretKeySize]byte
+	_, _ = io.ReadFull(xof, r[:])
 
-	// Use the hash as a secret key.
 	return DecodeSecretKey(r[:])
 }
 
@@ -68,10 +67,10 @@ func DecodeSecretKey(b []byte) (*SecretKey, error) {
 // PrivateKey derives a PrivateKey instance from the receiver using the given label.
 func (sk *SecretKey) PrivateKey(label string) *PrivateKey {
 	// Derive the secret scalar.
-	s := deriveScalar(scopedhash.NewSecretKeyHash(), sk.r)
+	s := deriveScalar(dxof.SecretKeyScalar(), sk.r)
 
 	// Calculate the delta for the derived key.
-	r := deriveScalar(scopedhash.NewDerivedKeyHash(), []byte(label))
+	r := deriveScalar(dxof.LabelScalar(), []byte(label))
 
 	// Return the secret scalar plus the delta.
 	return &PrivateKey{d: ristretto255.NewScalar().Add(s, r)}
@@ -87,14 +86,10 @@ func (sk *SecretKey) Encode(b []byte) []byte {
 	return append(b, sk.r...)
 }
 
-// String returns the first 8 bytes of the SHA-512 hash of the secret key as a hexadecimal string.
-// This uniquely identifies the secret key without revealing information about it.
+// String returns the first 8 bytes of a hash of the secret key as a hexadecimal string. This
+// uniquely identifies the secret key without revealing information about it.
 func (sk *SecretKey) String() string {
-	h := scopedhash.NewIdentityHash()
-	_, _ = h.Write(sk.r)
-	d := h.Sum(nil)
-
-	return hex.EncodeToString(d[:8])
+	return hex.EncodeToString(dxof.SecretKeyIdentity(sk.r, 8))
 }
 
 var _ fmt.Stringer = &SecretKey{}
@@ -113,8 +108,8 @@ func NewEphemeralKeys() (*PrivateKey, *PublicKey, error) {
 		return nil, nil, err
 	}
 
-	// Create a private key scalar from the SHA-512 hash of the data.
-	priv := &PrivateKey{d: deriveScalar(scopedhash.NewHash(), b)}
+	// Create a private key scalar from the random data.
+	priv := &PrivateKey{d: deriveScalar(dxof.PrivateKeyScalar(), b)}
 
 	// Return it and its public key.
 	return priv, priv.PublicKey(), nil
@@ -133,7 +128,7 @@ func DecodePrivateKey(b []byte) (*PrivateKey, error) {
 // Derive derives a PrivateKey instance from the receiver using the given label.
 func (pk *PrivateKey) Derive(label string) *PrivateKey {
 	// Calculate the delta for the derived key.
-	r := deriveScalar(scopedhash.NewDerivedKeyHash(), []byte(label))
+	r := deriveScalar(dxof.LabelScalar(), []byte(label))
 
 	return &PrivateKey{d: ristretto255.NewScalar().Add(pk.d, r)}
 }
@@ -141,12 +136,12 @@ func (pk *PrivateKey) Derive(label string) *PrivateKey {
 // Sign returns a deterministic Schnorr signature of the given message using the given secret key.
 func (pk *PrivateKey) Sign(message []byte) []byte {
 	// Generate a deterministic ephemeral key pair (R, r) from the private key and the message.
-	r := deriveScalar(scopedhash.NewSignatureNonceHash(pk.d.Encode(nil)), message)
+	r := deriveScalar(dxof.SignatureNonceScalar(pk.d.Encode(nil)), message)
 	R := ristretto255.NewElement().ScalarBaseMult(r)
 	Rb := R.Encode(nil)
 
-	// Derive a scalar from the ephemeral public key and the message using SHA-512 (k).
-	k := deriveScalar(scopedhash.NewSignatureHash(), append(Rb, message...))
+	// Derive a scalar from the ephemeral public key and the message.
+	k := deriveScalar(dxof.SignatureScalar(Rb), message)
 
 	// Calculate the signature scalar (kd + r).
 	s := ristretto255.NewScalar().Multiply(k, pk.d)
@@ -199,7 +194,7 @@ func (pk *PublicKey) Encode(b []byte) []byte {
 // Derive derives a PublicKey instance from the receiver using the given label.
 func (pk *PublicKey) Derive(label string) *PublicKey {
 	// Calculate the delta for the derived key.
-	r := deriveScalar(scopedhash.NewDerivedKeyHash(), []byte(label))
+	r := deriveScalar(dxof.LabelScalar(), []byte(label))
 	rG := ristretto255.NewElement().ScalarBaseMult(r)
 
 	// Return the current public key plus the delta.
@@ -226,7 +221,7 @@ func (pk *PublicKey) Verify(message, sig []byte) bool {
 	}
 
 	// Derive a scalar from the ephemeral public key and the message.
-	k := deriveScalar(scopedhash.NewSignatureHash(), append(sig[:PublicKeySize], message...))
+	k := deriveScalar(dxof.SignatureScalar(sig[:PublicKeySize]), message)
 
 	// R' = -kQ + gs
 	ky := ristretto255.NewElement().ScalarMult(k, pk.q)
@@ -244,9 +239,12 @@ func (pk *PublicKey) String() string {
 
 var _ fmt.Stringer = &PublicKey{}
 
-// deriveScalar hashes the given data with SHA-512 and maps the digest to a scalar.
-func deriveScalar(h hash.Hash, data []byte) *ristretto255.Scalar {
-	_, _ = h.Write(data)
+// deriveScalar hashes the given data with the given XOF and maps the digest to a scalar.
+func deriveScalar(xof io.ReadWriter, data []byte) *ristretto255.Scalar {
+	var buf [64]byte
 
-	return ristretto255.NewScalar().FromUniformBytes(h.Sum(nil))
+	_, _ = xof.Write(data)
+	_, _ = io.ReadFull(xof, buf[:])
+
+	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/codahale/veil/pkg/veil/internal/ratchet"
-	"github.com/codahale/veil/pkg/veil/internal/scopedhash"
 	"github.com/codahale/veil/pkg/veil/internal/stream"
 	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
@@ -47,24 +47,29 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	}
 
 	// Derive the shared ratchet key between the sender's public key and the ephemeral private key.
-	key := kem.Receive(privEH, pubEH, pkS.k, pubEM, scopedhash.NewMessageKDF, ratchet.KeySize)
+	key := kem.Receive(privEH, pubEH, pkS.k, pubEM, dxof.MessageKEM, ratchet.KeySize)
 
 	// Initialize an AEAD reader with the ratchet key, using the encrypted headers as authenticated
 	// data.
 	r := stream.NewReader(src, key, headers, blockSize)
 
-	// Detach the signature from the plaintext and calculate a hash of it.
-	h := scopedhash.NewMessageHash()
-	sr := stream.NewSignatureReader(r, h, r255.SignatureSize)
+	// Detach the signature from the plaintext and calculate a digest of it.
+	xof := dxof.MessageDigest()
+	sr := stream.NewSignatureReader(r, r255.SignatureSize)
+	tr := io.TeeReader(sr, xof)
 
 	// Decrypt the plaintext as a stream.
-	n, err := io.Copy(dst, sr)
+	n, err := io.Copy(dst, tr)
 	if err != nil {
 		return nil, n, err
 	}
 
-	// Verify the signature of the plaintext.
-	if !pkS.k.Verify(h.Sum(nil), sr.Signature) {
+	// Re-calculate the digest of the plaintext.
+	digest := make([]byte, digestSize)
+	_, _ = io.ReadFull(xof, digest)
+
+	// Verify the signature of the digest.
+	if !pkS.k.Verify(digest, sr.Signature) {
 		return nil, n, ErrInvalidCiphertext
 	}
 
@@ -130,7 +135,7 @@ func (pk *PrivateKey) decryptHeader(
 	// Iterate through all possible senders.
 	for _, pubS := range senders {
 		// Re-derive the shared secret between the sender and recipient.
-		secret := kem.Receive(pk.k, pubR, pubS.k, pubEH, scopedhash.NewHeaderKDF,
+		secret := kem.Receive(pk.k, pubR, pubS.k, pubEH, dxof.HeaderKEM,
 			sym.KeySize+sym.NonceSize)
 
 		// Initialize an AEAD.
