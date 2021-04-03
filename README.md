@@ -19,6 +19,13 @@ keys.
 
 ## Algorithms & Constructions
 
+Veil uses just three distinct primitives:
+
+* [STROBE](https://eprint.iacr.org/2017/003.pdf) for confidentiality, authentication, and integrity.
+* [ristretto255](https://ristretto.group) for key agreement and signing.
+* [Argon2id](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-argon2-13) for passphrase-based
+  key derivation.
+
 ### Domain-Separated eXtensible Output Functions (XOFs)
 
 Veil uses domain-separated cSHAKE-256 instances for all hashing responsibilities.

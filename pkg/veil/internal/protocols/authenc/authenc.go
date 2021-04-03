@@ -4,13 +4,13 @@
 // tag size T:
 //
 //     INIT(P,                level=256)
-//     AD(BIG_ENDIAN_U32(T)), meta=true, streaming=false)
+//     AD(BIG_ENDIAN_U32(T)), meta=true)
 //     KEY(K,                 streaming=false)
 //
 // Encryption of a secret, S, is as follows:
 //
-//     SEND_ENC(S, meta=false, streaming=false)
-//     SEND_MAC(T, meta=false, streaming=false)
+//     SEND_ENC(S)
+//     SEND_MAC(T)
 //
 // The ciphertext and T-byte tag are then returned.
 //

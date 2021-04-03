@@ -8,12 +8,12 @@
 //     INIT('veil.kdf.kem',  level=256)
 //     AD(T,                 meta=true)
 //     AD(BIG_ENDIAN_U32(N), meta=true)
-//     AD(ZZ_e,              meta=false)
-//     AD(ZZ_s,              meta=false)
-//     AD(Q_e,               meta=false)
-//     AD(Q_r,               meta=false)
-//     AD(Q_s,               meta=false)
-//     PRF(N,                streaming=false)
+//     KEY(ZZ_e)
+//     KEY(ZZ_s)
+//     AD(Q_e)
+//     AD(Q_r)
+//     AD(Q_s)
+//     PRF(N)
 package kemkdf
 
 import (
@@ -47,15 +47,14 @@ func DeriveKey(zzE, zzS *ristretto255.Element, pubE, pubR, pubS *r255.PublicKey,
 	}
 
 	// Add the ephemeral shared secret to the protocol.
-	if err := kdf.AD(zzE.Encode(b[:0]), &strobe.Options{}); err != nil {
+	if err := kdf.KEY(zzE.Encode(b[:0]), false); err != nil {
 		panic(err)
 	}
 
 	// Add the static shared secret to the protocol.
-	if err := kdf.AD(zzS.Encode(b[:0]), &strobe.Options{}); err != nil {
+	if err := kdf.KEY(zzS.Encode(b[:0]), false); err != nil {
 		panic(err)
 	}
-
 	// Add the ephemeral public key to the protocol.
 	if err := kdf.AD(pubE.Encode(b[:0]), &strobe.Options{}); err != nil {
 		panic(err)

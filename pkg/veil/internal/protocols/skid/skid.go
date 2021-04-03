@@ -3,9 +3,9 @@
 // ID generation is performed as follows, given a secret key K and ID size N:
 //
 //     INIT('veil.skid',      level=256)
-//     AD(BIG_ENDIAN_U32(N)), meta=true, streaming=false)
-//     AD(K,                  meta=false, streaming=false)
-//     PRF(N,                 streaming=false)
+//     AD(BIG_ENDIAN_U32(N)), meta=true)
+//     KEY(K)
+//     PRF(N)
 package skid
 
 import (
@@ -24,7 +24,10 @@ func ID(secretKey []byte, n int) []byte {
 		panic(err)
 	}
 
-	if err := s.AD(secretKey, &strobe.Options{}); err != nil {
+	k := make([]byte, len(secretKey))
+	copy(k, secretKey)
+
+	if err := s.KEY(k, false); err != nil {
 		panic(err)
 	}
 

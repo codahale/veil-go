@@ -4,28 +4,28 @@
 // SignatureNonce scalars are generated as follows, given a private key D and message M:
 //
 //     INIT('veil.scaldf.signature-nonce', level=256)
-//     AD(D,                               meta=false, streaming=false)
-//     AD(M,                               meta=false, streaming=false)
-//     PRF(64,                             streaming=false)
+//     KEY(D)
+//     AD(M)
+//     PRF(64)
 //
 // Signature scalars are generated as follows, given a public key Q and message digest H:
 //
 //     INIT('veil.scaldf.signature', level=256)
-//     AD(Q,                         meta=false, streaming=false)
-//     AD(H,                         meta=false, streaming=false)
-//     PRF(64,                       streaming=false)
+//     KEY(Q)
+//     AD(H)
+//     PRF(64)
 //
 // Label scalars are generated as follows, given a label L:
 //
 //     INIT('veil.scaldf.label', level=256)
-//     AD(L,                     meta=false, streaming=false)
-//     PRF(64,                   streaming=false)
+//     KEY(L)
+//     PRF(64)
 //
 // SecretKey scalars are generated as follows, given a secret key K:
 //
 //     INIT('veil.scaldf.secret-key', level=256)
-//     AD(K,                          meta=false, streaming=false)
-//     PRF(64,                        streaming=false)
+//     KEY(K)
+//     PRF(64)
 package scaldf
 
 import (
@@ -42,7 +42,7 @@ func SignatureNonce(d *ristretto255.Scalar) ScalarDerivationFunc {
 			panic(err)
 		}
 
-		if err := s.AD(d.Encode(nil), &strobe.Options{}); err != nil {
+		if err := s.KEY(d.Encode(nil), false); err != nil {
 			panic(err)
 		}
 
@@ -63,7 +63,7 @@ func Signature(q *ristretto255.Element) ScalarDerivationFunc {
 			panic(err)
 		}
 
-		if err := s.AD(q.Encode(nil), &strobe.Options{}); err != nil {
+		if err := s.KEY(q.Encode(nil), false); err != nil {
 			panic(err)
 		}
 
@@ -84,7 +84,10 @@ func Label() ScalarDerivationFunc {
 			panic(err)
 		}
 
-		if err := s.AD(label, &strobe.Options{}); err != nil {
+		k := make([]byte, len(label))
+		copy(k, label)
+
+		if err := s.KEY(k, false); err != nil {
 			panic(err)
 		}
 
@@ -101,7 +104,10 @@ func SecretKey() ScalarDerivationFunc {
 			panic(err)
 		}
 
-		if err := s.AD(r, &strobe.Options{}); err != nil {
+		k := make([]byte, len(r))
+		copy(k, r)
+
+		if err := s.KEY(k, false); err != nil {
 			panic(err)
 		}
 

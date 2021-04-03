@@ -4,16 +4,16 @@
 // size B, and tag size T:
 //
 //     INIT('veil.stream',    level=256)
-//     AD(BIG_ENDIAN_U32(B)), meta=true, streaming=false)
-//     AD(BIG_ENDIAN_U32(T)), meta=true, streaming=false)
-//     KEY(K,                 streaming=false)
-//     AD(D,                  meta=false, streaming=false)
+//     AD(BIG_ENDIAN_U32(B)), meta=true)
+//     AD(BIG_ENDIAN_U32(T)), meta=true)
+//     KEY(K)
+//     AD(D)
 //
 // Encryption of an intermediate plaintext block, P, is as follows:
 //
 //     RATCHET(32)
-//     SEND_ENC(P, meta=false, streaming=false)
-//     SEND_MAC(T, meta=false, streaming=false)
+//     SEND_ENC(P)
+//     SEND_MAC(T)
 //
 // The ciphertext and T-byte tag are then written.
 //
@@ -21,8 +21,8 @@
 //
 //     AD('final', meta=true)
 //     RATCHET(32)
-//     SEND_ENC(P, meta=false, streaming=false)
-//     SEND_MAC(T, meta=false, streaming=false)
+//     SEND_ENC(P)
+//     SEND_MAC(T)
 //
 // Decryption of a stream is the same as encryption with RECV_ENC and RECV_MAC in place of SEND_ENC
 // and RECV_ENC, respectively. No plaintext block is written to its destination without a successful
