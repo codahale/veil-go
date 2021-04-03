@@ -15,7 +15,7 @@
 //     SEND_ENC(P, meta=false, streaming=false)
 //     SEND_MAC(T, meta=false, streaming=false)
 //
-// The ciphertext and 16-byte tag are then written.
+// The ciphertext and T-byte tag are then written.
 //
 // Encryption of the final plaintext block, P, is as follows:
 //
