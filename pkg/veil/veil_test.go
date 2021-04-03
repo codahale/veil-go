@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
 func Example() {
@@ -127,78 +126,4 @@ func TestFuzz(t *testing.T) {
 	if err == nil {
 		t.Fatal("shouldn't have decrypted")
 	}
-}
-
-func TestSecretKey_PublicKey(t *testing.T) {
-	t.Parallel()
-
-	s, err := NewSecretKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	abc := s.k.PublicKey("/").Derive("a").Derive("b").Derive("c")
-	abcP := s.PublicKey("/a/b/c").k
-
-	assert.Equal(t, "derived key", abc.String(), abcP.String())
-}
-
-func TestPublicKey_Derive(t *testing.T) {
-	t.Parallel()
-
-	s, err := NewSecretKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	abcd := s.PublicKey("/a/b/c/d").k
-	abcdP := s.PublicKey("/a/b").Derive("/c/d").k
-
-	assert.Equal(t, "derived key", abcd.String(), abcdP.String())
-}
-
-func TestPublicKey_UnmarshalText(t *testing.T) {
-	t.Parallel()
-
-	base32 := "ZJ756O23HCIC455GWQU24GJI3JHZGGYYZH3HDBWHGHQH3ZNTJMCQ"
-
-	var in PublicKey
-	if err := in.UnmarshalText([]byte(base32)); err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, "round trip", base32, in.String())
-}
-
-func TestPublicKey_MarshalText(t *testing.T) {
-	t.Parallel()
-
-	want := []byte("ZJ756O23HCIC455GWQU24GJI3JHZGGYYZH3HDBWHGHQH3ZNTJMCQ")
-
-	var in PublicKey
-	if err := in.UnmarshalText(want); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := in.MarshalText()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, "round trip", want, got)
-}
-
-func TestSecretKey_String(t *testing.T) {
-	t.Parallel()
-
-	k, err := r255.DecodeSecretKey([]byte("ayellowsubmarineayellowsubmarineayellowsubmarineayellowsubmarine"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sk := &SecretKey{
-		k: k,
-	}
-
-	assert.Equal(t, "string representation", "7ff14870cdc4cd62", sk.String())
 }
