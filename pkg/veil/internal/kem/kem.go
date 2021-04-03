@@ -9,19 +9,14 @@
 package kem
 
 import (
-	"io"
-
+	"github.com/codahale/veil/pkg/veil/internal/protocols/kemkdf"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
-// KDF is a generic key derivation function, accepting a secret and a salt and returning an
-// io.Reader of derived data.
-type KDF func(secret, salt []byte) io.Reader
-
 // Send returns an ephemeral public key and a shared secret given the sender's private key, the
-// sender's public key, the recipient's public key, a domain-specific KDF, and the length of the
-// secret in bytes.
-func Send(privS *r255.PrivateKey, pubS, pubR *r255.PublicKey, kdf KDF, n int) (*r255.PublicKey, []byte, error) {
+// sender's public key, the recipient's public key, the length of the secret in bytes, and whether
+// or not this is a header key.
+func Send(privS *r255.PrivateKey, pubS, pubR *r255.PublicKey, n int, header bool) (*r255.PublicKey, []byte, error) {
 	// Generate an ephemeral key pair.
 	privE, pubE, err := r255.NewEphemeralKeys()
 	if err != nil {
@@ -36,18 +31,17 @@ func Send(privS *r255.PrivateKey, pubS, pubR *r255.PublicKey, kdf KDF, n int) (*
 	// public key.
 	zzS := privS.DiffieHellman(pubR)
 
-	// Derive the secret from the shared secrets, the ephemeral public key, the public keys of both
-	// the recipient and the sender, the info parameter, and the length of the secret in bytes.
-	secret := extract(zzE, zzS, pubE, pubR, pubS, kdf, n)
+	// Derive the secret from both shared secrets plus all the inputs.
+	secret := kemkdf.DeriveKey(zzE, zzS, pubE, pubR, pubS, n, header)
 
 	// Return the ephemeral public key and the shared secret.
 	return pubE, secret, nil
 }
 
 // Receive generates a shared secret given the recipient's private key, the recipient's public key,
-// the sender's public key, the ephemeral public key, a domain-specific KDF, and the length of the
-// shared secret in bytes.
-func Receive(privR *r255.PrivateKey, pubR, pubS, pubE *r255.PublicKey, kdf KDF, n int) []byte {
+// the sender's public key, the ephemeral public key, the length of the shared secret in bytes, and
+// whether or not this is a header key.
+func Receive(privR *r255.PrivateKey, pubR, pubS, pubE *r255.PublicKey, n int, header bool) []byte {
 	// Calculate the ephemeral shared secret between the recipient's secret key and the ephemeral
 	// public key.
 	zzE := privR.DiffieHellman(pubE)
@@ -56,31 +50,6 @@ func Receive(privR *r255.PrivateKey, pubR, pubS, pubE *r255.PublicKey, kdf KDF, 
 	// key.
 	zzS := privR.DiffieHellman(pubS)
 
-	// Derive the secret from the shared secrets, the ephemeral public key, the public keys of both
-	// the recipient and the sender, the info parameter, and the length of the secret in bytes.
-	return extract(zzE, zzS, pubE, pubR, pubS, kdf, n)
-}
-
-// extract returns a secret derived from the given ephemeral shared secret, static shared secret,
-// the ephemeral public key, the recipient's public key, the sender's public key, a domain-specific
-// KDF, and the length of the secret in bytes.
-func extract(zzE, zzS []byte, pubE, pubR, pubS *r255.PublicKey, kdf KDF, n int) []byte {
-	// Concatenate the ephemeral and static shared secrets to form the initial keying material.
-	ikm := append(zzE, zzS...)
-
-	// Create a salt consisting of the ephemeral public key, the recipient's public key, and the
-	// sender's public key.
-	salt := pubS.Encode(pubE.Encode(pubR.Encode(make([]byte, 0, r255.PublicKeySize*3))))
-
-	// Create an KDF instance from the initial keying material and the salt.
-	k := kdf(ikm, salt)
-
-	// Derive the secret from the HKDF output.
-	secret := make([]byte, n)
-	if _, err := io.ReadFull(k, secret); err != nil {
-		panic(err)
-	}
-
-	// Return the shared secret.
-	return secret
+	// Derive the secret from both shared secrets plus all the inputs.
+	return kemkdf.DeriveKey(zzE, zzS, pubE, pubR, pubS, n, header)
 }

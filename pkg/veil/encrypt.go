@@ -43,7 +43,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pubEM, key, err := kem.Send(pk.k, pubS, pubEH, dxof.MessageKEM, sym.KeySize)
+	pubEM, key, err := kem.Send(pk.k, pubS, pubEH, sym.KeySize, false)
 	if err != nil {
 		return int64(n), err
 	}
@@ -109,8 +109,7 @@ func (pk *PrivateKey) encryptHeaders(
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate a header key pair shared secret for the recipient.
-		pubEH, secret, err := kem.Send(pk.k, pubS, pkR.k, dxof.HeaderKEM,
-			sym.KeySize+sym.NonceSize)
+		pubEH, secret, err := kem.Send(pk.k, pubS, pkR.k, sym.KeySize+sym.NonceSize, true)
 		if err != nil {
 			return nil, err
 		}

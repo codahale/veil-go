@@ -46,7 +46,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	}
 
 	// Derive the shared ratchet key between the sender's public key and the ephemeral private key.
-	key := kem.Receive(privEH, pubEH, pkS.k, pubEM, dxof.MessageKEM, sym.KeySize)
+	key := kem.Receive(privEH, pubEH, pkS.k, pubEM, sym.KeySize, false)
 
 	// Initialize an AEAD reader with the ratchet key, using the encrypted headers as authenticated
 	// data.
@@ -134,8 +134,7 @@ func (pk *PrivateKey) decryptHeader(
 	// Iterate through all possible senders.
 	for _, pubS := range senders {
 		// Re-derive the shared secret between the sender and recipient.
-		secret := kem.Receive(pk.k, pubR, pubS.k, pubEH, dxof.HeaderKEM,
-			sym.KeySize+sym.NonceSize)
+		secret := kem.Receive(pk.k, pubR, pubS.k, pubEH, sym.KeySize+sym.NonceSize, true)
 
 		// Initialize an AEAD.
 		aead, err := sym.NewAEAD(secret[:sym.KeySize])
