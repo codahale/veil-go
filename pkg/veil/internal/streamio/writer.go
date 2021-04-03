@@ -3,8 +3,8 @@ package streamio
 import (
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/stream"
-	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
 
 // writer writes blocks of AEAD-encrypted data using a ratcheting key.
@@ -20,7 +20,7 @@ type writer struct {
 func NewWriter(dst io.Writer, key, additionalData []byte, blockSize int) io.WriteCloser {
 	return &writer{
 		w:         dst,
-		protocol:  stream.New(key, additionalData, blockSize, sym.TagSize),
+		protocol:  stream.New(key, additionalData, blockSize, authenc.TagSize),
 		plaintext: make([]byte, blockSize),
 	}
 }

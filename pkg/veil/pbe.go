@@ -5,9 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols/esk"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
-	"github.com/codahale/veil/pkg/veil/internal/sym"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -43,7 +42,7 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *Argon2idParams) 
 	key := pbeKDF(passphrase, encSK.Salt[:], &encSK.Params)
 
 	// Encrypt the secret key.
-	copy(encSK.Ciphertext[:], esk.Encrypt(key, sk.k.Encode(nil), sym.TagSize))
+	copy(encSK.Ciphertext[:], authenc.EncryptSecretKey(key, sk.k.Encode(nil), authenc.TagSize))
 
 	// Encode the Argon2id params, the salt, and the ciphertext.
 	buf := bytes.NewBuffer(nil)
@@ -67,7 +66,7 @@ func DecryptSecretKey(sk, passphrase []byte) (*SecretKey, error) {
 	key := pbeKDF(passphrase, encSK.Salt[:], &encSK.Params)
 
 	// Decrypt the encrypted secret key.
-	plaintext, err := esk.Decrypt(key, encSK.Ciphertext[:], sym.TagSize)
+	plaintext, err := authenc.DecryptSecretKey(key, encSK.Ciphertext[:], authenc.TagSize)
 	if err != nil {
 		return nil, err
 	}
@@ -92,10 +91,10 @@ type encryptedSecretKey struct {
 // pbeKDF uses Argon2id to derive a symmetric key and nonce from the passphrase, salt, and
 // parameters.
 func pbeKDF(passphrase, salt []byte, params *Argon2idParams) []byte {
-	return argon2.IDKey(passphrase, salt, params.Time, params.Memory, params.Parallelism, sym.KeySize)
+	return argon2.IDKey(passphrase, salt, params.Time, params.Memory, params.Parallelism, authenc.KeySize)
 }
 
 const (
 	saltSize       = 16 // per https://tools.ietf.org/html/draft-irtf-cfrg-argon2-12#section-3.1
-	ciphertextSize = r255.SecretKeySize + sym.TagSize
+	ciphertextSize = r255.SecretKeySize + authenc.TagSize
 )

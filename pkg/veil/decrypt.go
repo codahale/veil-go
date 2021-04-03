@@ -7,9 +7,9 @@ import (
 
 	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/kem"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/codahale/veil/pkg/veil/internal/streamio"
-	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
 
 // ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an
@@ -46,7 +46,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	}
 
 	// Derive the shared ratchet key between the sender's public key and the ephemeral private key.
-	key := kem.Receive(privEH, pubEH, pkS.k, pubEM, sym.KeySize, false)
+	key := kem.Receive(privEH, pubEH, pkS.k, pubEM, authenc.KeySize, false)
 
 	// Initialize an AEAD reader with the ratchet key, using the encrypted headers as authenticated
 	// data.
@@ -133,18 +133,12 @@ func (pk *PrivateKey) decryptHeader(
 
 	// Iterate through all possible senders.
 	for _, pubS := range senders {
-		// Re-derive the shared secret between the sender and recipient.
-		secret := kem.Receive(pk.k, pubR, pubS.k, pubEH, sym.KeySize+sym.NonceSize, true)
-
-		// Initialize an AEAD.
-		aead, err := sym.NewAEAD(secret[:sym.KeySize])
-		if err != nil {
-			panic(err)
-		}
+		// Re-derive the shared key between the sender and recipient.
+		key := kem.Receive(pk.k, pubR, pubS.k, pubEH, authenc.KeySize, true)
 
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.
-		header, err := aead.Open(nil, secret[sym.KeySize:], ciphertext, nil)
+		header, err := authenc.DecryptHeader(key, ciphertext, authenc.TagSize)
 		if err != nil {
 			continue
 		}

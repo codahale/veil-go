@@ -8,9 +8,9 @@ import (
 
 	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/kem"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/codahale/veil/pkg/veil/internal/streamio"
-	"github.com/codahale/veil/pkg/veil/internal/sym"
 )
 
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
@@ -43,7 +43,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pubEM, key, err := kem.Send(pk.k, pubS, pubEH, sym.KeySize, false)
+	pubEM, key, err := kem.Send(pk.k, pubS, pubEH, authenc.KeySize, false)
 	if err != nil {
 		return int64(n), err
 	}
@@ -108,20 +108,14 @@ func (pk *PrivateKey) encryptHeaders(
 
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
-		// Generate a header key pair shared secret for the recipient.
-		pubEH, secret, err := kem.Send(pk.k, pubS, pkR.k, sym.KeySize+sym.NonceSize, true)
+		// Generate a header ephemeral key and shared key for the recipient.
+		pubEH, key, err := kem.Send(pk.k, pubS, pkR.k, authenc.KeySize, true)
 		if err != nil {
 			return nil, err
 		}
 
-		// Initialize an AEAD.
-		aead, err := sym.NewAEAD(secret[:sym.KeySize])
-		if err != nil {
-			panic(err)
-		}
-
 		// Encrypt the header for the recipient.
-		b := aead.Seal(nil, secret[sym.KeySize:], header, nil)
+		b := authenc.EncryptHeader(key, header, authenc.TagSize)
 
 		// Write the ephemeral header public key and the ciphertext.
 		_, _ = buf.Write(pubEH.Encode(nil))
@@ -141,5 +135,5 @@ func (pk *PrivateKey) encryptHeaders(
 const (
 	blockSize           = 64 * 1024               // 64KiB
 	headerSize          = r255.PrivateKeySize + 4 // 4 bytes for message offset
-	encryptedHeaderSize = r255.PublicKeySize + headerSize + sym.TagSize
+	encryptedHeaderSize = r255.PublicKeySize + headerSize + authenc.TagSize
 )
