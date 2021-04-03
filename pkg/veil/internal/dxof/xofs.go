@@ -42,11 +42,6 @@ func SignatureNonceScalar(privateKey []byte) XOF {
 	return sha3.NewCShake256([]byte("veil-signature-nonce"), privateKey)
 }
 
-// MessageDigest returns an XOF suitable for hashing messages.
-func MessageDigest() XOF {
-	return sha3.NewCShake256([]byte("veil-message-digest"), nil)
-}
-
 // SecretKeyIdentity returns a n-byte digest suitable for creating safe, unique identifiers for
 // secret keys.
 func SecretKeyIdentity(sk []byte, n int) []byte {

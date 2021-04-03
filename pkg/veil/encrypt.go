@@ -6,9 +6,9 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/codahale/veil/pkg/veil/internal/streamio"
 )
@@ -58,9 +58,9 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	// data.
 	w := streamio.NewWriter(dst, key, headers, blockSize)
 
-	// Tee reads from the input into an XOF.
-	xof := dxof.MessageDigest()
-	r := io.TeeReader(src, xof)
+	// Tee reads from the input into the msghash STROBE protocol.
+	h := msghash.NewWriter(digestSize)
+	r := io.TeeReader(src, h)
 
 	// Encrypt the plaintext as a stream.
 	bn, err := io.Copy(w, r)
@@ -68,12 +68,8 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 		return bn + int64(n+an), err
 	}
 
-	// Calculate the digest of the plaintext.
-	digest := make([]byte, digestSize)
-	_, _ = io.ReadFull(xof, digest)
-
-	// Create a signature of the digest.
-	sig := pk.k.Sign(digest)
+	// Create a signature of the digest of the plaintext.
+	sig := pk.k.Sign(h.Digest())
 
 	// Append the signature to the plaintext.
 	cn, err := w.Write(sig)

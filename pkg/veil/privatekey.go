@@ -3,7 +3,7 @@ package veil
 import (
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/dxof"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
@@ -30,25 +30,21 @@ func (pk *PrivateKey) Derive(subKeyID string) *PrivateKey {
 
 // SignDetached returns a detached signature of the contents of src.
 func (pk *PrivateKey) SignDetached(src io.Reader) (*Signature, error) {
-	// Write the message contents to an XOF.
-	xof := dxof.MessageDigest()
-	if _, err := io.Copy(xof, src); err != nil {
+	// Write the message contents to the msghash STROBE protocol.
+	h := msghash.NewWriter(digestSize)
+	if _, err := io.Copy(h, src); err != nil {
 		return nil, err
 	}
 
-	// Calculate a digest of the message.
-	digest := make([]byte, digestSize)
-	_, _ = io.ReadFull(xof, digest)
-
 	// Create a signature of the digest.
-	return &Signature{b: pk.k.Sign(digest)}, nil
+	return &Signature{b: pk.k.Sign(h.Digest())}, nil
 }
 
 // Sign copies src to dst, creates a signature of the contents of src, and appends it to dst.
 func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
-	// Tee all reads from src into an XOF.
-	xof := dxof.MessageDigest()
-	r := io.TeeReader(src, xof)
+	// Tee all reads from src into the msghash STROBE protocol.
+	h := msghash.NewWriter(digestSize)
+	r := io.TeeReader(src, h)
 
 	// Copy all data from src into dst via xof.
 	n, err := io.Copy(dst, r)
@@ -56,12 +52,8 @@ func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 		return n, err
 	}
 
-	// Calculate a digest of the message.
-	digest := make([]byte, digestSize)
-	_, _ = io.ReadFull(xof, digest)
-
-	// Sign the digest.
-	sig := pk.k.Sign(digest)
+	// Sign the digest of the message.
+	sig := pk.k.Sign(h.Digest())
 
 	// Append the signature.
 	sn, err := dst.Write(sig)

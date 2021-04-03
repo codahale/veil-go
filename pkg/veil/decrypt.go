@@ -5,9 +5,9 @@ import (
 	"errors"
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/dxof"
 	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/codahale/veil/pkg/veil/internal/streamio"
 )
@@ -52,10 +52,10 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	// data.
 	r := streamio.NewReader(src, key, headers, blockSize)
 
-	// Detach the signature from the plaintext and calculate a digest of it.
-	xof := dxof.MessageDigest()
+	// Detach the signature from the plaintext and calculate a digest of the plaintext.
+	h := msghash.NewWriter(digestSize)
 	sr := streamio.NewSignatureReader(r, r255.SignatureSize)
-	tr := io.TeeReader(sr, xof)
+	tr := io.TeeReader(sr, h)
 
 	// Decrypt the plaintext as a stream.
 	n, err := io.Copy(dst, tr)
@@ -63,12 +63,8 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 		return nil, n, err
 	}
 
-	// Re-calculate the digest of the plaintext.
-	digest := make([]byte, digestSize)
-	_, _ = io.ReadFull(xof, digest)
-
 	// Verify the signature of the digest.
-	if !pkS.k.Verify(digest, sr.Signature) {
+	if !pkS.k.Verify(h.Digest(), sr.Signature) {
 		return nil, n, ErrInvalidCiphertext
 	}
 
