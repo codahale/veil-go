@@ -7,6 +7,7 @@ import (
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/balloon"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/ndf"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
@@ -34,6 +35,9 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]by
 	if _, err := rand.Read(encSK.Salt[:]); err != nil {
 		return nil, err
 	}
+
+	// Pass it through a derivation function.
+	ndf.Salt(&encSK.Salt)
 
 	// Use balloon hashing to derive a key from the passphrase and salt.
 	key := balloon.Hash(passphrase, encSK.Salt[:], encSK.Params.Space, encSK.Params.Time, authenc.KeySize)

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/codahale/veil/pkg/veil/internal/protocols/ndf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/skid"
@@ -47,6 +48,9 @@ func NewSecretKey() (*SecretKey, error) {
 	if _, err := rand.Read(r[:]); err != nil {
 		return nil, err
 	}
+
+	// Process it with a derivation function.
+	ndf.SecretKey(&r)
 
 	return DecodeSecretKey(r[:])
 }
