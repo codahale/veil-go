@@ -121,7 +121,7 @@ func Verify(q *ristretto255.Element, sigA, sigB, msg []byte) bool {
 		return false
 	}
 
-	// R' = -kQ + gs
+	// R' = -kQ + sG
 	ky := ristretto255.NewElement().ScalarMult(k, q)
 	Rp := ristretto255.NewElement().ScalarBaseMult(s)
 	Rp = ristretto255.NewElement().Subtract(Rp, ky)
