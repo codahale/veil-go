@@ -1,5 +1,3 @@
-TODO re-write to describe XOFs
-
 # veil
 
 _Stupid crypto tricks._
@@ -25,15 +23,22 @@ Veil uses just three distinct primitives:
 * [ristretto255](https://ristretto.group) for key agreement and signing.
 * [Argon2id](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-argon2-13) for passphrase-based
   key derivation.
+  
+Basically, if Mike Hamburg wants to implement a password hashing algorithm, I'm in.
 
-### Domain-Separated eXtensible Output Functions (XOFs)
+### STROBE Protocols
 
-Veil uses domain-separated cSHAKE-256 instances for all hashing responsibilities.
+Veil includes STROBE protocols for the following capabilities:
 
-For example, to derive a secret ristretto255 scalar from a secret key, cSHAKE-256 is used with an
-`N` parameter of `veil-secret-key`. The secret key data is written to the XOF, 64 bytes are then
-read from the XOF and mapped to a scalar value. Using domain-separated XOFs separates concerns and
-hardens the design against misuse.
+* `veil.authenc.*`: authenticated encryption for message headers and secret keys
+* `veil.kdf.kem`: key derivation for Veil's key encapsulation algorithm
+* `veil.msghash`: message digests for signatures
+* `veil.scaldf.*`: protocols for deriving ristretto255 scalars from non-uniform values
+* `veil.schnorr`: fully deterministic Schnorr signatures over ristretto255
+* `veil.skid`: safe identifiers for Veil secret keys
+* `veil.stream`: streaming AEAD encryption with key ratcheting
+
+Full details and documentation can be found in the `pkg/veil/internal/protocols` directory.
 
 ### Child Key Derivation
 
@@ -47,31 +52,14 @@ This is used iterative to provide hierarchical key derivation. Public keys are c
 hierarchical IDs like `/friends/alice`, in which the private key `/` is used to derive the private
 key `friends`, which is in turn used to derive the private key `alice`.
 
-### Symmetric Key Ratcheting And Streaming AEADs
-
-In order to encrypt arbitrarily large messages, Veil uses a streaming AEAD construction based on a
-Signal-style XOF ratchet. An initial 64-byte ratchet key is used to create a cSHAKE-256 instance,
-and the first 64 bytes of its output are used to create a new ratchet key. For each block, the XOF
-is reset, reseeded with the ratchet key, and for the final block, additionally seeded with a
-constant value. The first 64 bytes of XOF output as used as the next ratchet key; additional XOF
-output is used to generate a symmetric key and nonce for the block.
-
-```
-rk0 = cSHAKE256('veil-ratchet', rk, '')
-rk1, oK0, oN0 = cSHAKE256('veil-ratchet', rk, '', rk0)
-rk2, oK1, oN1 = cSHAKE256('veil-ratchet', rk, '', rk1)
-rk3, oK2, oN2 = cSHAKE256('veil-ratchet', rk, '', rk2)
-rk4, oK3, oN3 = cSHAKE256('veil-ratchet', rk, '', rk3 || 'veil-final')
-```
-
 ### Key Agreement And Encapsulation
 
 When sending a message, the sender generates an ephemeral key pair and calculates the ephemeral
 shared secret between the recipient's public key and the ephemeral private key. They then calculate
 the static shared secret between the recipient's public key and their own private key. The two
-shared secret points are used as initial keying material for a cSHAKE-256 XOF, with the ephemeral,
+shared secret points are used as initial keying material for a STROBE KDF, with the ephemeral,
 sender's, and recipient's public keys included as customization parameter.. The sender creates a
-symmetric key and nonce from the XOF output and encrypts the message with an AEAD. The sender
+symmetric key and nonce from the KDF output and encrypts the message with an AEAD. The sender
 transmits the ephemeral public key and the ciphertext.
 
 ``` 
@@ -79,20 +67,20 @@ e = scalarFromBytes(rand(64))
 E = eG
 zzE = eR
 zzS = sR
-zz = cSHAKE256('veil-message-kdf', E || S || R, zzE || zzS)
+zz = kdf(E || S || R, zzE || zzS)
 
 return E, zz
 ```
 
 To receive a message, the receiver calculates the ephemeral shared secret between the ephemeral
 public key and their own private key and the static shared secret between the recipient's public key
-and their own private key. The XOF output is re-created, and the message is authenticated and
+and their own private key. The KDF output is re-created, and the message is authenticated and
 decrypted.
 
 ``` 
 zzE = rE
 zzS = rS
-zz = cSHAKE256(zzE || zzS, E || S || R, info, n)
+zz = kdf(zzE || zzS, E || S || R)
 
 return zz
 ```
@@ -107,30 +95,8 @@ key-commitment with all public keys as openers.
 ### Digital Signatures
 
 To make authenticated messages, Veil creates Schnorr signatures using the signer's private key. The
-actual "message" signed is a cSHAKE-256 hash of the message, and cSHAKE-256 is used to derive
-ristretto255 scalars from the message and ephemeral public key. In place of a randomly generated
-ephemeral key pair, Veil uses a key pair derived from the private key and the message value.
-
-To create a signature, the signer uses a private key `d` to create a signature point and scalar:
-
-``` 
-r = scalarFromBytes(cSHAKE256('veil-signature-nonce', s, m))
-R = rG
-k = scalarFromBytes(cSHAKE256('veil-signature', R, m))
-s = kd + r
-
-return R, s
-```
-
-To validate a signature, the verifier uses the signer's public key `Q` to re-create the signature
-point for the given message:
-
-``` 
-k = scalarFromBytes(cSHAKE256('veil-signature', R, m'))
-R' = -kQ + sG
-
-return R == R'
-```
+actual "message" signed is a STROBE-based hash of the message, and a STROBE protocol is used to 
+bind all elements of a signature into a deterministic result.
 
 ### Multi-Recipient Messages
 
@@ -142,22 +108,22 @@ recipient, the sender encrypts a copy of the header using the described KEM and 
 sender adds optional random padding to the end of the encrypted headers.
 
 Second, the sender uses the KEM mechanism to encrypt the message using the ephemeral header public
-key. Instead of a single AEAD pass, the shared secret is used to begin a KDF key ratchet, and each
-block of the input is encrypted using ChaCha20Poly1305 with a new ratchet key and nonce.
+key. Instead of a single AEAD pass, the shared secret is used to begin a STROBE key ratchet, and
+each block of the input is encrypted using STROBE with a new ratchet key.
 
-Finally, a signature is created of the cSHAKE-256 hash of the plaintext and appended to the
+Finally, a signature is created of the STROBE-based hash of the plaintext and appended to the
 plaintext inside the AEAD stream.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable header
 using the shared secret between the ephemeral header public key and recipient's private key. When a
 header is successfully decrypted, the ephemeral header private key and the sender's public key is
 used to re-derive the shared secret, and the message is decrypted. The signature is verified against
-a cSHAKE-256 hash of the message, assuring authenticity.
+a STROBE-based hash of the message, assuring authenticity.
 
 ### Passphrase-Based Encryption
 
-To safely store secret keys, Argon2id is used with a 16-byte random salt to derive a
-ChaCha20Poly1305 key and nonce. The secret key is encrypted with ChaCha20Poly1305.
+To safely store secret keys, Argon2id is used with a 16-byte random salt to derive a key. The secret
+key is encrypted with STROBE.
 
 ## What's the point
 
