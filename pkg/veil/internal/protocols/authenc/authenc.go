@@ -20,7 +20,7 @@
 // The two recognized protocol identifiers are:
 //
 // * `veil.header`, used to encrypt message headers
-// * `veil.secretkey`, used to encrypt secret keys
+// * `veil.secret-key`, used to encrypt secret keys
 package authenc
 
 import (
@@ -30,10 +30,11 @@ import (
 
 //nolint:gosec // these are not secrets, dummy
 const (
-	KeySize        = 32                       // KeySize is the symmetric key size in bytes.
-	TagSize        = 16                       // TagSize is the authentication tag size in bytes.
-	headerProto    = "veil.authenc.header"    // Header is used to encrypt headers.
-	secretKeyProto = "veil.authenc.secretkey" // SecretKey is used to encrypt secret keys.
+	KeySize = 32 // KeySize is the symmetric key size in bytes.
+	TagSize = 16 // TagSize is the authentication tag size in bytes.
+
+	headerProto    = "veil.authenc.header"
+	secretKeyProto = "veil.authenc.secret-key"
 )
 
 // EncryptHeader encrypts the header with the key, appending a tag of the given size for
