@@ -7,8 +7,9 @@
 // When a block of random data is required, a block B of equivalent size is read from the host
 // machine's RNG, and the following operations performed:
 //
-//     AD(B)
+//     KEY(B)
 //     PRF(LEN(B)) -> B
+//     RATCHET(32)
 //
 // This insulates Veil somewhat against compromised RNGs, but at the end of the day this is still a
 // deterministic process.
@@ -42,8 +43,8 @@ func (r *reader) Read(p []byte) (n int, err error) {
 		return 0, err
 	}
 
-	// Include it as associated data.
-	protocols.Must(r.rng.AD(p, &strobe.Options{}))
+	// Re-key the protocol with the block.
+	protocols.Must(r.rng.KEY(p, false))
 
 	// Return the results of the PRF.
 	protocols.Must(r.rng.PRF(p, false))
