@@ -35,7 +35,9 @@ Veil includes STROBE protocols for the following capabilities:
 * `veil.skid`: safe identifiers for Veil secret keys
 * `veil.stream`: streaming AEAD encryption with key ratcheting
 
-Full details and documentation can be found in the `pkg/veil/internal/protocols` directory.
+Full details and documentation can be found in the 
+[`pkg/veil/internal/protocols`](https://github.com/codahale/veil/tree/main/pkg/veil/internal/protocols)
+directory.
 
 ### Child Key Derivation
 
