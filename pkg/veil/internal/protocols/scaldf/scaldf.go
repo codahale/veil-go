@@ -10,7 +10,7 @@
 // The three recognized protocol identifiers are:
 //
 // * `veil.scaldf.label`, used to derive scalars from labels
-// * `veil.scaldf.secret-key`, used to derive secret scalars from secret keys
+// * `veil.scaldf.secret`, used to derive secret scalars from secret keys
 // * `veil.scaldf.random`, used to derive ephemeral scalars from PRNG data
 package scaldf
 
@@ -23,8 +23,8 @@ func Label(l []byte) *ristretto255.Scalar {
 	return scalarDF("veil.scaldf.label", l)
 }
 
-func SecretKey(r []byte) *ristretto255.Scalar {
-	return scalarDF("veil.scaldf.secret-key", r)
+func Secret(r []byte) *ristretto255.Scalar {
+	return scalarDF("veil.scaldf.secret", r)
 }
 
 func Random(r []byte) *ristretto255.Scalar {

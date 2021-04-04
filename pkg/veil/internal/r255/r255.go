@@ -63,7 +63,7 @@ func DecodeSecretKey(b []byte) (*SecretKey, error) {
 // PrivateKey derives a PrivateKey instance from the receiver using the given label.
 func (sk *SecretKey) PrivateKey(label string) *PrivateKey {
 	// Derive the secret scalar.
-	s := scaldf.SecretKey(sk.r)
+	s := scaldf.Secret(sk.r)
 
 	// Calculate the delta for the derived key.
 	r := scaldf.Label([]byte(label))
