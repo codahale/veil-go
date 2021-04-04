@@ -146,7 +146,7 @@ func (pk *PrivateKey) decryptHeader(
 			continue
 		}
 
-		offset := binary.BigEndian.Uint32(header[r255.PrivateKeySize:])
+		offset := binary.LittleEndian.Uint32(header[r255.PrivateKeySize:])
 
 		// Return the sender's public key, the ephemeral private key, and the offset.
 		return pubS, privEM, int(offset)

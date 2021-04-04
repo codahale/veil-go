@@ -3,9 +3,9 @@
 // Encryption and decryption are initialized as follows, given a key K, associated data D, block
 // size B, and tag size T:
 //
-//     INIT('veil.stream',    level=256)
-//     AD(BIG_ENDIAN_U32(B)), meta=true)
-//     AD(BIG_ENDIAN_U32(T)), meta=true)
+//     INIT('veil.stream', level=256)
+//     AD(LE_U32(B)),      meta=true)
+//     AD(LE_U32(T)),      meta=true)
 //     KEY(K)
 //     AD(D)
 //
@@ -47,10 +47,10 @@ func New(key, associatedData []byte, blockSize, tagSize int) *Protocol {
 	stream := protocols.New("veil.stream")
 
 	// Add the block size to the protocol.
-	protocols.Must(stream.AD(protocols.BigEndianU32(blockSize), &strobe.Options{Meta: true}))
+	protocols.Must(stream.AD(protocols.LittleEndianU32(blockSize), &strobe.Options{Meta: true}))
 
 	// Add the tag size to the protocol.
-	protocols.Must(stream.AD(protocols.BigEndianU32(tagSize), &strobe.Options{Meta: true}))
+	protocols.Must(stream.AD(protocols.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
 
 	// Copy the key.
 	k := make([]byte, len(key))

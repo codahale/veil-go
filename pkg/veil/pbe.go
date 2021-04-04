@@ -47,7 +47,7 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]by
 
 	// Encode the balloon hashing params, the salt, and the ciphertext.
 	buf := bytes.NewBuffer(nil)
-	if err := binary.Write(buf, binary.BigEndian, &encSK); err != nil {
+	if err := binary.Write(buf, binary.LittleEndian, &encSK); err != nil {
 		panic(err)
 	}
 
@@ -59,7 +59,7 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]by
 func DecryptSecretKey(sk, passphrase []byte) (*SecretKey, error) {
 	// Decode the encrypted secret key.
 	var encSK encryptedSecretKey
-	if err := binary.Read(bytes.NewReader(sk), binary.BigEndian, &encSK); err != nil {
+	if err := binary.Read(bytes.NewReader(sk), binary.LittleEndian, &encSK); err != nil {
 		return nil, err
 	}
 

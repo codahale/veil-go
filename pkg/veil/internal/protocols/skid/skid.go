@@ -2,8 +2,8 @@
 //
 // ID generation is performed as follows, given a secret key K and ID size N:
 //
-//     INIT('veil.skid',      level=256)
-//     AD(BIG_ENDIAN_U32(N)), meta=true)
+//     INIT('veil.skid', level=256)
+//     AD(LE_U32(N)),    meta=true)
 //     KEY(K)
 //     PRF(N)
 package skid
@@ -17,7 +17,7 @@ import (
 func ID(secretKey []byte, n int) []byte {
 	skid := protocols.New("veil.skid")
 
-	protocols.Must(skid.AD(protocols.BigEndianU32(n), &strobe.Options{Meta: true}))
+	protocols.Must(skid.AD(protocols.LittleEndianU32(n), &strobe.Options{Meta: true}))
 
 	k := make([]byte, len(secretKey))
 	copy(k, secretKey)

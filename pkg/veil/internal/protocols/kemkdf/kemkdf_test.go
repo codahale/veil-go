@@ -2,7 +2,7 @@ package kemkdf
 
 import (
 	"bytes"
-	"encoding/base64"
+	"encoding/hex"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -37,7 +37,7 @@ func TestDeriveKey(t *testing.T) {
 		key := DeriveKey(zzE, zzS, pubE, pubR, pubS, 16, true)
 
 		assert.Equal(t, "derived header key",
-			"1H2ho9fdiv/5ian5tJ3/Xw", base64.RawStdEncoding.EncodeToString(key))
+			"c2810ccf1280b5a5e1a22fc5a02c394e", hex.EncodeToString(key))
 	})
 
 	t.Run("message key", func(t *testing.T) {
@@ -46,6 +46,6 @@ func TestDeriveKey(t *testing.T) {
 		key := DeriveKey(zzE, zzS, pubE, pubR, pubS, 16, false)
 
 		assert.Equal(t, "derived header key",
-			"Y2M3OAMT2Dvu0tYpCvNM9g", base64.RawStdEncoding.EncodeToString(key))
+			"1f389b8c295c3a11039ba2499e482d52", hex.EncodeToString(key))
 	})
 }

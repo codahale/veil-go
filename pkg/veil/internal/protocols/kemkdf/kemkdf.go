@@ -5,9 +5,9 @@
 // Q_s, the size of the derived key N, and an intent tag T (which can be either 'header' or
 // 'message'):
 //
-//     INIT('veil.kdf.kem',  level=256)
-//     AD(T,                 meta=true)
-//     AD(BIG_ENDIAN_U32(N), meta=true)
+//     INIT('veil.kdf.kem', level=256)
+//     AD(T,                meta=true)
+//     AD(LE_U32(N),        meta=true)
 //     KEY(ZZ_e)
 //     KEY(ZZ_s)
 //     AD(Q_e)
@@ -37,7 +37,7 @@ func DeriveKey(zzE, zzS *ristretto255.Element, pubE, pubR, pubS *r255.PublicKey,
 	protocols.Must(kdf.AD(intentTag(header), &strobe.Options{Meta: true}))
 
 	// Add the output size to the protocol.
-	protocols.Must(kdf.AD(protocols.BigEndianU32(n), &strobe.Options{Meta: true}))
+	protocols.Must(kdf.AD(protocols.LittleEndianU32(n), &strobe.Options{Meta: true}))
 
 	// Add the ephemeral shared secret to the protocol.
 	protocols.Must(kdf.KEY(zzE.Encode(b[:0]), false))

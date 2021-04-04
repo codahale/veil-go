@@ -89,7 +89,7 @@ func (pk *PrivateKey) encodeHeader(privEH *r255.PrivateKey, recipients, padding 
 
 	// Calculate the message offset and encode it.
 	offset := encryptedHeaderSize*recipients + padding
-	binary.BigEndian.PutUint32(header[r255.PrivateKeySize:], uint32(offset))
+	binary.LittleEndian.PutUint32(header[r255.PrivateKeySize:], uint32(offset))
 
 	return header
 }

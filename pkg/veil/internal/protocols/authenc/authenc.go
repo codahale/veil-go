@@ -3,9 +3,9 @@
 // Encryption and decryption are initialized as follows, given a protocol name P, a key K and and
 // tag size T:
 //
-//     INIT(P,                level=256)
-//     AD(BIG_ENDIAN_U32(T)), meta=true)
-//     KEY(K,                 streaming=false)
+//     INIT(P,        level=256)
+//     AD(LE_U32(T)), meta=true)
+//     KEY(K)
 //
 // Encryption of a secret, S, is as follows:
 //
@@ -111,7 +111,7 @@ func newProtocol(protocol string, key []byte, tagSize int) *strobe.Strobe {
 	authenc := protocols.New(protocol)
 
 	// Add the tag size to the protocol.
-	protocols.Must(authenc.AD(protocols.BigEndianU32(tagSize), &strobe.Options{Meta: true}))
+	protocols.Must(authenc.AD(protocols.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
 
 	// Copy the key.
 	k := make([]byte, len(key))

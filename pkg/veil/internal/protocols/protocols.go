@@ -9,11 +9,11 @@ import (
 	"github.com/sammyne/strobe"
 )
 
-// BigEndianU32 returns n as a 32-bit big endian bit string.
-func BigEndianU32(n int) []byte {
+// LittleEndianU32 returns n as a 32-bit little endian bit string.
+func LittleEndianU32(n int) []byte {
 	var b [4]byte
 
-	binary.BigEndian.PutUint32(b[:], uint32(n))
+	binary.LittleEndian.PutUint32(b[:], uint32(n))
 
 	return b[:]
 }
