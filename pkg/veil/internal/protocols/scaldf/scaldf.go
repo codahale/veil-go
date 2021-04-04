@@ -1,5 +1,5 @@
 // Package scaldf provides the underlying STROBE protocols for Veil's various scalar derivation
-// functions, which derive ristretto255 scalars from various pieces of data.
+// functions, which derive ristretto255 scalars from other pieces of data.
 //
 // Label scalars are generated as follows, given a label L:
 //
@@ -15,47 +15,50 @@
 package scaldf
 
 import (
+	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
 
-type ScalarDerivationFunc func(dst *[64]byte, src []byte)
+func Label(label []byte) *ristretto255.Scalar {
+	var buf [64]byte
 
-func Label() ScalarDerivationFunc {
-	return func(dst *[64]byte, label []byte) {
-		s, err := strobe.New("veil.scaldf.label", strobe.Bit256)
-		if err != nil {
-			panic(err)
-		}
-
-		k := make([]byte, len(label))
-		copy(k, label)
-
-		if err := s.KEY(k, false); err != nil {
-			panic(err)
-		}
-
-		if err := s.PRF(dst[:], false); err != nil {
-			panic(err)
-		}
+	s, err := strobe.New("veil.scaldf.label", strobe.Bit256)
+	if err != nil {
+		panic(err)
 	}
+
+	k := make([]byte, len(label))
+	copy(k, label)
+
+	if err := s.KEY(k, false); err != nil {
+		panic(err)
+	}
+
+	if err := s.PRF(buf[:], false); err != nil {
+		panic(err)
+	}
+
+	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }
 
-func SecretKey() ScalarDerivationFunc {
-	return func(dst *[64]byte, r []byte) {
-		s, err := strobe.New("veil.scaldf.secret-key", strobe.Bit256)
-		if err != nil {
-			panic(err)
-		}
+func SecretKey(r []byte) *ristretto255.Scalar {
+	var buf [64]byte
 
-		k := make([]byte, len(r))
-		copy(k, r)
-
-		if err := s.KEY(k, false); err != nil {
-			panic(err)
-		}
-
-		if err := s.PRF(dst[:], false); err != nil {
-			panic(err)
-		}
+	s, err := strobe.New("veil.scaldf.secret-key", strobe.Bit256)
+	if err != nil {
+		panic(err)
 	}
+
+	k := make([]byte, len(r))
+	copy(k, r)
+
+	if err := s.KEY(k, false); err != nil {
+		panic(err)
+	}
+
+	if err := s.PRF(buf[:], false); err != nil {
+		panic(err)
+	}
+
+	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }

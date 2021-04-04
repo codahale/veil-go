@@ -3,15 +3,14 @@
 // Veil uses ristretto255 for asymmetric cryptography. Each person has a secret key from which
 // multiple private/public key pairs can be derived.
 //
-// To derive a private key, a secret scalar is derived from the secret key using an domain-separated
-// XOF. A delta scalar is derived from an opaque label using a different domain-separated XOF and
-// added to the secret scalar to produce a new private key.
+// To derive a private key, a secret scalar is derived from the secret key using a STROBE protocol.
+// A delta scalar is derived from an opaque label using a different STROBE protocol and added to the
+// secret scalar to produce a new private key.
 //
 // To derive a public key, the same delta scalar is derived, multiplied by the risotto255 base
 // point, and added to the public key point.
 //
-// To sign messages, Veil creates Schnorr signatures using a private key derived from the signer's
-// secret key and an ephemeral key derived from both the seceret key and the message using an XOF.
+// To sign messages, Veil creates deterministic Schnorr signatures using a STROBE protocol.
 package r255
 
 import (
@@ -64,10 +63,10 @@ func DecodeSecretKey(b []byte) (*SecretKey, error) {
 // PrivateKey derives a PrivateKey instance from the receiver using the given label.
 func (sk *SecretKey) PrivateKey(label string) *PrivateKey {
 	// Derive the secret scalar.
-	s := deriveScalar(scaldf.SecretKey(), sk.r)
+	s := scaldf.SecretKey(sk.r)
 
 	// Calculate the delta for the derived key.
-	r := deriveScalar(scaldf.Label(), []byte(label))
+	r := scaldf.Label([]byte(label))
 
 	// Return the secret scalar plus the delta.
 	return &PrivateKey{d: ristretto255.NewScalar().Add(s, r)}
@@ -125,7 +124,7 @@ func DecodePrivateKey(b []byte) (*PrivateKey, error) {
 // Derive derives a PrivateKey instance from the receiver using the given label.
 func (pk *PrivateKey) Derive(label string) *PrivateKey {
 	// Calculate the delta for the derived key.
-	r := deriveScalar(scaldf.Label(), []byte(label))
+	r := scaldf.Label([]byte(label))
 
 	return &PrivateKey{d: ristretto255.NewScalar().Add(pk.d, r)}
 }
@@ -178,7 +177,7 @@ func (pk *PublicKey) Encode(b []byte) []byte {
 // Derive derives a PublicKey instance from the receiver using the given label.
 func (pk *PublicKey) Derive(label string) *PublicKey {
 	// Calculate the delta for the derived key.
-	r := deriveScalar(scaldf.Label(), []byte(label))
+	r := scaldf.Label([]byte(label))
 	rG := ristretto255.NewElement().ScalarBaseMult(r)
 
 	// Return the current public key plus the delta.
@@ -201,12 +200,3 @@ func (pk *PublicKey) String() string {
 }
 
 var _ fmt.Stringer = &PublicKey{}
-
-// deriveScalar hashes the given data with the given XOF and maps the digest to a scalar.
-func deriveScalar(sdf scaldf.ScalarDerivationFunc, data []byte) *ristretto255.Scalar {
-	var buf [64]byte
-
-	sdf(&buf, data)
-
-	return ristretto255.NewScalar().FromUniformBytes(buf[:])
-}

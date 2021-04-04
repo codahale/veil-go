@@ -52,7 +52,7 @@ func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	sr := streamio.NewSignatureReader(src, r255.SignatureSize)
 	tr := io.TeeReader(sr, h)
 
-	// Copy all data from src into dst via xof, skipping the appended signature.
+	// Copy all data from src into dst via msghash, skipping the appended signature.
 	n, err := io.Copy(dst, tr)
 	if err != nil {
 		return n, err

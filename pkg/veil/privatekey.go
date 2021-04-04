@@ -46,7 +46,7 @@ func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	h := msghash.NewWriter(digestSize)
 	r := io.TeeReader(src, h)
 
-	// Copy all data from src into dst via xof.
+	// Copy all data from src into dst via msghash.
 	n, err := io.Copy(dst, r)
 	if err != nil {
 		return n, err
