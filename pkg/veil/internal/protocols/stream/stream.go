@@ -129,16 +129,10 @@ func (p *Protocol) ratchet(final bool) {
 	}
 
 	// Ratchet the stream.
-	protocols.Must(p.stream.RATCHET(ratchetSize))
+	protocols.Must(p.stream.RATCHET(protocols.RatchetSize))
 }
 
 const (
 	// finalizationTag is the associated data used to finalize the ratchet chain.
 	finalizationTag = "final"
-
-	// ratchetSize determines the amount of state to reset during each ratchet.
-	//
-	// > Setting L = sec/8 bytes is sufficient when R ≥ sec/8. That is, set L to 16 bytes or 32
-	// > bytes for Strobe-128/b and Strobe-256/b, respectively.
-	ratchetSize = int(strobe.Bit256) / 8
 )

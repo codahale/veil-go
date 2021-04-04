@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
@@ -51,7 +52,7 @@ func AddFakes(keys []*PublicKey, n int) ([]*PublicKey, error) {
 func Shuffle(keys []*PublicKey) error {
 	for i := len(keys) - 1; i > 0; i-- {
 		// Randomly pick a card from the unshuffled deck.
-		b, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		b, err := rand.Int(rng.Reader, big.NewInt(int64(i+1)))
 		if err != nil {
 			return err
 		}

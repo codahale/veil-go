@@ -2,12 +2,11 @@ package veil
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/binary"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/balloonkdf"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/ndf"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
@@ -32,12 +31,9 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]by
 	}
 
 	// Generate a random salt.
-	if _, err := rand.Read(encSK.Salt[:]); err != nil {
+	if _, err := rng.Read(encSK.Salt[:]); err != nil {
 		return nil, err
 	}
-
-	// Pass it through a derivation function.
-	ndf.Salt(&encSK.Salt)
 
 	// Use balloon hashing to derive a key from the passphrase and salt.
 	key := balloonkdf.DeriveKey(passphrase, encSK.Salt[:], encSK.Params.Space, encSK.Params.Time, authenc.KeySize)

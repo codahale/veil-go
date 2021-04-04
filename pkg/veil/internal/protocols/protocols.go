@@ -9,6 +9,14 @@ import (
 	"github.com/sammyne/strobe"
 )
 
+const (
+	// RatchetSize determines the amount of state to reset during each ratchet.
+	//
+	//     Setting L = sec/8 bytes is sufficient when R ≥ sec/8. That is, set L to 16 bytes or 32
+	//     bytes for Strobe-128/b and Strobe-256/b, respectively.
+	RatchetSize = int(strobe.Bit256) / 8
+)
+
 // LittleEndianU32 returns n as a 32-bit little endian bit string.
 func LittleEndianU32(n int) []byte {
 	var b [4]byte

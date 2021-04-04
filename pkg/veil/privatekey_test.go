@@ -2,11 +2,11 @@ package veil
 
 import (
 	"bytes"
-	"crypto/rand"
 	"io"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 )
 
 func TestPrivateKey_Derive(t *testing.T) {
@@ -113,7 +113,7 @@ func TestFuzzEncryptAndDecrypt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	enc := io.LimitReader(rand.Reader, 64*1024)
+	enc := io.LimitReader(rng.Reader, 64*1024)
 	dec := bytes.NewBuffer(nil)
 
 	_, _, err = a.PrivateKey("two").Decrypt(dec, enc, []*PublicKey{a.PublicKey("two")})

@@ -19,7 +19,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols/ndf"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/skid"
@@ -45,12 +45,9 @@ type SecretKey struct {
 func NewSecretKey() (*SecretKey, error) {
 	// Generate a random 64-byte key.
 	var r [SecretKeySize]byte
-	if _, err := rand.Read(r[:]); err != nil {
+	if _, err := rng.Read(r[:]); err != nil {
 		return nil, err
 	}
-
-	// Process it with a derivation function.
-	ndf.SecretKey(&r)
 
 	return DecodeSecretKey(r[:])
 }

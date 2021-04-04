@@ -30,7 +30,7 @@ Veil includes STROBE protocols for the following capabilities:
 * `veil.kdf.balloon`: balloon hashing key derivation for passphrase-based encryption
 * `veil.kdf.kem`: key derivation for Veil's key encapsulation algorithm
 * `veil.msghash`: message digests for signatures
-* `veil.ndf.*`: nonce derivation functions
+* `veil.rng`: a CSPRNG seeded from the underlying host
 * `veil.scaldf.*`: functions for deriving ristretto255 scalars from non-uniform or secret values
 * `veil.schnorr`: fully deterministic Schnorr signatures over ristretto255
 * `veil.skid`: safe identifiers for Veil secret keys

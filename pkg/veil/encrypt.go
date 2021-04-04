@@ -2,13 +2,13 @@ package veil
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/binary"
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/codahale/veil/pkg/veil/internal/streamio"
 )
@@ -120,7 +120,7 @@ func (pk *PrivateKey) encryptHeaders(
 
 	// Add padding if any is required.
 	if padding > 0 {
-		if _, err := io.CopyN(buf, rand.Reader, int64(padding)); err != nil {
+		if _, err := io.CopyN(buf, rng.Reader, int64(padding)); err != nil {
 			return nil, err
 		}
 	}
