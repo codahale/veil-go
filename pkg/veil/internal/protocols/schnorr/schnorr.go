@@ -1,14 +1,14 @@
 // Package schnorr provides the underlying STROBE protocol for Veil's Schnorr signatures.
 //
-// Signing is as follows, given a private scalar D, its public point Q, and a message M. First, a
+// Signing is as follows, given a private scalar d, its public point Q, and a message M. First, a
 // deterministic nonce r is derived from the private key and message:
 //
 //     INIT('veil.schnorr.nonce', level=256)
 //     AD(M)
-//     KEY(D)
+//     KEY(d)
 //     PRF(64) -> r
 //
-// Given the nonce r, its public point R = gr is calculated, a second protocol re-run:
+// Given the nonce r, its public point R = rG is calculated, a second protocol is run:
 //
 //     INIT('veil.schnorr', level=256)
 //     AD(M)
@@ -16,7 +16,7 @@
 //     SEND_CLR(R)
 //     PRF(64) -> k
 //     s = (kd + r)
-//     SEND_ENC(s)
+//     SEND_ENC(s) -> S
 //
 // The resulting signature consists of the ephemeral point R and the encrypted signature scalar S.
 //
@@ -28,9 +28,10 @@
 //     AD(Q)
 //     RECV_CLR(R)
 //     PRF(64) -> k
-//     RECV_ENC(S)
+//     RECV_ENC(S) -> s
+//     R' = -kQ + sG
 //
-// Finally, the verifier calculates R' = -kQ + gs and compares R' == R.
+// Finally, the verifier compares R' == R. If the two points are equivalent, the signature is valid.
 package schnorr
 
 import (
