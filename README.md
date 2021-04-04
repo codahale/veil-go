@@ -66,7 +66,7 @@ e = scalarFromBytes(rand(64))
 E = eG
 zzE = eR
 zzS = sR
-zz = kdf(E || S || R, zzE || zzS)
+zz = kdf(zzE || zzS, E || S || R)
 
 return E, zz
 ```
