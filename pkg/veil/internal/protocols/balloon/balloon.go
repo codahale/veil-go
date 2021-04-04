@@ -52,8 +52,10 @@ func Hash(passphrase, salt []byte, space, time uint32, n int) []byte {
 	protocols.Must(balloon.AD(salt, &strobe.Options{}))
 
 	// Allocate a 64-bit counter and a buffer for its encoding.
-	var ctr uint64
-	var ctrBuf [8]byte
+	var (
+		ctr    uint64
+		ctrBuf [8]byte
+	)
 
 	// Allocate an index block.
 	idx := make([]byte, n)
@@ -97,9 +99,9 @@ func Hash(passphrase, salt []byte, space, time uint32, n int) []byte {
 	return buf[space-1]
 }
 
-func hashCounter(s *strobe.Strobe, ctr *uint64, ctrBuf []byte, dst, left, right []byte) {
+func hashCounter(s *strobe.Strobe, ctr *uint64, ctrBuf, dst, left, right []byte) {
 	// Increment the counter.
-	*ctr = *ctr + 1
+	*ctr++
 
 	// Encode the counter as a big-endian value.
 	binary.BigEndian.PutUint64(ctrBuf, *ctr)
