@@ -61,8 +61,8 @@ func TestSignAndVerify(t *testing.T) {
 	sig := sk.PrivateKey("signing").Sign(message)
 
 	// Verify it with a public key derived from the secret key.
-	if sk.PublicKey("signing").Verify([]byte("other message"), sig) {
-		t.Error("did verify")
+	if !sk.PublicKey("signing").Verify(message, sig) {
+		t.Error("did not verify")
 	}
 
 	// Test that the signature doesn't verify another message.

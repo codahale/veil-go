@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/skid"
 	"github.com/gtank/ristretto255"
 )
@@ -131,20 +132,9 @@ func (pk *PrivateKey) Derive(label string) *PrivateKey {
 
 // Sign returns a deterministic Schnorr signature of the given message using the given secret key.
 func (pk *PrivateKey) Sign(message []byte) []byte {
-	// Generate a deterministic ephemeral key pair (R, r) from the private key and the message.
-	r := deriveScalar(scaldf.SignatureNonce(pk.d), message)
-	R := ristretto255.NewElement().ScalarBaseMult(r)
-	Rb := R.Encode(nil)
+	sigA, sigB := schnorr.Sign(pk.d, pk.PublicKey().q, message)
 
-	// Derive a scalar from the ephemeral public key and the message.
-	k := deriveScalar(scaldf.Signature(R), message)
-
-	// Calculate the signature scalar (kd + r).
-	s := ristretto255.NewScalar().Multiply(k, pk.d)
-	s = s.Add(s, r)
-
-	// Return the ephemeral public key and the signature scalar (R, s).
-	return append(Rb, s.Encode(nil)...)
+	return append(sigA, sigB...)
 }
 
 // DiffieHellman performs a Diffie-Hellman key exchange using the given public key.
@@ -202,28 +192,7 @@ func (pk *PublicKey) Verify(message, sig []byte) bool {
 		return false
 	}
 
-	// Decode the ephemeral public key.
-	R := ristretto255.NewElement()
-	if err := R.Decode(sig[:PublicKeySize]); err != nil {
-		return false
-	}
-
-	// Decode the signature scalar.
-	s := ristretto255.NewScalar()
-	if err := s.Decode(sig[PublicKeySize:]); err != nil {
-		return false
-	}
-
-	// Derive a scalar from the ephemeral public key and the message.
-	k := deriveScalar(scaldf.Signature(R), message)
-
-	// R' = -kQ + gs
-	ky := ristretto255.NewElement().ScalarMult(k, pk.q)
-	Rp := ristretto255.NewElement().ScalarBaseMult(s)
-	Rp = Rp.Subtract(Rp, ky)
-
-	// The signature is verified R and R' are equal.
-	return R.Equal(Rp) == 1
+	return schnorr.Verify(pk.q, sig[:PublicKeySize], sig[PublicKeySize:], message)
 }
 
 // String returns the receiver's ristretto255 point encoded with base64.
