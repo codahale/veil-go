@@ -105,7 +105,7 @@ func NewEphemeralKeys() (*PrivateKey, *PublicKey, error) {
 	}
 
 	// Create a private key scalar from the random data.
-	priv := &PrivateKey{d: ristretto255.NewScalar().FromUniformBytes(r[:])}
+	priv := &PrivateKey{d: scaldf.Random(r[:])}
 
 	// Return it and its public key.
 	return priv, priv.PublicKey(), nil

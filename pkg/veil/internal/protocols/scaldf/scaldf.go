@@ -1,17 +1,17 @@
 // Package scaldf provides the underlying STROBE protocols for Veil's various scalar derivation
 // functions, which derive ristretto255 scalars from other pieces of data.
 //
-// Label scalars are generated as follows, given a label L:
+// Scalars are generated as follows, given a protocol name P and datum D:
 //
-//     INIT('veil.scaldf.label', level=256)
-//     KEY(L)
+//     INIT(P, level=256)
+//     KEY(D)
 //     PRF(64)
 //
-// SecretKey scalars are generated as follows, given a secret key K:
+// The three recognized protocol identifiers are:
 //
-//     INIT('veil.scaldf.secret-key', level=256)
-//     KEY(K)
-//     PRF(64)
+// * `veil.scaldf.label`, used to derive scalars from labels
+// * `veil.scaldf.secret-key`, used to derive secret scalars from secret keys
+// * `veil.scaldf.random`, used to derive ephemeral scalars from PRNG data
 package scaldf
 
 import (
@@ -20,9 +20,21 @@ import (
 )
 
 func Label(l []byte) *ristretto255.Scalar {
+	return scalarDF("veil.scaldf.label", l)
+}
+
+func SecretKey(r []byte) *ristretto255.Scalar {
+	return scalarDF("veil.scaldf.secret-key", r)
+}
+
+func Random(r []byte) *ristretto255.Scalar {
+	return scalarDF("veil.scaldf.random", r)
+}
+
+func scalarDF(proto string, l []byte) *ristretto255.Scalar {
 	var buf [64]byte
 
-	label := protocols.New("veil.scaldf.label")
+	label := protocols.New(proto)
 
 	k := make([]byte, len(l))
 	copy(k, l)
@@ -30,21 +42,6 @@ func Label(l []byte) *ristretto255.Scalar {
 	protocols.Must(label.KEY(k, false))
 
 	protocols.Must(label.PRF(buf[:], false))
-
-	return ristretto255.NewScalar().FromUniformBytes(buf[:])
-}
-
-func SecretKey(r []byte) *ristretto255.Scalar {
-	var buf [64]byte
-
-	secretKey := protocols.New("veil.scaldf.secret-key")
-
-	k := make([]byte, len(r))
-	copy(k, r)
-
-	protocols.Must(secretKey.KEY(k, false))
-
-	protocols.Must(secretKey.PRF(buf[:], false))
 
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }
