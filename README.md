@@ -21,16 +21,13 @@ Veil uses just three distinct primitives:
 
 * [STROBE](https://eprint.iacr.org/2017/003.pdf) for confidentiality, authentication, and integrity.
 * [ristretto255](https://ristretto.group) for key agreement and signing.
-* [Argon2id](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-argon2-13) for passphrase-based
-  key derivation.
-  
-Basically, if Mike Hamburg wants to implement a password hashing algorithm, I'm in.
 
 ### STROBE Protocols
 
 Veil includes STROBE protocols for the following capabilities:
 
 * `veil.authenc.*`: authenticated encryption for message headers and secret keys
+* `veil.balloon`: balloon hashing for passphrase-based encryption
 * `veil.kdf.kem`: key derivation for Veil's key encapsulation algorithm
 * `veil.msghash`: message digests for signatures
 * `veil.scaldf.*`: protocols for deriving ristretto255 scalars from non-uniform values
@@ -122,8 +119,8 @@ a STROBE-based hash of the message, assuring authenticity.
 
 ### Passphrase-Based Encryption
 
-To safely store secret keys, Argon2id is used with a 16-byte random salt to derive a key. The secret
-key is encrypted with STROBE.
+To safely store secret keys, a STROBE-based implementation of balloon hashing is used with a 32-byte
+random salt to derive a key. The secret key is encrypted with STROBE.
 
 ## What's the point
 
