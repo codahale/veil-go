@@ -3,7 +3,7 @@
 // Hashes are generated as follows, given a passphrase P, salt S, space parameter X, time parameter
 // T, and digest size N:
 //
-//     INIT('veil.balloon',  level=256)
+//     INIT('veil.kdf.balloon',  level=256)
 //     AD(BIG_ENDIAN_U32(X), meta=true)
 //     AD(BIG_ENDIAN_U32(T), meta=true)
 //     AD(BIG_ENDIAN_U32(N), meta=true)
@@ -20,7 +20,7 @@
 //
 // It should be noted that there is no standard balloon hashing algorithm, so this protocol is in
 // the very, very tall grass of cryptography and should never be used.
-package balloon
+package balloonkdf
 
 import (
 	"encoding/binary"
@@ -29,12 +29,12 @@ import (
 	"github.com/sammyne/strobe"
 )
 
-// Hash returns an n-byte hash of the given password.
-func Hash(passphrase, salt []byte, space, time uint32, n int) []byte {
+// DeriveKey returns an n-byte key of the given password.
+func DeriveKey(passphrase, salt []byte, space, time uint32, n int) []byte {
 	n += n % 2 // round up
 
 	// Initialize a new protocol.
-	balloon := protocols.New("veil.balloon")
+	balloon := protocols.New("veil.kdf.balloon")
 
 	// Include the space parameter as associated data.
 	protocols.Must(balloon.AD(protocols.BigEndianU32(int(space)), &strobe.Options{Meta: true}))

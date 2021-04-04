@@ -1,4 +1,4 @@
-package balloon
+package balloonkdf
 
 import (
 	"encoding/hex"
@@ -25,7 +25,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "a8d92e751b0a66c265689c2bb54b2b49066d255b47be39d7049ca2a79f5b68bf",
+			hash:       "7fe92438e87b2638f6094dbad5723f86e4b5de8682719e242283e8437cdf2044",
 		},
 		{
 			name:       "different password",
@@ -34,7 +34,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "9bfd33200858fab4a204621f1b32a6ca75fc94b81fe8c81eb9eec0f69f264417",
+			hash:       "41d43f3a583018bb9ae14700b6ea00721338709635172c42825161fd3b895bb2",
 		},
 		{
 			name:       "different salt",
@@ -43,7 +43,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "03a524ef3583d65d88947019f24b21fbe291b153c1a212faff4665ec4bc40474",
+			hash:       "3708d65d2907466d70f06d89168fcb57069ec518c149dbec85e11a3e203f8811",
 		},
 		{
 			name:       "different space",
@@ -52,7 +52,7 @@ func TestHash(t *testing.T) {
 			space:      2048,
 			time:       64,
 			size:       32,
-			hash:       "93daf67092ea0100e301fef60529e4401d896c410178a87359ed8b0200a86bcf",
+			hash:       "dd9d96f3740a6b4f1d59da231c47fcd50a9dc2073b08b3a29690dec31c4cb530",
 		},
 		{
 			name:       "different time",
@@ -61,7 +61,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       96,
 			size:       32,
-			hash:       "12dfc0c3ebc4988d64b0f1f159e97bf1f88e77b623b9228edd8fea743843485c",
+			hash:       "3948a0af908f461aaab22204fe0f9f16602533a1b65667887b43a33f1993f1ea",
 		},
 		{
 			name:       "different size",
@@ -70,7 +70,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       16,
-			hash:       "1c0c28ea22c70773863b48ae5ce436f8",
+			hash:       "eb6cbbb84199f5c11cd5f6562dcf8528",
 		},
 	}
 
@@ -80,7 +80,7 @@ func TestHash(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			h := Hash(test.passphrase, test.salt, test.space, test.time, test.size)
+			h := DeriveKey(test.passphrase, test.salt, test.space, test.time, test.size)
 
 			assert.Equal(t, "hash", test.hash, hex.EncodeToString(h))
 		})
