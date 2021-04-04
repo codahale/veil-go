@@ -17,7 +17,7 @@ keys.
 
 ## Algorithms & Constructions
 
-Veil uses just three distinct primitives:
+Veil uses just two distinct primitives:
 
 * [STROBE](https://eprint.iacr.org/2017/003.pdf) for confidentiality, authentication, and integrity.
 * [ristretto255](https://ristretto.group) for key agreement and signing.
