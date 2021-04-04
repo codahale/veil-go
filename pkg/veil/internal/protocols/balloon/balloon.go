@@ -13,7 +13,7 @@
 // Then, for each iteration of the balloon hashing algorithm, given a counter C, a left block L, and
 // a right block R:
 //
-//     AD(BIG_ENDIAN_U32(C))
+//     AD(BIG_ENDIAN_U64(C))
 //     AD(L)
 //     AD(R)
 //     PRF(N)
@@ -51,46 +51,45 @@ func Hash(passphrase, salt []byte, space, time uint32, n int) []byte {
 	// Include the salt as associated data.
 	protocols.Must(balloon.AD(salt, &strobe.Options{}))
 
-	cnt := 0
+	// Allocate a 64-bit counter and a buffer for its encoding.
+	var ctr uint64
+	var ctrBuf [8]byte
+
+	// Allocate an index block.
 	idx := make([]byte, n)
 
-	// Allocate buffers.
+	// Allocate blocks.
 	buf := make([][]byte, space)
 	for i := range buf {
 		buf[i] = make([]byte, n)
 	}
 
 	// Initialize first block.
-	cnt++
-	hashCounter(balloon, cnt, buf[0], nil, nil)
+	hashCounter(balloon, &ctr, ctrBuf[:], buf[0], nil, nil)
 
 	// Initialize all other blocks.
 	for m := uint32(1); m < space-1; m++ {
-		cnt++
-		hashCounter(balloon, cnt, buf[m], buf[m-1], nil)
+		hashCounter(balloon, &ctr, ctrBuf[:], buf[m], buf[m-1], nil)
 	}
 
 	// Mix buffer contents.
 	for t := uint32(1); t < time; t++ {
-		// Hash last and current blocks.
 		for m := uint32(1); m < space; m++ {
+			// Hash last and current blocks.
 			prev := buf[(m-1)%space]
-			cnt++
-			hashCounter(balloon, cnt, buf[m], prev, buf[m])
+			hashCounter(balloon, &ctr, ctrBuf[:], buf[m], prev, buf[m])
 
 			// Hash pseudorandomly chosen blocks.
 			for i := 0; i < delta; i++ {
+				// Map indexes to a block and hash it and the salt.
 				binary.BigEndian.PutUint32(idx[0:], t)
 				binary.BigEndian.PutUint32(idx[4:], m)
 				binary.BigEndian.PutUint32(idx[8:], uint32(i))
+				hashCounter(balloon, &ctr, ctrBuf[:], idx, salt, idx)
 
-				cnt++
-				hashCounter(balloon, cnt, idx, salt, idx)
-
+				// Map the hashed index block back to an index and hash that block.
 				other := int(binary.BigEndian.Uint64(idx) % uint64(space))
-
-				cnt++
-				hashCounter(balloon, cnt, buf[m], buf[other], nil)
+				hashCounter(balloon, &ctr, ctrBuf[:], buf[m], buf[other], nil)
 			}
 		}
 	}
@@ -98,9 +97,15 @@ func Hash(passphrase, salt []byte, space, time uint32, n int) []byte {
 	return buf[space-1]
 }
 
-func hashCounter(s *strobe.Strobe, cnt int, dst, left, right []byte) {
+func hashCounter(s *strobe.Strobe, ctr *uint64, ctrBuf []byte, dst, left, right []byte) {
+	// Increment the counter.
+	*ctr = *ctr + 1
+
+	// Encode the counter as a big-endian value.
+	binary.BigEndian.PutUint64(ctrBuf, *ctr)
+
 	// Hash the counter.
-	protocols.Must(s.AD(protocols.BigEndianU32(cnt), &strobe.Options{}))
+	protocols.Must(s.AD(ctrBuf, &strobe.Options{}))
 
 	// Hash the left block.
 	protocols.Must(s.AD(left, &strobe.Options{}))

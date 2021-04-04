@@ -1,7 +1,7 @@
 package balloon
 
 import (
-	"encoding/base64"
+	"encoding/hex"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -25,7 +25,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "qMWJLw8x419dmC0UzPSGlyO7RxYwEWdcQmYmCf0YoSw",
+			hash:       "a8d92e751b0a66c265689c2bb54b2b49066d255b47be39d7049ca2a79f5b68bf",
 		},
 		{
 			name:       "different password",
@@ -34,7 +34,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "q0WOFmuP6vfGWDqbnI1Z/8DTr+42v0bKD24MeJkHy4M",
+			hash:       "9bfd33200858fab4a204621f1b32a6ca75fc94b81fe8c81eb9eec0f69f264417",
 		},
 		{
 			name:       "different salt",
@@ -43,7 +43,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "iwNw66wRbzOTse8JwVWu9zaYx0zwYXkL5CZD2wCvdTE",
+			hash:       "03a524ef3583d65d88947019f24b21fbe291b153c1a212faff4665ec4bc40474",
 		},
 		{
 			name:       "different space",
@@ -52,7 +52,7 @@ func TestHash(t *testing.T) {
 			space:      2048,
 			time:       64,
 			size:       32,
-			hash:       "6sN3C9D6rBvSBXuQ7F+arGivWPniT3ZK0C9yvvnVPZQ",
+			hash:       "93daf67092ea0100e301fef60529e4401d896c410178a87359ed8b0200a86bcf",
 		},
 		{
 			name:       "different time",
@@ -61,7 +61,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       96,
 			size:       32,
-			hash:       "0eEf1SB2XXtgyK+pqiEcrsWk5N936cmNWXCxeuTkF2Q",
+			hash:       "12dfc0c3ebc4988d64b0f1f159e97bf1f88e77b623b9228edd8fea743843485c",
 		},
 		{
 			name:       "different size",
@@ -70,7 +70,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       16,
-			hash:       "hWpgDD6tRNFXlX+ZYfKn8g",
+			hash:       "1c0c28ea22c70773863b48ae5ce436f8",
 		},
 	}
 
@@ -82,7 +82,7 @@ func TestHash(t *testing.T) {
 
 			h := Hash(test.passphrase, test.salt, test.space, test.time, test.size)
 
-			assert.Equal(t, "hash", test.hash, base64.RawStdEncoding.EncodeToString(h))
+			assert.Equal(t, "hash", test.hash, hex.EncodeToString(h))
 		})
 	}
 }
