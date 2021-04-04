@@ -28,11 +28,12 @@ import (
 	"github.com/sammyne/strobe"
 )
 
+//nolint:gosec // these are not secrets, dummy
 const (
-	KeySize        = 32               // KeySize is the symmetric key size in bytes.
-	TagSize        = 16               // TagSize is the authentication tag size in bytes.
-	headerProto    = "veil.header"    // Header is used to encrypt headers.
-	secretKeyProto = "veil.secretkey" // SecretKey is used to encrypt secret keys.
+	KeySize        = 32                       // KeySize is the symmetric key size in bytes.
+	TagSize        = 16                       // TagSize is the authentication tag size in bytes.
+	headerProto    = "veil.authenc.header"    // Header is used to encrypt headers.
+	secretKeyProto = "veil.authenc.secretkey" // SecretKey is used to encrypt secret keys.
 )
 
 // EncryptHeader encrypts the header with the key, appending a tag of the given size for
