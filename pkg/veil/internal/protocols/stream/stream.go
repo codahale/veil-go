@@ -36,7 +36,7 @@ import (
 
 // Protocol wraps all state for Veil's streaming AEAD STROBE protocol.
 type Protocol struct {
-	s      *strobe.Strobe
+	stream *strobe.Strobe
 	b, tag []byte
 }
 
@@ -44,39 +44,28 @@ type Protocol struct {
 // tag size.
 func New(key, associatedData []byte, blockSize, tagSize int) *Protocol {
 	// Initialize a new AEAD stream protocol.
-	stream, err := strobe.New("veil.stream", strobe.Bit256)
-	if err != nil {
-		panic(err)
-	}
+	stream := protocols.New("veil.stream")
 
 	// Add the block size to the protocol.
-	if err := stream.AD(protocols.BigEndianU32(blockSize), &strobe.Options{Meta: true}); err != nil {
-		panic(err)
-	}
+	protocols.Must(stream.AD(protocols.BigEndianU32(blockSize), &strobe.Options{Meta: true}))
 
 	// Add the tag size to the protocol.
-	if err := stream.AD(protocols.BigEndianU32(tagSize), &strobe.Options{Meta: true}); err != nil {
-		panic(err)
-	}
+	protocols.Must(stream.AD(protocols.BigEndianU32(tagSize), &strobe.Options{Meta: true}))
 
 	// Copy the key.
 	k := make([]byte, len(key))
 	copy(k, key)
 
 	// Initialize the protocol with the given key.
-	if err := stream.KEY(k, false); err != nil {
-		panic(err)
-	}
+	protocols.Must(stream.KEY(k, false))
 
 	// Add the authenticated data to the protocol.
-	if err := stream.AD(associatedData, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(stream.AD(associatedData, &strobe.Options{}))
 
 	return &Protocol{
-		s:   stream,
-		b:   make([]byte, blockSize),
-		tag: make([]byte, tagSize),
+		stream: stream,
+		b:      make([]byte, blockSize),
+		tag:    make([]byte, tagSize),
 	}
 }
 
@@ -90,15 +79,10 @@ func (p *Protocol) Encrypt(block []byte, final bool) []byte {
 	copy(p.b, block)
 
 	// Encrypt it in place.
-	_, err := p.s.SendENC(p.b[:len(block)], &strobe.Options{})
-	if err != nil {
-		panic(err)
-	}
+	protocols.MustENC(p.stream.SendENC(p.b[:len(block)], &strobe.Options{}))
 
 	// Create a MAC.
-	if err := p.s.SendMAC(p.tag, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(p.stream.SendMAC(p.tag, &strobe.Options{}))
 
 	// Make a copy of the ciphertext and tag and return them.
 	ciphertext := make([]byte, len(block), len(block)+len(p.tag))
@@ -121,13 +105,10 @@ func (p *Protocol) Decrypt(block []byte, final bool) ([]byte, error) {
 	copy(p.b, block[:n])
 
 	// Decrypt it in place.
-	_, err := p.s.RecvENC(p.b[:n], &strobe.Options{})
-	if err != nil {
-		panic(err)
-	}
+	protocols.MustENC(p.stream.RecvENC(p.b[:n], &strobe.Options{}))
 
 	// Check the MAC.
-	if err := p.s.RecvMAC(p.tag, &strobe.Options{}); err != nil {
+	if err := p.stream.RecvMAC(p.tag, &strobe.Options{}); err != nil {
 		return nil, err
 	}
 
@@ -144,15 +125,11 @@ func (p *Protocol) Decrypt(block []byte, final bool) ([]byte, error) {
 func (p *Protocol) ratchet(final bool) {
 	// If this is the final block, mark that in the stream metadata.
 	if final {
-		if err := p.s.AD([]byte(finalizationTag), &strobe.Options{Meta: true}); err != nil {
-			panic(err)
-		}
+		protocols.Must(p.stream.AD([]byte(finalizationTag), &strobe.Options{Meta: true}))
 	}
 
 	// Ratchet the stream.
-	if err := p.s.RATCHET(ratchetSize); err != nil {
-		panic(err)
-	}
+	protocols.Must(p.stream.RATCHET(ratchetSize))
 }
 
 const (

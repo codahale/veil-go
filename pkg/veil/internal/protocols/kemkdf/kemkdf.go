@@ -31,51 +31,32 @@ func DeriveKey(zzE, zzS *ristretto255.Element, pubE, pubR, pubS *r255.PublicKey,
 	b := make([]byte, r255.PublicKeySize)
 
 	// Initialize the protocol.
-	kdf, err := strobe.New("veil.kdf.kem", strobe.Bit256)
-	if err != nil {
-		panic(err)
-	}
+	kdf := protocols.New("veil.kdf.kem")
 
 	// Add the intent tag to the protocol.
-	if err := kdf.AD(intentTag(header), &strobe.Options{Meta: true}); err != nil {
-		panic(err)
-	}
+	protocols.Must(kdf.AD(intentTag(header), &strobe.Options{Meta: true}))
 
 	// Add the output size to the protocol.
-	if err := kdf.AD(protocols.BigEndianU32(n), &strobe.Options{Meta: true}); err != nil {
-		panic(err)
-	}
+	protocols.Must(kdf.AD(protocols.BigEndianU32(n), &strobe.Options{Meta: true}))
 
 	// Add the ephemeral shared secret to the protocol.
-	if err := kdf.KEY(zzE.Encode(b[:0]), false); err != nil {
-		panic(err)
-	}
+	protocols.Must(kdf.KEY(zzE.Encode(b[:0]), false))
 
 	// Add the static shared secret to the protocol.
-	if err := kdf.KEY(zzS.Encode(b[:0]), false); err != nil {
-		panic(err)
-	}
+	protocols.Must(kdf.KEY(zzS.Encode(b[:0]), false))
 
 	// Add the ephemeral public key to the protocol.
-	if err := kdf.AD(pubE.Encode(b[:0]), &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(kdf.AD(pubE.Encode(b[:0]), &strobe.Options{}))
 
 	// Add the recipient's public key to the protocol.
-	if err := kdf.AD(pubR.Encode(b[:0]), &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(kdf.AD(pubR.Encode(b[:0]), &strobe.Options{}))
 
 	// Add the sender's public key to the protocol.
-	if err := kdf.AD(pubS.Encode(b[:0]), &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(kdf.AD(pubS.Encode(b[:0]), &strobe.Options{}))
 
 	// Extract an n-byte derived secret and return it.
 	k := make([]byte, n)
-	if err := kdf.PRF(k, false); err != nil {
-		panic(err)
-	}
+	protocols.Must(kdf.PRF(k, false))
 
 	return k
 }

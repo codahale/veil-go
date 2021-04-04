@@ -63,22 +63,18 @@ func DecryptSecretKey(key, encSecretKey []byte, tagSize int) ([]byte, error) {
 // encrypt uses the protocol to encrypt the plaintext with the key, appending a tag of the given
 // size for authentication.
 func encrypt(protocol string, key, plaintext []byte, tagSize int) []byte {
-	esk := newProtocol(protocol, key, tagSize)
+	authenc := newProtocol(protocol, key, tagSize)
 
 	// Copy the plaintext to a buffer.
 	ciphertext := make([]byte, len(plaintext), len(plaintext)+tagSize)
 	copy(ciphertext, plaintext)
 
 	// Encrypt it in place.
-	if _, err := esk.SendENC(ciphertext, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.MustENC(authenc.SendENC(ciphertext, &strobe.Options{}))
 
 	// Create a MAC.
 	tag := make([]byte, tagSize)
-	if err := esk.SendMAC(tag, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(authenc.SendMAC(tag, &strobe.Options{}))
 
 	// Return the ciphertext and tag.
 	return append(ciphertext, tag...)
@@ -86,51 +82,42 @@ func encrypt(protocol string, key, plaintext []byte, tagSize int) []byte {
 
 // decrypt uses the protocol to decrypt the ciphertext using the key, detaching and verifying the
 // authentication tag of the given size.
-func decrypt(protocol string, key, encryptedSecretKey []byte, tagSize int) ([]byte, error) {
-	esk := newProtocol(protocol, key, tagSize)
+func decrypt(protocol string, key, ciphertext []byte, tagSize int) ([]byte, error) {
+	authenc := newProtocol(protocol, key, tagSize)
 
-	// Copy the encrypted secret key.
-	sk := make([]byte, len(encryptedSecretKey)-tagSize)
-	copy(sk, encryptedSecretKey[:len(encryptedSecretKey)-tagSize])
+	// Copy the ciphertext to a buffer.
+	plaintext := make([]byte, len(ciphertext)-tagSize)
+	copy(plaintext, ciphertext[:len(ciphertext)-tagSize])
 
 	// Copy the tag.
 	tag := make([]byte, tagSize)
-	copy(tag, encryptedSecretKey[len(encryptedSecretKey)-tagSize:])
+	copy(tag, ciphertext[len(ciphertext)-tagSize:])
 
 	// Decrypt it in place.
-	if _, err := esk.RecvENC(sk, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.MustENC(authenc.RecvENC(plaintext, &strobe.Options{}))
 
 	// Verify the MAC.
-	if err := esk.RecvMAC(tag, &strobe.Options{}); err != nil {
+	if err := authenc.RecvMAC(tag, &strobe.Options{}); err != nil {
 		return nil, err
 	}
 
 	// Return the plaintext.
-	return sk, nil
+	return plaintext, nil
 }
 
 func newProtocol(protocol string, key []byte, tagSize int) *strobe.Strobe {
 	// Create a new protocol.
-	esk, err := strobe.New(protocol, strobe.Bit256)
-	if err != nil {
-		panic(err)
-	}
+	authenc := protocols.New(protocol)
 
 	// Add the tag size to the protocol.
-	if err := esk.AD(protocols.BigEndianU32(tagSize), &strobe.Options{Meta: true}); err != nil {
-		panic(err)
-	}
+	protocols.Must(authenc.AD(protocols.BigEndianU32(tagSize), &strobe.Options{Meta: true}))
 
 	// Copy the key.
 	k := make([]byte, len(key))
 	copy(k, key)
 
 	// Initialize the protocol with the key.
-	if err := esk.KEY(k, false); err != nil {
-		panic(err)
-	}
+	protocols.Must(authenc.KEY(k, false))
 
-	return esk
+	return authenc
 }

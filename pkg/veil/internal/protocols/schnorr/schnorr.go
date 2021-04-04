@@ -34,6 +34,7 @@
 package schnorr
 
 import (
+	"github.com/codahale/veil/pkg/veil/internal/protocols"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
@@ -50,30 +51,19 @@ func Sign(d *ristretto255.Scalar, q *ristretto255.Element, msg []byte) ([]byte, 
 	sigA := R.Encode(nil)
 
 	// Initialize the veil.schnorr protocol.
-	schnorr, err := strobe.New("veil.schnorr", strobe.Bit256)
-	if err != nil {
-		panic(err)
-	}
+	schnorr := protocols.New("veil.schnorr")
 
 	// Include the message as associated data.
-	if err := schnorr.AD(msg, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(schnorr.AD(msg, &strobe.Options{}))
 
 	// Add the sender's public key as associated data.
-	if err := schnorr.AD(q.Encode(nil), &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(schnorr.AD(q.Encode(nil), &strobe.Options{}))
 
 	// Transmit the signature ephemeral.
-	if err := schnorr.SendCLR(sigA, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(schnorr.SendCLR(sigA, &strobe.Options{}))
 
 	// Derive a challenge value.
-	if err := schnorr.PRF(buf[:], false); err != nil {
-		panic(err)
-	}
+	protocols.Must(schnorr.PRF(buf[:], false))
 
 	// Map the challenge value to a scalar.
 	k := ristretto255.NewScalar().FromUniformBytes(buf[:])
@@ -84,9 +74,7 @@ func Sign(d *ristretto255.Scalar, q *ristretto255.Element, msg []byte) ([]byte, 
 
 	// Encrypt the signature scalar.
 	sigB := s.Encode(nil)
-	if _, err := schnorr.SendENC(sigB, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.MustENC(schnorr.SendENC(sigB, &strobe.Options{}))
 
 	// Return the encoding of R and the ciphertext of s as the signature.
 	return sigA, sigB
@@ -102,30 +90,19 @@ func Verify(q *ristretto255.Element, sigA, sigB, msg []byte) bool {
 		return false
 	}
 
-	schnorr, err := strobe.New("veil.schnorr", strobe.Bit256)
-	if err != nil {
-		panic(err)
-	}
+	schnorr := protocols.New("veil.schnorr")
 
 	// Include the message as associated data.
-	if err := schnorr.AD(msg, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(schnorr.AD(msg, &strobe.Options{}))
 
 	// Include the sender's public key as associated data.
-	if err := schnorr.AD(q.Encode(nil), &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(schnorr.AD(q.Encode(nil), &strobe.Options{}))
 
 	// Receive the signature ephemeral.
-	if err := schnorr.RecvCLR(sigA, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(schnorr.RecvCLR(sigA, &strobe.Options{}))
 
 	// Derive a challenge value.
-	if err := schnorr.PRF(buf[:], false); err != nil {
-		panic(err)
-	}
+	protocols.Must(schnorr.PRF(buf[:], false))
 
 	// Map the challenge value to a scalar.
 	k := ristretto255.NewScalar().FromUniformBytes(buf[:])
@@ -135,9 +112,7 @@ func Verify(q *ristretto255.Element, sigA, sigB, msg []byte) bool {
 	copy(sb, sigB)
 
 	// Decrypt the signature scalar.
-	if _, err := schnorr.RecvENC(sb, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.MustENC(schnorr.RecvENC(sb, &strobe.Options{}))
 
 	// Decode the signature scalar.
 	s := ristretto255.NewScalar()
@@ -156,25 +131,16 @@ func Verify(q *ristretto255.Element, sigA, sigB, msg []byte) bool {
 func deriveNonce(d *ristretto255.Scalar, msg []byte) *ristretto255.Scalar {
 	var buf [64]byte
 
-	nonce, err := strobe.New("veil.schnorr.nonce", strobe.Bit256)
-	if err != nil {
-		panic(err)
-	}
+	nonce := protocols.New("veil.schnorr.nonce")
 
 	// Include the message as associated data.
-	if err := nonce.AD(msg, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(nonce.AD(msg, &strobe.Options{}))
 
 	// Key the clone with the signer's private key.
-	if err := nonce.KEY(d.Encode(nil), false); err != nil {
-		panic(err)
-	}
+	protocols.Must(nonce.KEY(d.Encode(nil), false))
 
 	// Derive a nonce.
-	if err := nonce.PRF(buf[:], false); err != nil {
-		panic(err)
-	}
+	protocols.Must(nonce.PRF(buf[:], false))
 
 	// Map the nonce to a scalar.
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])

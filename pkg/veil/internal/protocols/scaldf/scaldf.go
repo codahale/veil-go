@@ -15,28 +15,21 @@
 package scaldf
 
 import (
+	"github.com/codahale/veil/pkg/veil/internal/protocols"
 	"github.com/gtank/ristretto255"
-	"github.com/sammyne/strobe"
 )
 
-func Label(label []byte) *ristretto255.Scalar {
+func Label(l []byte) *ristretto255.Scalar {
 	var buf [64]byte
 
-	s, err := strobe.New("veil.scaldf.label", strobe.Bit256)
-	if err != nil {
-		panic(err)
-	}
+	label := protocols.New("veil.scaldf.label")
 
-	k := make([]byte, len(label))
-	copy(k, label)
+	k := make([]byte, len(l))
+	copy(k, l)
 
-	if err := s.KEY(k, false); err != nil {
-		panic(err)
-	}
+	protocols.Must(label.KEY(k, false))
 
-	if err := s.PRF(buf[:], false); err != nil {
-		panic(err)
-	}
+	protocols.Must(label.PRF(buf[:], false))
 
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }
@@ -44,21 +37,14 @@ func Label(label []byte) *ristretto255.Scalar {
 func SecretKey(r []byte) *ristretto255.Scalar {
 	var buf [64]byte
 
-	s, err := strobe.New("veil.scaldf.secret-key", strobe.Bit256)
-	if err != nil {
-		panic(err)
-	}
+	secretKey := protocols.New("veil.scaldf.secret-key")
 
 	k := make([]byte, len(r))
 	copy(k, r)
 
-	if err := s.KEY(k, false); err != nil {
-		panic(err)
-	}
+	protocols.Must(secretKey.KEY(k, false))
 
-	if err := s.PRF(buf[:], false); err != nil {
-		panic(err)
-	}
+	protocols.Must(secretKey.PRF(buf[:], false))
 
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }

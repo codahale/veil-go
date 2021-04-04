@@ -22,40 +22,33 @@ import (
 )
 
 type Writer struct {
-	s          *strobe.Strobe
+	msghash    *strobe.Strobe
 	digestSize int
 }
 
 func NewWriter(digestSize int) *Writer {
-	s, err := strobe.New("veil.msghash", strobe.Bit256)
-	if err != nil {
-		panic(err)
-	}
+	msghash := protocols.New("veil.msghash")
 
-	if err := s.AD(protocols.BigEndianU32(digestSize), &strobe.Options{Meta: true}); err != nil {
-		panic(err)
-	}
+	// Include the digest size as associated data.
+	protocols.Must(msghash.AD(protocols.BigEndianU32(digestSize), &strobe.Options{Meta: true}))
 
-	if err := s.SendCLR(nil, &strobe.Options{Streaming: false}); err != nil {
-		panic(err)
-	}
+	// Send a 0-byte block of clear text to enable future streaming clear text.
+	protocols.Must(msghash.SendCLR(nil, &strobe.Options{Streaming: false}))
 
-	return &Writer{s: s, digestSize: digestSize}
+	return &Writer{msghash: msghash, digestSize: digestSize}
 }
 
 func (w *Writer) Write(p []byte) (n int, err error) {
-	if err := w.s.SendCLR(p, &strobe.Options{Streaming: true}); err != nil {
-		panic(err)
-	}
+	// Send the block as streaming clear text.
+	protocols.Must(w.msghash.SendCLR(p, &strobe.Options{Streaming: true}))
 
 	return len(p), nil
 }
 
 func (w *Writer) Digest() []byte {
+	// Calculate and send a MAC of the previously sent clear text.
 	digest := make([]byte, w.digestSize)
-	if err := w.s.SendMAC(digest, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(w.msghash.SendMAC(digest, &strobe.Options{}))
 
 	return digest
 }

@@ -29,40 +29,27 @@ import (
 	"github.com/sammyne/strobe"
 )
 
-//nolint:gocognit,gocyclo,cyclop // it's supposed to be hard
 // Hash returns an n-byte hash of the given password.
 func Hash(passphrase, salt []byte, space, time uint32, n int) []byte {
 	n += n % 2 // round up
 
-	s, err := strobe.New("veil.balloon", strobe.Bit256)
-	if err != nil {
-		panic(err)
-	}
+	// Initialize a new protocol.
+	balloon := protocols.New("veil.balloon")
 
 	// Include the space parameter as associated data.
-	if err := s.AD(protocols.BigEndianU32(int(space)), &strobe.Options{Meta: true}); err != nil {
-		panic(err)
-	}
+	protocols.Must(balloon.AD(protocols.BigEndianU32(int(space)), &strobe.Options{Meta: true}))
 
 	// Include the time parameter as associated data.
-	if err := s.AD(protocols.BigEndianU32(int(time)), &strobe.Options{Meta: true}); err != nil {
-		panic(err)
-	}
+	protocols.Must(balloon.AD(protocols.BigEndianU32(int(time)), &strobe.Options{Meta: true}))
 
 	// Include the size parameter as associated data.
-	if err := s.AD(protocols.BigEndianU32(n), &strobe.Options{Meta: true}); err != nil {
-		panic(err)
-	}
+	protocols.Must(balloon.AD(protocols.BigEndianU32(n), &strobe.Options{Meta: true}))
 
 	// Key the protocol with the passphrase.
-	if err := s.KEY(passphrase, false); err != nil {
-		panic(err)
-	}
+	protocols.Must(balloon.KEY(passphrase, false))
 
 	// Include the salt as associated data.
-	if err := s.AD(salt, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(balloon.AD(salt, &strobe.Options{}))
 
 	cnt := 0
 	idx := make([]byte, n)
@@ -75,12 +62,12 @@ func Hash(passphrase, salt []byte, space, time uint32, n int) []byte {
 
 	// Initialize first block.
 	cnt++
-	hashCounter(s, cnt, buf[0], nil, nil)
+	hashCounter(balloon, cnt, buf[0], nil, nil)
 
 	// Initialize all other blocks.
 	for m := uint32(1); m < space-1; m++ {
 		cnt++
-		hashCounter(s, cnt, buf[m], buf[m-1], nil)
+		hashCounter(balloon, cnt, buf[m], buf[m-1], nil)
 	}
 
 	// Mix buffer contents.
@@ -89,7 +76,7 @@ func Hash(passphrase, salt []byte, space, time uint32, n int) []byte {
 		for m := uint32(1); m < space; m++ {
 			prev := buf[(m-1)%space]
 			cnt++
-			hashCounter(s, cnt, buf[m], prev, buf[m])
+			hashCounter(balloon, cnt, buf[m], prev, buf[m])
 
 			// Hash pseudorandomly chosen blocks.
 			for i := 0; i < delta; i++ {
@@ -98,12 +85,12 @@ func Hash(passphrase, salt []byte, space, time uint32, n int) []byte {
 				binary.BigEndian.PutUint32(idx[8:], uint32(i))
 
 				cnt++
-				hashCounter(s, cnt, idx, salt, idx)
+				hashCounter(balloon, cnt, idx, salt, idx)
 
 				other := int(binary.BigEndian.Uint64(idx) % uint64(space))
 
 				cnt++
-				hashCounter(s, cnt, buf[m], buf[other], nil)
+				hashCounter(balloon, cnt, buf[m], buf[other], nil)
 			}
 		}
 	}
@@ -113,24 +100,16 @@ func Hash(passphrase, salt []byte, space, time uint32, n int) []byte {
 
 func hashCounter(s *strobe.Strobe, cnt int, dst, left, right []byte) {
 	// Hash the counter.
-	if err := s.AD(protocols.BigEndianU32(cnt), &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(s.AD(protocols.BigEndianU32(cnt), &strobe.Options{}))
 
 	// Hash the left block.
-	if err := s.AD(left, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(s.AD(left, &strobe.Options{}))
 
 	// Hash the right block.
-	if err := s.AD(right, &strobe.Options{}); err != nil {
-		panic(err)
-	}
+	protocols.Must(s.AD(right, &strobe.Options{}))
 
 	// Extract a new block.
-	if err := s.PRF(dst, false); err != nil {
-		panic(err)
-	}
+	protocols.Must(s.PRF(dst, false))
 }
 
 const (
