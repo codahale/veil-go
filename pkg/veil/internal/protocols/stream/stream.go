@@ -11,18 +11,18 @@
 //
 // Encryption of an intermediate plaintext block, P, is as follows:
 //
-//     RATCHET(32)
 //     SEND_ENC(P)
 //     SEND_MAC(T)
+//     RATCHET(32)
 //
 // The ciphertext and T-byte tag are then written.
 //
 // Encryption of the final plaintext block, P, is as follows:
 //
 //     AD('final', meta=true)
-//     RATCHET(32)
 //     SEND_ENC(P)
 //     SEND_MAC(T)
+//     RATCHET(32)
 //
 // Decryption of a stream is the same as encryption with RECV_ENC and RECV_MAC in place of SEND_ENC
 // and RECV_ENC, respectively. No plaintext block is written to its destination without a successful
@@ -72,8 +72,6 @@ func New(key, associatedData []byte, blockSize, tagSize int) *Protocol {
 // Encrypt ratchets the protocol's state, encrypts the plaintext, appends an authentication tag,
 // and returns the result. If this is is the last block in the stream, final must be true.
 func (p *Protocol) Encrypt(block []byte, final bool) []byte {
-	// Ratchet the protocol.
-	p.ratchet(final)
 
 	// Copy the input to the stream's buffer.
 	copy(p.b, block)
@@ -83,6 +81,9 @@ func (p *Protocol) Encrypt(block []byte, final bool) []byte {
 
 	// Create a MAC.
 	protocols.Must(p.stream.SendMAC(p.tag, &strobe.Options{}))
+
+	// Ratchet the protocol.
+	p.ratchet(final)
 
 	// Make a copy of the ciphertext and tag and return them.
 	ciphertext := make([]byte, len(block), len(block)+len(p.tag))
@@ -96,9 +97,6 @@ func (p *Protocol) Encrypt(block []byte, final bool) []byte {
 // true. If the inputs are not exactly the same as the outputs of Encrypt, an error will be
 // returned.
 func (p *Protocol) Decrypt(block []byte, final bool) ([]byte, error) {
-	// Ratchet the protocol.
-	p.ratchet(final)
-
 	// Copy the input to the stream's buffer.
 	n := len(block) - len(p.tag)
 	copy(p.tag, block[n:])
@@ -111,6 +109,9 @@ func (p *Protocol) Decrypt(block []byte, final bool) ([]byte, error) {
 	if err := p.stream.RecvMAC(p.tag, &strobe.Options{}); err != nil {
 		return nil, err
 	}
+
+	// Ratchet the protocol.
+	p.ratchet(final)
 
 	// Make a copy of the plaintext and return it.
 	plaintext := make([]byte, n)
