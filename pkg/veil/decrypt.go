@@ -15,10 +15,6 @@ import (
 	"github.com/gtank/ristretto255"
 )
 
-// ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an
-// incorrect key or tampering.
-var ErrInvalidCiphertext = errors.New("invalid ciphertext")
-
 // Decrypt decrypts the data in src if originally encrypted by any of the given public keys. Returns
 // the sender's public key, the number of decrypted bytes written, and the first reported error, if
 // any.

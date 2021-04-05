@@ -14,10 +14,20 @@ package veil
 import (
 	"crypto/rand"
 	"encoding/base32"
+	"errors"
 	"math/big"
 	"strings"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
+)
+
+var (
+	// ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an
+	// incorrect key or tampering.
+	ErrInvalidCiphertext = errors.New("invalid ciphertext")
+
+	// ErrInvalidSignature is returned when a signature, public key, and message do not match.
+	ErrInvalidSignature = errors.New("invalid signature")
 )
 
 // AddFakes adds n randomly-generated public keys to the given set of public keys, shuffles the

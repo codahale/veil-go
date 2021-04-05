@@ -2,14 +2,10 @@ package veil
 
 import (
 	"encoding"
-	"errors"
 	"fmt"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 )
-
-// ErrInvalidSignature is returned when a signature, public key, and message do not match.
-var ErrInvalidSignature = errors.New("invalid signature")
 
 // Signature is a digital signature of a message, created by the holder of a secret key, which can
 // be verified by anyone with the corresponding public key.
