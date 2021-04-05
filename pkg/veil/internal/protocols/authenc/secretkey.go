@@ -7,19 +7,30 @@ import (
 
 // EncryptSecretKey encrypts the secret key with the key, appending a tag of the given size for
 // authentication.
+//
+// Encryption of a secret key is performed as follows, given a key K, a plaintext secret key R, and
+// a tag size N:
+//
+//     INIT('veil.authenc.secret-key', level=256)
+//     AD(LE_U32(N)),                  meta=true)
+//     KEY(K)
+//     SEND_ENC(R)
+//     SEND_MAC(N)
+//
+// The ciphertext and T-byte tag are then returned.
 func EncryptSecretKey(key, secretKey []byte, tagSize int) []byte {
-	authenc := newProtocol(secretKeyProto, key, tagSize)
+	ae := newAE(secretKeyProto, key, tagSize)
 
 	// Copy the plaintext to a buffer.
 	ciphertext := make([]byte, len(secretKey), len(secretKey)+tagSize)
 	copy(ciphertext, secretKey)
 
 	// Encrypt it in place.
-	protocols.MustENC(authenc.SendENC(ciphertext, &strobe.Options{}))
+	protocols.MustENC(ae.SendENC(ciphertext, &strobe.Options{}))
 
 	// Create a MAC.
 	tag := make([]byte, tagSize)
-	protocols.Must(authenc.SendMAC(tag, &strobe.Options{}))
+	protocols.Must(ae.SendMAC(tag, &strobe.Options{}))
 
 	// Return the ciphertext and tag.
 	return append(ciphertext, tag...)
@@ -27,8 +38,19 @@ func EncryptSecretKey(key, secretKey []byte, tagSize int) []byte {
 
 // DecryptSecretKey decrypts the encrypted secret key using the key, detaching and verifying the
 // authentication tag of the given size.
+//
+// Decryption of a secret key is performed as follows, given a key K, a ciphertext C, an
+// authentication tag T, and a tag size N:
+//
+//     INIT('veil.authenc.secret-key', level=256)
+//     AD(LE_U32(N)),                  meta=true)
+//     KEY(K)
+//     RECV_ENC(C)
+//     RECV_MAC(T)
+//
+// If the RECV_MAC operation is successful, the plaintext secret key is returned.
 func DecryptSecretKey(key, encSecretKey []byte, tagSize int) ([]byte, error) {
-	authenc := newProtocol(secretKeyProto, key, tagSize)
+	ae := newAE(secretKeyProto, key, tagSize)
 
 	// Copy the ciphertext to a buffer.
 	plaintext := make([]byte, len(encSecretKey)-tagSize)
@@ -39,10 +61,10 @@ func DecryptSecretKey(key, encSecretKey []byte, tagSize int) ([]byte, error) {
 	copy(tag, encSecretKey[len(encSecretKey)-tagSize:])
 
 	// Decrypt it in place.
-	protocols.MustENC(authenc.RecvENC(plaintext, &strobe.Options{}))
+	protocols.MustENC(ae.RecvENC(plaintext, &strobe.Options{}))
 
 	// Verify the MAC.
-	if err := authenc.RecvMAC(tag, &strobe.Options{}); err != nil {
+	if err := ae.RecvMAC(tag, &strobe.Options{}); err != nil {
 		return nil, err
 	}
 

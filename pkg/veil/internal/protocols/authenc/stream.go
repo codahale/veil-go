@@ -6,6 +6,34 @@ import (
 )
 
 // StreamEncrypter encrypts blocks of a message stream.
+//
+// Encryption of a message stream is as follows, given a key K, block size B, and tag size N:
+//
+//     INIT('veil.authenc.stream', level=256)
+//     AD(LE_U32(B)),              meta=true)
+//     AD(LE_U32(N)),              meta=true)
+//     KEY(K)
+//
+// Encryption begins by witnessing the encrypted message headers, H:
+//
+//     SEND_CLR(H)
+//
+// Encryption of an intermediate plaintext block P_i is as follows:
+//
+//     SEND_ENC(P_i)
+//     SEND_MAC(N)
+//     RATCHET(32)
+//
+// The ciphertext and N-byte tag are returned.
+//
+// Encryption of the final plaintext block, P_n, is as follows:
+//
+//     AD('final', meta=true)
+//     SEND_ENC(P_n)
+//     SEND_MAC(N)
+//     RATCHET(32)
+//
+// The ciphertext and N-byte tag are returned.
 type StreamEncrypter struct {
 	stream *strobe.Strobe
 	b, tag []byte
@@ -49,6 +77,34 @@ func (s *StreamEncrypter) Encrypt(block []byte, final bool) []byte {
 }
 
 // StreamDecrypter decrypts blocks of a message stream.
+//
+// Decryption of a message stream is as follows, given a key K, block size B, and tag size N:
+//
+//     INIT('veil.authenc.stream', level=256)
+//     AD(LE_U32(B)),              meta=true)
+//     AD(LE_U32(N)),              meta=true)
+//     KEY(K)
+//
+// Decryption begins by witnessing the encrypted message headers, H:
+//
+//     RECV_CLR(H)
+//
+// Decryption of an intermediate ciphertext block C_i and authentication tag T_i is as follows:
+//
+//     RECV_ENC(C_i)
+//     RECV_MAC(T_i)
+//     RATCHET(32)
+//
+// If the RECV_MAC operation is successful, the plaintext block is returned.
+//
+// Decryption of the final ciphertext block P_n and authentication tag T_n is as follows:
+//
+//     AD('final', meta=true)
+//     RECV_ENC(C_n)
+//     RECV_MAC(T_n)
+//     RATCHET(32)
+//
+// If the RECV_MAC operation is successful, the plaintext block is returned.
 type StreamDecrypter struct {
 	stream *strobe.Strobe
 	b, tag []byte

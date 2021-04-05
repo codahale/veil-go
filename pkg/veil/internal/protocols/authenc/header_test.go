@@ -7,7 +7,7 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 )
 
-func TestRoundTrip(t *testing.T) {
+func TestHeaderRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is a good time")
@@ -28,7 +28,7 @@ func TestRoundTrip(t *testing.T) {
 	assert.Equal(t, "decrypted", plaintext, decrypted)
 }
 
-func TestKeyMismatch(t *testing.T) {
+func TestHeaderKeyMismatch(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is a good time")
@@ -46,7 +46,7 @@ func TestKeyMismatch(t *testing.T) {
 	}
 }
 
-func TestPubKeyMismatch(t *testing.T) {
+func TestHeaderPubKeyMismatch(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is a good time")
@@ -69,7 +69,7 @@ func TestPubKeyMismatch(t *testing.T) {
 	}
 }
 
-func TestCiphertextModification(t *testing.T) {
+func TestHeaderCiphertextModification(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is a good time")
@@ -88,7 +88,7 @@ func TestCiphertextModification(t *testing.T) {
 	}
 }
 
-func TestTagModification(t *testing.T) {
+func TestHeaderTagModification(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is a good time")
