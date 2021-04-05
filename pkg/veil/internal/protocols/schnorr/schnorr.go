@@ -58,11 +58,13 @@ const (
 	SignatureSize = 64 // SignatureSize is the length of a signature in bytes.
 )
 
+// Signer is a pass-through io.Writer which adds written data to a STROBE protocol for signing.
 type Signer struct {
 	schnorr *strobe.Strobe
 	dst     io.Writer
 }
 
+// NewSigner returns a Signer instance which passes writes through to dst.
 func NewSigner(dst io.Writer) *Signer {
 	// Initialize a new protocol.
 	schnorr := protocols.New("veil.schnorr")
@@ -84,8 +86,8 @@ func (sn *Signer) Write(p []byte) (n int, err error) {
 	return
 }
 
-// Sign uses the given key pair to construct a deterministic Schnorr signature of the written
-// message.
+// Sign uses the given key pair to construct a deterministic Schnorr signature of the previously
+// written data.
 func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 	var (
 		buf [r255.UniformBytestringSize]byte
@@ -123,11 +125,13 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 	return sig[:]
 }
 
+// Signer is a pass-through io.Reader which adds read data to a STROBE protocol for verification.
 type Verifier struct {
 	schnorr *strobe.Strobe
 	src     io.Reader
 }
 
+// NewVerifier returns a Verifier instance which passes reads through to src.
 func NewVerifier(src io.Reader) *Verifier {
 	// Initialize a new protocol.
 	schnorr := protocols.New("veil.schnorr")
@@ -149,7 +153,7 @@ func (vr *Verifier) Read(p []byte) (n int, err error) {
 	return
 }
 
-// Verify uses the given public key to verify the signature of the message as read.
+// Verify uses the given public key to verify the signature of the previously read data.
 func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
 	var buf [r255.UniformBytestringSize]byte
 
