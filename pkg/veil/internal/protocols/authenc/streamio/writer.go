@@ -6,7 +6,16 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 )
 
-// writer writes blocks of AEAD-encrypted data using a ratcheting key.
+// NewWriter returns an io.Writer which groups writes into blocks, encrypts them with the
+// veil.authenc.stream STROBE protocol, and writes them to dst.
+func NewWriter(dst io.Writer, key, encryptedHeaders []byte, blockSize int) io.WriteCloser {
+	return &writer{
+		w:         dst,
+		stream:    authenc.NewStreamEncrypter(key, encryptedHeaders, blockSize, authenc.TagSize),
+		plaintext: make([]byte, blockSize),
+	}
+}
+
 type writer struct {
 	w            io.Writer
 	stream       *authenc.StreamEncrypter
@@ -14,14 +23,6 @@ type writer struct {
 	plaintextPos int
 	ciphertext   []byte
 	closed       bool
-}
-
-func NewWriter(dst io.Writer, key, additionalData []byte, blockSize int) io.WriteCloser {
-	return &writer{
-		w:         dst,
-		stream:    authenc.NewStreamEncrypter(key, additionalData, blockSize, authenc.TagSize),
-		plaintext: make([]byte, blockSize),
-	}
 }
 
 func (w *writer) Write(p []byte) (n int, err error) {

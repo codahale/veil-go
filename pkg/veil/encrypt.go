@@ -55,7 +55,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 
 	// Initialize an AEAD writer with the ratchet key, using the encrypted headers as authenticated
 	// data.
-	w := streamio.NewWriter(dst, key, headers, blockSize)
+	w := streamio.NewWriter(dst, key, headers, streamio.BlockSize)
 
 	// Tee reads from the input into the msghash STROBE protocol.
 	h := msghash.NewWriter(digestSize)
@@ -126,7 +126,6 @@ func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, pad
 }
 
 const (
-	blockSize           = 64 * 1024           // 64KiB
 	headerSize          = r255.ScalarSize + 4 // 4 bytes for message offset
 	encryptedHeaderSize = r255.ElementSize + headerSize + authenc.TagSize
 )

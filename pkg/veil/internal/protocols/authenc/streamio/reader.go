@@ -7,7 +7,16 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 )
 
-// reader reads blocks of AEAD-encrypted data and decrypts them using a ratcheting key.
+// NewReader returns an io.Reader which reads encrypted blocks from src and decrypts them using the
+// veil.authenc.stream STROBE protocol.
+func NewReader(src io.Reader, key, encryptedHeaders []byte, blockSize int) io.Reader {
+	return &reader{
+		stream:     authenc.NewStreamDecrypter(key, encryptedHeaders, blockSize, authenc.TagSize),
+		r:          src,
+		ciphertext: make([]byte, blockSize+authenc.TagSize+1), // extra byte for determining last block
+	}
+}
+
 type reader struct {
 	r             io.Reader
 	stream        *authenc.StreamDecrypter
@@ -15,14 +24,6 @@ type reader struct {
 	plaintextPos  int
 	ciphertext    []byte
 	ciphertextPos int
-}
-
-func NewReader(src io.Reader, key, additionalData []byte, blockSize int) io.Reader {
-	return &reader{
-		stream:     authenc.NewStreamDecrypter(key, additionalData, blockSize, authenc.TagSize),
-		r:          src,
-		ciphertext: make([]byte, blockSize+authenc.TagSize+1), // extra byte for determining last block
-	}
 }
 
 func (r *reader) Read(p []byte) (n int, err error) {

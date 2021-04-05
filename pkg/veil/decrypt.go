@@ -49,7 +49,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 
 	// Initialize an AEAD reader with the ratchet key, using the encrypted headers as authenticated
 	// data.
-	r := streamio.NewReader(src, key, headers, blockSize)
+	r := streamio.NewReader(src, key, headers, streamio.BlockSize)
 
 	// Detach the signature from the plaintext and calculate a digest of the plaintext.
 	h := msghash.NewWriter(digestSize)
