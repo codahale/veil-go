@@ -5,13 +5,12 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/stream"
 )
 
 // reader reads blocks of AEAD-encrypted data and decrypts them using a ratcheting key.
 type reader struct {
 	r             io.Reader
-	protocol      *stream.Protocol
+	stream        *authenc.StreamDecrypter
 	plaintext     []byte
 	plaintextPos  int
 	ciphertext    []byte
@@ -20,7 +19,7 @@ type reader struct {
 
 func NewReader(src io.Reader, key, additionalData []byte, blockSize int) io.Reader {
 	return &reader{
-		protocol:   stream.New(key, additionalData, blockSize, authenc.TagSize),
+		stream:     authenc.NewStreamDecrypter(key, additionalData, blockSize, authenc.TagSize),
 		r:          src,
 		ciphertext: make([]byte, blockSize+authenc.TagSize+1), // extra byte for determining last block
 	}
@@ -60,7 +59,7 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	}
 
 	// Decrypt the block we just read.
-	r.plaintext, err = r.protocol.Decrypt(r.ciphertext[:segment], lastSegment)
+	r.plaintext, err = r.stream.Decrypt(r.ciphertext[:segment], lastSegment)
 	if err != nil {
 		return 0, err
 	}

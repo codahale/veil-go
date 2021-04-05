@@ -27,6 +27,7 @@ Veil uses just two distinct primitives:
 Veil includes STROBE protocols for the following capabilities:
 
 * `veil.authenc.*`: authenticated encryption for message headers and secret keys
+* `veil.authenc.stream`: streaming AEAD encryption with key ratcheting
 * `veil.kdf.balloon`: balloon hashing key derivation for passphrase-based encryption
 * `veil.kdf.kem.*`: key derivation for Veil's key encapsulation algorithm
 * `veil.msghash`: message digests for signatures
@@ -34,7 +35,6 @@ Veil includes STROBE protocols for the following capabilities:
 * `veil.scaldf.*`: functions for deriving ristretto255 scalars from non-uniform or secret values
 * `veil.schnorr`: fully deterministic Schnorr signatures over ristretto255
 * `veil.skid`: safe identifiers for Veil secret keys
-* `veil.stream`: streaming AEAD encryption with key ratcheting
 
 Full details and documentation can be found in the 
 [`pkg/veil/internal/protocols`](https://github.com/codahale/veil/tree/main/pkg/veil/internal/protocols)

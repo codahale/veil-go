@@ -1,4 +1,4 @@
-// Package authenc provides the underlying STROBE protocol for Veil's authenticated encryption.
+// Package authenc provides the underlying STROBE protocols for Veil's authenticated encryption.
 //
 // Encryption of a message header is performed as follows, given a key K, an ephemeral public key Q,
 // a plaintext header H, and a tag size T:
@@ -25,6 +25,36 @@
 //
 // Decryption of both is the same as encryption with RECV_* in place of SEND_* calls. No plaintext
 // is returned without a successful RECV_MAC call.
+//
+// Encryption and decryption of message streams are initialized as follows, given a key K, block
+// size B, and tag size T:
+//
+//     INIT('veil.authenc.stream', level=256)
+//     AD(LE_U32(B)),              meta=true)
+//     AD(LE_U32(T)),              meta=true)
+//     KEY(K)
+//
+// Encrypt begins by witnessing the encrypted headers, H:
+//
+//     SEND_CLR(H)
+//
+// Encryption of an intermediate plaintext block, P, is as follows:
+//
+//     SEND_ENC(P)
+//     SEND_MAC(T)
+//     RATCHET(32)
+//
+// The ciphertext and T-byte tag are then written.
+//
+// Encryption of the final plaintext block, P, is as follows:
+//
+//     AD('final', meta=true)
+//     SEND_ENC(P)
+//     SEND_MAC(T)
+//     RATCHET(32)
+//
+// Decryption of a stream is the same as encryption with RECV_* in place of SEND_* calls. No
+// plaintext block is written to its destination without a successful RECV_MAC call.
 package authenc
 
 import (
