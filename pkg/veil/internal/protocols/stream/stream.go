@@ -72,7 +72,6 @@ func New(key, associatedData []byte, blockSize, tagSize int) *Protocol {
 // Encrypt ratchets the protocol's state, encrypts the plaintext, appends an authentication tag,
 // and returns the result. If this is is the last block in the stream, final must be true.
 func (p *Protocol) Encrypt(block []byte, final bool) []byte {
-
 	// Copy the input to the stream's buffer.
 	copy(p.b, block)
 
