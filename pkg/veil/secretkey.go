@@ -8,6 +8,7 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/skid"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/gtank/ristretto255"
 )
 
 // SecretKey is a key that's used to derive PrivateKey instances (and thus PublicKey instances).
@@ -32,16 +33,16 @@ func NewSecretKey() (*SecretKey, error) {
 
 // PrivateKey returns a private key for the given key ID.
 func (sk *SecretKey) PrivateKey(keyID string) *PrivateKey {
-	priv := PrivateKey{d: scaldf.DeriveScalar(scaldf.SecretScalar(sk.r[:]), idSeparator)}
+	d := scaldf.DeriveScalar(scaldf.SecretScalar(sk.r[:]), idSeparator)
+	q := ristretto255.NewElement().ScalarBaseMult(d)
+	priv := PrivateKey{d: d, q: q}
 
 	return priv.Derive(keyID)
 }
 
 // PublicKey returns a public key for the given key ID.
 func (sk *SecretKey) PublicKey(keyID string) *PublicKey {
-	priv := PrivateKey{d: scaldf.DeriveScalar(scaldf.SecretScalar(sk.r[:]), idSeparator)}
-
-	return priv.PublicKey().Derive(keyID)
+	return sk.PrivateKey(keyID).PublicKey()
 }
 
 // String returns a safe identifier for the key.

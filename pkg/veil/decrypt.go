@@ -82,7 +82,6 @@ func (pk *PrivateKey) findHeader(
 ) ([]byte, *PublicKey, *ristretto255.Scalar, error) {
 	headers := make([]byte, 0, len(senders)*encryptedHeaderSize) // a guess at initial capacity
 	buf := make([]byte, encryptedHeaderSize)
-	pubR := pk.PublicKey().q
 
 	for {
 		// Iterate through src in header-sized blocks.
@@ -99,7 +98,7 @@ func (pk *PrivateKey) findHeader(
 		headers = append(headers, buf...)
 
 		// Attempt to decrypt the header.
-		pkS, skEH, offset := pk.decryptHeader(pubR, buf, senders)
+		pkS, skEH, offset := pk.decryptHeader(buf, senders)
 
 		// If we successfully decrypt the header, use the message offset to read the remaining
 		// encrypted headers.
@@ -118,9 +117,7 @@ func (pk *PrivateKey) findHeader(
 
 // decryptHeader attempts to decrypt the given header block if sent from any of the given public
 // keys.
-func (pk *PrivateKey) decryptHeader(
-	pubR *ristretto255.Element, buf []byte, senders []*PublicKey,
-) (*PublicKey, *ristretto255.Scalar, int) {
+func (pk *PrivateKey) decryptHeader(buf []byte, senders []*PublicKey) (*PublicKey, *ristretto255.Scalar, int) {
 	// Decode the possible public key.
 	pubEH := ristretto255.NewElement()
 	if err := pubEH.Decode(buf[:r255.ElementSize]); err != nil {
@@ -133,7 +130,7 @@ func (pk *PrivateKey) decryptHeader(
 	// Iterate through all possible senders.
 	for _, pubS := range senders {
 		// Re-derive the shared key between the sender and recipient.
-		key := kemkdf.Receive(pk.d, pubR, pubS.q, pubEH, authenc.KeySize, true)
+		key := kemkdf.Receive(pk.d, pk.q, pubS.q, pubEH, authenc.KeySize, true)
 
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.

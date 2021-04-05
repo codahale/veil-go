@@ -12,22 +12,27 @@ import (
 // PrivateKey is a private key derived from a SecretKey, used to decrypt and sign messages.
 type PrivateKey struct {
 	d *ristretto255.Scalar
+	q *ristretto255.Element
 }
 
 // PublicKey returns the corresponding PublicKey for the receiver.
 func (pk *PrivateKey) PublicKey() *PublicKey {
-	return &PublicKey{q: ristretto255.NewElement().ScalarBaseMult(pk.d)}
+	return &PublicKey{q: pk.q}
 }
 
 // Derive derives a PrivateKey from the receiver with the given sub-key ID.
 func (pk *PrivateKey) Derive(subKeyID string) *PrivateKey {
 	d := pk.d
 
+	// Derive the chain of private key scalars.
 	for _, id := range splitID(subKeyID) {
 		d = scaldf.DeriveScalar(d, id)
 	}
 
-	return &PrivateKey{d: d}
+	// Calculate the public key element.
+	q := ristretto255.NewElement().ScalarBaseMult(d)
+
+	return &PrivateKey{d: d, q: q}
 }
 
 // SignDetached returns a detached signature of the contents of src.
@@ -39,7 +44,7 @@ func (pk *PrivateKey) SignDetached(src io.Reader) (*Signature, error) {
 	}
 
 	// Create a signature of the digest.
-	sig := schnorr.Sign(pk.d, pk.PublicKey().q, h.Digest())
+	sig := schnorr.Sign(pk.d, pk.q, h.Digest())
 
 	return &Signature{b: sig}, nil
 }
@@ -57,7 +62,7 @@ func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	}
 
 	// Create a signature of the digest.
-	sig := schnorr.Sign(pk.d, pk.PublicKey().q, h.Digest())
+	sig := schnorr.Sign(pk.d, pk.q, h.Digest())
 
 	// Append the signature.
 	sn, err := dst.Write(sig)

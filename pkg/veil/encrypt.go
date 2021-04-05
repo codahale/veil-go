@@ -19,9 +19,6 @@ import (
 // authenticate it and writes the results to dst. Returns the number of bytes written and the first
 // error reported while encrypting, if any.
 func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
-	// Re-derive the sender's public key.
-	pubS := pk.PublicKey().q
-
 	// Generate an ephemeral header key pair.
 	privEH, pubEH, err := rng.NewEphemeralKeys()
 	if err != nil {
@@ -32,7 +29,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	header := pk.encodeHeader(privEH, len(recipients), padding)
 
 	// Encrypt copies of the header for each recipient.
-	headers, err := pk.encryptHeaders(pubS, header, recipients, padding)
+	headers, err := pk.encryptHeaders(header, recipients, padding)
 	if err != nil {
 		return 0, err
 	}
@@ -45,7 +42,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pubEM, key, err := kemkdf.Send(pk.d, pubS, pubEH, authenc.KeySize, false)
+	pubEM, key, err := kemkdf.Send(pk.d, pk.q, pubEH, authenc.KeySize, false)
 	if err != nil {
 		return int64(n), err
 	}
@@ -71,7 +68,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	}
 
 	// Create a signature of the digest of the plaintext.
-	sig := schnorr.Sign(pk.d, pk.PublicKey().q, h.Digest())
+	sig := schnorr.Sign(pk.d, pk.q, h.Digest())
 
 	// Append the signature to the plaintext.
 	cn, err := w.Write(sig)
@@ -98,16 +95,14 @@ func (pk *PrivateKey) encodeHeader(privEH *ristretto255.Scalar, recipients, padd
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
 // fake recipients.
-func (pk *PrivateKey) encryptHeaders(
-	pubS *ristretto255.Element, header []byte, publicKeys []*PublicKey, padding int,
-) ([]byte, error) {
+func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padding int) ([]byte, error) {
 	// Allocate a buffer for the entire header.
 	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
 
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate a header ephemeral key and shared key for the recipient.
-		pubEH, key, err := kemkdf.Send(pk.d, pubS, pkR.q, authenc.KeySize, true)
+		pubEH, key, err := kemkdf.Send(pk.d, pk.q, pkR.q, authenc.KeySize, true)
 		if err != nil {
 			return nil, err
 		}
