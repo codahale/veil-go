@@ -111,7 +111,7 @@ func (pk *PrivateKey) encryptHeaders(
 		}
 
 		// Encrypt the header for the recipient.
-		b := authenc.EncryptHeader(key, header, authenc.TagSize)
+		b := authenc.EncryptHeader(key, pubEH, header, authenc.TagSize)
 
 		// Write the ephemeral header public key and the ciphertext.
 		_, _ = buf.Write(pubEH.Encode(nil))

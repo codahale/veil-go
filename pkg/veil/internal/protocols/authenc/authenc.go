@@ -1,30 +1,35 @@
-// Package authenc provides the underlying STROBE protocol for Veil's authentication encryption.
+// Package authenc provides the underlying STROBE protocol for Veil's authenticated encryption.
 //
-// Encryption and decryption are initialized as follows, given a protocol name P, a key K and and
-// tag size T:
+// Encryption of a message header is performed as follows, given a key K, an ephemeral public key Q,
+// a plaintext header H, and a tag size T:
 //
-//     INIT(P,        level=256)
-//     AD(LE_U32(T)), meta=true)
+//     INIT('veil.authenc.header', level=256)
+//     AD(LE_U32(T)),              meta=true)
 //     KEY(K)
-//
-// Encryption of a secret, S, is as follows:
-//
-//     SEND_ENC(S)
+//     SEND_CLR(Q)
+//     SEND_ENC(H)
 //     SEND_MAC(T)
 //
 // The ciphertext and T-byte tag are then returned.
 //
-// Decryption of a secret is the same as encryption with RECV_ENC and RECV_MAC in place of SEND_ENC
-// and RECV_ENC, respectively. No plaintext is returned without a successful RECV_MAC call.
+// Encryption of a secret key is performed as follows, given a key K, a secret key R, and a tag size
+// T:
 //
-// The two recognized protocol identifiers are:
+//     INIT('veil.authenc.secret-key', level=256)
+//     AD(LE_U32(T)),                  meta=true)
+//     KEY(K)
+//     SEND_ENC(R)
+//     SEND_MAC(T)
 //
-// * `veil.header`, used to encrypt message headers
-// * `veil.secret-key`, used to encrypt secret keys
+// The ciphertext and T-byte tag are then returned.
+//
+// Decryption of both is the same as encryption with RECV_* in place of SEND_* calls. No plaintext
+// is returned without a successful RECV_MAC call.
 package authenc
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/sammyne/strobe"
 )
 
@@ -39,36 +44,16 @@ const (
 
 // EncryptHeader encrypts the header with the key, appending a tag of the given size for
 // authentication.
-func EncryptHeader(key, header []byte, tagSize int) []byte {
-	return encrypt(headerProto, key, header, tagSize)
-}
+func EncryptHeader(key []byte, pubEH *r255.PublicKey, header []byte, tagSize int) []byte {
+	// Initialize a new protocol.
+	authenc := newProtocol(headerProto, key, tagSize)
 
-// DecryptHeader decrypts the encrypted header using the key, detaching and verifying the
-// authentication tag of the given size.
-func DecryptHeader(key, encHeader []byte, tagSize int) ([]byte, error) {
-	return decrypt(headerProto, key, encHeader, tagSize)
-}
-
-// EncryptHeader encrypts the secret key with the key, appending a tag of the given size for
-// authentication.
-func EncryptSecretKey(key, secretKey []byte, tagSize int) []byte {
-	return encrypt(secretKeyProto, key, secretKey, tagSize)
-}
-
-// DecryptSecretKey decrypts the encrypted secret key using the key, detaching and verifying the
-// authentication tag of the given size.
-func DecryptSecretKey(key, encSecretKey []byte, tagSize int) ([]byte, error) {
-	return decrypt(secretKeyProto, key, encSecretKey, tagSize)
-}
-
-// encrypt uses the protocol to encrypt the plaintext with the key, appending a tag of the given
-// size for authentication.
-func encrypt(protocol string, key, plaintext []byte, tagSize int) []byte {
-	authenc := newProtocol(protocol, key, tagSize)
+	// Witness the ephemeral public key.
+	protocols.Must(authenc.SendCLR(pubEH.Encode(nil), &strobe.Options{}))
 
 	// Copy the plaintext to a buffer.
-	ciphertext := make([]byte, len(plaintext), len(plaintext)+tagSize)
-	copy(ciphertext, plaintext)
+	ciphertext := make([]byte, len(header), len(header)+tagSize)
+	copy(ciphertext, header)
 
 	// Encrypt it in place.
 	protocols.MustENC(authenc.SendENC(ciphertext, &strobe.Options{}))
@@ -81,18 +66,66 @@ func encrypt(protocol string, key, plaintext []byte, tagSize int) []byte {
 	return append(ciphertext, tag...)
 }
 
-// decrypt uses the protocol to decrypt the ciphertext using the key, detaching and verifying the
+// DecryptHeader decrypts the encrypted header using the key, detaching and verifying the
 // authentication tag of the given size.
-func decrypt(protocol string, key, ciphertext []byte, tagSize int) ([]byte, error) {
-	authenc := newProtocol(protocol, key, tagSize)
+func DecryptHeader(key []byte, pubEH *r255.PublicKey, encHeader []byte, tagSize int) ([]byte, error) {
+	authenc := newProtocol(headerProto, key, tagSize)
+
+	// Witness the ephemeral public key.
+	protocols.Must(authenc.RecvCLR(pubEH.Encode(nil), &strobe.Options{}))
 
 	// Copy the ciphertext to a buffer.
-	plaintext := make([]byte, len(ciphertext)-tagSize)
-	copy(plaintext, ciphertext[:len(ciphertext)-tagSize])
+	plaintext := make([]byte, len(encHeader)-tagSize)
+	copy(plaintext, encHeader[:len(encHeader)-tagSize])
 
 	// Copy the tag.
 	tag := make([]byte, tagSize)
-	copy(tag, ciphertext[len(ciphertext)-tagSize:])
+	copy(tag, encHeader[len(encHeader)-tagSize:])
+
+	// Decrypt it in place.
+	protocols.MustENC(authenc.RecvENC(plaintext, &strobe.Options{}))
+
+	// Verify the MAC.
+	if err := authenc.RecvMAC(tag, &strobe.Options{}); err != nil {
+		return nil, err
+	}
+
+	// Return the plaintext.
+	return plaintext, nil
+}
+
+// EncryptHeader encrypts the secret key with the key, appending a tag of the given size for
+// authentication.
+func EncryptSecretKey(key, secretKey []byte, tagSize int) []byte {
+	authenc := newProtocol(secretKeyProto, key, tagSize)
+
+	// Copy the plaintext to a buffer.
+	ciphertext := make([]byte, len(secretKey), len(secretKey)+tagSize)
+	copy(ciphertext, secretKey)
+
+	// Encrypt it in place.
+	protocols.MustENC(authenc.SendENC(ciphertext, &strobe.Options{}))
+
+	// Create a MAC.
+	tag := make([]byte, tagSize)
+	protocols.Must(authenc.SendMAC(tag, &strobe.Options{}))
+
+	// Return the ciphertext and tag.
+	return append(ciphertext, tag...)
+}
+
+// DecryptSecretKey decrypts the encrypted secret key using the key, detaching and verifying the
+// authentication tag of the given size.
+func DecryptSecretKey(key, encSecretKey []byte, tagSize int) ([]byte, error) {
+	authenc := newProtocol(secretKeyProto, key, tagSize)
+
+	// Copy the ciphertext to a buffer.
+	plaintext := make([]byte, len(encSecretKey)-tagSize)
+	copy(plaintext, encSecretKey[:len(encSecretKey)-tagSize])
+
+	// Copy the tag.
+	tag := make([]byte, tagSize)
+	copy(tag, encSecretKey[len(encSecretKey)-tagSize:])
 
 	// Decrypt it in place.
 	protocols.MustENC(authenc.RecvENC(plaintext, &strobe.Options{}))

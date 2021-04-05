@@ -134,7 +134,7 @@ func (pk *PrivateKey) decryptHeader(
 
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.
-		header, err := authenc.DecryptHeader(key, ciphertext, authenc.TagSize)
+		header, err := authenc.DecryptHeader(key, pubEH, ciphertext, authenc.TagSize)
 		if err != nil {
 			continue
 		}
