@@ -20,10 +20,7 @@ func ID(secretKey *[r255.UniformBytestringSize]byte, n int) []byte {
 
 	protocols.Must(skid.AD(protocols.LittleEndianU32(n), &strobe.Options{Meta: true}))
 
-	k := make([]byte, len(secretKey))
-	copy(k, secretKey[:])
-
-	protocols.Must(skid.KEY(k, false))
+	protocols.Must(skid.KEY(protocols.Copy(secretKey[:]), false))
 
 	id := make([]byte, n)
 	protocols.Must(skid.PRF(id, false))

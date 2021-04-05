@@ -50,10 +50,7 @@ func scalarDF(proto string, l []byte) *ristretto255.Scalar {
 
 	label := protocols.New(proto)
 
-	k := make([]byte, len(l))
-	copy(k, l)
-
-	protocols.Must(label.KEY(k, false))
+	protocols.Must(label.KEY(protocols.Copy(l), false))
 
 	protocols.Must(label.PRF(buf[:], false))
 

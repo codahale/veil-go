@@ -22,12 +22,8 @@ func newAE(protocol string, key []byte, tagSize int) *strobe.Strobe {
 	// Add the tag size to the protocol.
 	protocols.Must(ae.AD(protocols.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
 
-	// Copy the key.
-	k := make([]byte, len(key))
-	copy(k, key)
-
 	// Initialize the protocol with the key.
-	protocols.Must(ae.KEY(k, false))
+	protocols.Must(ae.KEY(protocols.Copy(key), false))
 
 	return ae
 }

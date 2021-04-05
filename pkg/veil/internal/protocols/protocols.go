@@ -49,3 +49,12 @@ func MustENC(_ []byte, err error) {
 		panic(err)
 	}
 }
+
+// Copy returns a copy of the given slice for keying protocols without modifying arguments.
+func Copy(b []byte) []byte {
+	c := make([]byte, len(b))
+
+	copy(c, b)
+
+	return c
+}

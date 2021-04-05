@@ -168,12 +168,8 @@ func initStream(key []byte, blockSize, tagSize int) *strobe.Strobe {
 	// Add the tag size to the protocol.
 	protocols.Must(stream.AD(protocols.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
 
-	// Copy the key.
-	k := make([]byte, len(key))
-	copy(k, key)
-
 	// Initialize the protocol with the given key.
-	protocols.Must(stream.KEY(k, false))
+	protocols.Must(stream.KEY(protocols.Copy(key), false))
 
 	return stream
 }

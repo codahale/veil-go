@@ -46,7 +46,7 @@ func DeriveKey(passphrase, salt []byte, space, time uint32, n int) []byte {
 	protocols.Must(balloon.AD(protocols.LittleEndianU32(n), &strobe.Options{Meta: true}))
 
 	// Key the protocol with the passphrase.
-	protocols.Must(balloon.KEY(passphrase, false))
+	protocols.Must(balloon.KEY(protocols.Copy(passphrase), false))
 
 	// Include the salt as associated data.
 	protocols.Must(balloon.AD(salt, &strobe.Options{}))
