@@ -38,7 +38,7 @@ func (pk *PrivateKey) Derive(subKeyID string) *PrivateKey {
 // SignDetached returns a detached signature of the contents of src.
 func (pk *PrivateKey) SignDetached(src io.Reader) (*Signature, error) {
 	// Write the message contents to the msghash STROBE protocol.
-	h := msghash.NewWriter(digestSize)
+	h := msghash.NewWriter(msghash.DigestSize)
 	if _, err := io.Copy(h, src); err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (pk *PrivateKey) SignDetached(src io.Reader) (*Signature, error) {
 // Sign copies src to dst, creates a signature of the contents of src, and appends it to dst.
 func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	// Tee all reads from src into the msghash STROBE protocol.
-	h := msghash.NewWriter(digestSize)
+	h := msghash.NewWriter(msghash.DigestSize)
 	r := io.TeeReader(src, h)
 
 	// Copy all data from src into dst via msghash.
@@ -70,5 +70,3 @@ func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	// Return the bytes written and any errors.
 	return n + int64(sn), err
 }
-
-const digestSize = 64

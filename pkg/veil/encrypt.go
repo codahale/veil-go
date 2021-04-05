@@ -58,7 +58,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	w := streamio.NewWriter(dst, key, headers, streamio.BlockSize)
 
 	// Tee reads from the input into the msghash STROBE protocol.
-	h := msghash.NewWriter(digestSize)
+	h := msghash.NewWriter(msghash.DigestSize)
 	r := io.TeeReader(src, h)
 
 	// Encrypt the plaintext as a stream.

@@ -52,7 +52,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	r := streamio.NewReader(src, key, headers, streamio.BlockSize)
 
 	// Detach the signature from the plaintext and calculate a digest of the plaintext.
-	h := msghash.NewWriter(digestSize)
+	h := msghash.NewWriter(msghash.DigestSize)
 	sr := sigio.NewReader(r, schnorr.SignatureSize)
 	tr := io.TeeReader(sr, h)
 

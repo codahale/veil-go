@@ -35,7 +35,7 @@ func (pk *PublicKey) Derive(subKeyID string) *PublicKey {
 // key for the contents of src, otherwise ErrInvalidSignature.
 func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 	// Write the message contents to the msghash STROBE protocol.
-	h := msghash.NewWriter(digestSize)
+	h := msghash.NewWriter(msghash.DigestSize)
 	if _, err := io.Copy(h, src); err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 // Verify copies src to dst, removing the appended signature and verifying it.
 func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	// Copy the message contents to dst and the msghash STROBE protocol and detatch the signature.
-	h := msghash.NewWriter(digestSize)
+	h := msghash.NewWriter(msghash.DigestSize)
 	sr := sigio.NewReader(src, schnorr.SignatureSize)
 	tr := io.TeeReader(sr, h)
 

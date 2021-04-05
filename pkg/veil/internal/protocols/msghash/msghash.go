@@ -21,6 +21,11 @@ import (
 	"github.com/sammyne/strobe"
 )
 
+const (
+	// DigestSize is the recommended size of msghash digests in bytes.
+	DigestSize = 64
+)
+
 type Writer struct {
 	msghash    *strobe.Strobe
 	digestSize int
