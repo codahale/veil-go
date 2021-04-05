@@ -24,9 +24,6 @@ func TestSignAndVerify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create a signature.
-	sig := signer.Sign(d, q)
-
 	// Read a message through a verifier.
 	verifier := NewVerifier(bytes.NewBufferString("this is great"))
 	if _, err := io.Copy(io.Discard, verifier); err != nil {
@@ -34,7 +31,7 @@ func TestSignAndVerify(t *testing.T) {
 	}
 
 	// Verify the signature.
-	if !verifier.Verify(q, sig) {
+	if !verifier.Verify(q, signer.Sign(d, q)) {
 		t.Error("didn't verify")
 	}
 }
@@ -57,9 +54,6 @@ func TestSignAndVerify_BadKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create a signature.
-	sig := signer.Sign(d, q)
-
 	// Read a message through a verifier.
 	verifier := NewVerifier(bytes.NewBufferString("this is great"))
 	if _, err := io.Copy(io.Discard, verifier); err != nil {
@@ -67,7 +61,7 @@ func TestSignAndVerify_BadKey(t *testing.T) {
 	}
 
 	// Verify the signature.
-	if verifier.Verify(qP, sig) {
+	if verifier.Verify(qP, signer.Sign(d, q)) {
 		t.Error("didn verify")
 	}
 }
@@ -87,9 +81,6 @@ func TestSignAndVerify_BadMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create a signature.
-	sig := signer.Sign(d, q)
-
 	// Read a different message through a verifier.
 	verifier := NewVerifier(bytes.NewBufferString("this is not great"))
 	if _, err := io.Copy(io.Discard, verifier); err != nil {
@@ -97,7 +88,7 @@ func TestSignAndVerify_BadMessage(t *testing.T) {
 	}
 
 	// Verify the signature.
-	if verifier.Verify(q, sig) {
+	if verifier.Verify(q, signer.Sign(d, q)) {
 		t.Error("did verify")
 	}
 }
