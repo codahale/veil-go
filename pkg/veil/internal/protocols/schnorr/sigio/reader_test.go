@@ -1,4 +1,4 @@
-package streamio
+package sigio
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ func TestSignatureReader_Read(t *testing.T) {
 	t.Parallel()
 
 	src := []byte("well cool then explain thisAYE")
-	tr := NewSignatureReader(bytes.NewReader(src), 3)
+	tr := NewReader(bytes.NewReader(src), 3)
 	dst := bytes.NewBuffer(nil)
 
 	n, err := io.Copy(dst, tr)

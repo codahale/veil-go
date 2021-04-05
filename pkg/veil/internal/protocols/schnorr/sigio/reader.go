@@ -1,4 +1,4 @@
-package streamio
+package sigio
 
 import (
 	"errors"
@@ -15,7 +15,7 @@ type SignatureReader struct {
 	eof         bool
 }
 
-func NewSignatureReader(src io.Reader, sigSize int) *SignatureReader {
+func NewReader(src io.Reader, sigSize int) *SignatureReader {
 	return &SignatureReader{
 		Signature: make([]byte, sigSize),
 		in:        src,

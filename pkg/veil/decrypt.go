@@ -6,11 +6,12 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc/streamio"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/kemkdf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr/sigio"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
-	"github.com/codahale/veil/pkg/veil/internal/streamio"
 	"github.com/gtank/ristretto255"
 )
 
@@ -56,7 +57,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 
 	// Detach the signature from the plaintext and calculate a digest of the plaintext.
 	h := msghash.NewWriter(digestSize)
-	sr := streamio.NewSignatureReader(r, schnorr.SignatureSize)
+	sr := sigio.NewReader(r, schnorr.SignatureSize)
 	tr := io.TeeReader(sr, h)
 
 	// Decrypt the plaintext as a stream.

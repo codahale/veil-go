@@ -8,8 +8,8 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr/sigio"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
-	"github.com/codahale/veil/pkg/veil/internal/streamio"
 	"github.com/gtank/ristretto255"
 )
 
@@ -52,7 +52,7 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	// Copy the message contents to dst and the msghash STROBE protocol and detatch the signature.
 	h := msghash.NewWriter(digestSize)
-	sr := streamio.NewSignatureReader(src, schnorr.SignatureSize)
+	sr := sigio.NewReader(src, schnorr.SignatureSize)
 	tr := io.TeeReader(sr, h)
 
 	// Copy all data from src into dst via msghash, skipping the appended signature.

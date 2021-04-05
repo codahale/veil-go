@@ -6,12 +6,12 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc/streamio"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/kemkdf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
-	"github.com/codahale/veil/pkg/veil/internal/streamio"
 	"github.com/gtank/ristretto255"
 )
 
