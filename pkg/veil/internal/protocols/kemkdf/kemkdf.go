@@ -83,7 +83,7 @@ func Receive(
 // the ephemeral public key, the recipient's public key, the sender's public key, the length of the
 // secret in bytes, and whether or not the key is for a header or a message.
 func deriveKey(zzE, zzS, pubE, pubR, pubS *ristretto255.Element, n int, header bool) []byte {
-	// Allocate a buffer for encoding ristretto255 points.
+	// Allocate a buffer for encoding ristretto255 elements.
 	b := make([]byte, r255.ElementSize)
 
 	// Pick a protocol name.

@@ -45,7 +45,7 @@ Each participant in Veil has a secret key, which is a 64-byte random string. To 
 from a secret key, the secret key is mapped to a ristretto255 scalar. A delta scalar is derived from
 an opaque label value and added to the secret scalar to form a private key. The process is repeated
 to derive a private key from another private key. To derive a public key from a public key, the
-delta scalar is first multiplied by the curve's base point, then added to the public key point.
+delta scalar is first multiplied by the curve's base element, then added to the public key element.
 
 This is used iterative to provide hierarchical key derivation. Public keys are created using
 hierarchical IDs like `/friends/alice`, in which the private key `/` is used to derive the private
@@ -56,7 +56,7 @@ key `friends`, which is in turn used to derive the private key `alice`.
 When sending a message, the sender generates an ephemeral key pair and calculates the ephemeral
 shared secret between the recipient's public key and the ephemeral private key. They then calculate
 the static shared secret between the recipient's public key and their own private key. The two
-shared secret points are used as initial keying material for a STROBE KDF, with the ephemeral,
+shared secret elements are used as initial keying material for a STROBE KDF, with the ephemeral,
 sender's, and recipient's public keys included as customization parameter.. The sender creates a
 symmetric key and nonce from the KDF output and encrypts the message with an AEAD. The sender
 transmits the ephemeral public key and the ciphertext.

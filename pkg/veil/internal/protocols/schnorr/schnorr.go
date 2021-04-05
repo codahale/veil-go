@@ -43,7 +43,8 @@
 //     RECV_ENC(S) -> s
 //     R' = -kQ + sG
 //
-// Finally, the verifier compares R' == R. If the two points are equivalent, the signature is valid.
+// Finally, the verifier compares R' == R. If the two elements are equivalent, the signature is
+// valid.
 package schnorr
 
 import (
