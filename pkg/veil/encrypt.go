@@ -8,7 +8,6 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc/streamio"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/kemkdf"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
@@ -55,29 +54,28 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 
 	// Initialize an AEAD writer with the ratchet key, using the encrypted headers as authenticated
 	// data.
-	w := streamio.NewWriter(dst, key, headers, streamio.BlockSize)
+	encryptor := streamio.NewWriter(dst, key, headers, streamio.BlockSize)
 
-	// Tee reads from the input into the msghash STROBE protocol.
-	h := msghash.NewWriter(msghash.DigestSize)
-	r := io.TeeReader(src, h)
+	// Sign the plaintext before it's encrypted.
+	signer := schnorr.NewSigner(encryptor)
 
 	// Encrypt the plaintext as a stream.
-	bn, err := io.Copy(w, r)
+	bn, err := io.Copy(signer, src)
 	if err != nil {
 		return bn + int64(n+an), err
 	}
 
-	// Create a signature of the digest of the plaintext.
-	sig := schnorr.Sign(pk.d, pk.q, h.Digest())
+	// Create a signature of the plaintext.
+	sig := signer.Sign(pk.d, pk.q)
 
 	// Append the signature to the plaintext.
-	cn, err := w.Write(sig)
+	cn, err := encryptor.Write(sig)
 	if err != nil {
 		return bn + int64(n+an+cn), err
 	}
 
 	// Return the bytes written and flush any buffers.
-	return bn + int64(n+an+cn), w.Close()
+	return bn + int64(n+an+cn), encryptor.Close()
 }
 
 // encodeHeader encodes the ephemeral header private key and the message offset.

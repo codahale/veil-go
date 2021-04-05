@@ -8,7 +8,6 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc/streamio"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/kemkdf"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr/sigio"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
@@ -49,21 +48,20 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 
 	// Initialize an AEAD reader with the ratchet key, using the encrypted headers as authenticated
 	// data.
-	r := streamio.NewReader(src, key, headers, streamio.BlockSize)
+	decryptor := streamio.NewReader(src, key, headers, streamio.BlockSize)
 
-	// Detach the signature from the plaintext and calculate a digest of the plaintext.
-	h := msghash.NewWriter(msghash.DigestSize)
-	sr := sigio.NewReader(r, schnorr.SignatureSize)
-	tr := io.TeeReader(sr, h)
+	// Detach the signature from the plaintext and pass the plaintext through a verifier.
+	sr := sigio.NewReader(decryptor, schnorr.SignatureSize)
+	verifier := schnorr.NewVerifier(sr)
 
 	// Decrypt the plaintext as a stream.
-	n, err := io.Copy(dst, tr)
+	n, err := io.Copy(dst, verifier)
 	if err != nil {
 		return nil, n, err
 	}
 
-	// Verify the signature of the digest.
-	if !schnorr.Verify(pkS.q, sr.Signature, h.Digest()) {
+	// Verify the signature of the plaintext.
+	if !verifier.Verify(pkS.q, sr.Signature) {
 		return nil, n, ErrInvalidCiphertext
 	}
 

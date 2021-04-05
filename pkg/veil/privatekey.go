@@ -3,7 +3,6 @@ package veil
 import (
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/gtank/ristretto255"
@@ -37,32 +36,31 @@ func (pk *PrivateKey) Derive(subKeyID string) *PrivateKey {
 
 // SignDetached returns a detached signature of the contents of src.
 func (pk *PrivateKey) SignDetached(src io.Reader) (*Signature, error) {
-	// Write the message contents to the msghash STROBE protocol.
-	h := msghash.NewWriter(msghash.DigestSize)
-	if _, err := io.Copy(h, src); err != nil {
+	// Write the message contents to the schnorr STROBE protocol.
+	signer := schnorr.NewSigner(io.Discard)
+	if _, err := io.Copy(signer, src); err != nil {
 		return nil, err
 	}
 
-	// Create a signature of the digest.
-	sig := schnorr.Sign(pk.d, pk.q, h.Digest())
+	// Create a signature of the message.
+	sig := signer.Sign(pk.d, pk.q)
 
 	return &Signature{b: sig}, nil
 }
 
 // Sign copies src to dst, creates a signature of the contents of src, and appends it to dst.
 func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
-	// Tee all reads from src into the msghash STROBE protocol.
-	h := msghash.NewWriter(msghash.DigestSize)
-	r := io.TeeReader(src, h)
+	// Pass all writes to dst through the schnorr STROBE protocol.
+	signer := schnorr.NewSigner(dst)
 
-	// Copy all data from src into dst via msghash.
-	n, err := io.Copy(dst, r)
+	// Copy all data from src into dst via signer.
+	n, err := io.Copy(signer, src)
 	if err != nil {
 		return n, err
 	}
 
-	// Create a signature of the digest.
-	sig := schnorr.Sign(pk.d, pk.q, h.Digest())
+	// Create a signature of the message.
+	sig := signer.Sign(pk.d, pk.q)
 
 	// Append the signature.
 	sn, err := dst.Write(sig)

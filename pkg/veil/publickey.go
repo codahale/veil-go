@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr/sigio"
@@ -34,14 +33,14 @@ func (pk *PublicKey) Derive(subKeyID string) *PublicKey {
 // VerifyDetached returns nil if the given signature was created by the owner of the given public
 // key for the contents of src, otherwise ErrInvalidSignature.
 func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
-	// Write the message contents to the msghash STROBE protocol.
-	h := msghash.NewWriter(msghash.DigestSize)
-	if _, err := io.Copy(h, src); err != nil {
+	// Read the message contents through the schnorr STROBE protocol.
+	verifier := schnorr.NewVerifier(src)
+	if _, err := io.Copy(io.Discard, verifier); err != nil {
 		return err
 	}
 
-	// Verify the signature against the digest.
-	if !schnorr.Verify(pk.q, sig.b, h.Digest()) {
+	// Verify the signature against the message.
+	if !verifier.Verify(pk.q, sig.b) {
 		return ErrInvalidSignature
 	}
 
@@ -50,20 +49,20 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 
 // Verify copies src to dst, removing the appended signature and verifying it.
 func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
-	// Copy the message contents to dst and the msghash STROBE protocol and detatch the signature.
-	h := msghash.NewWriter(msghash.DigestSize)
+	// Copy the message contents to dst through the verifier STROBE protocol and detatch the
+	// signature.
 	sr := sigio.NewReader(src, schnorr.SignatureSize)
-	tr := io.TeeReader(sr, h)
+	verifier := schnorr.NewVerifier(sr)
 
-	// Copy all data from src into dst via msghash, skipping the appended signature.
-	n, err := io.Copy(dst, tr)
+	// Copy all data from src into dst via verifier, skipping the appended signature.
+	n, err := io.Copy(dst, verifier)
 	if err != nil {
 		return n, err
 	}
 
-	// Verify the signature against the digest.
+	// Verify the signature against the message.
 	sig := sr.Signature
-	if !schnorr.Verify(pk.q, sig, h.Digest()) {
+	if !verifier.Verify(pk.q, sig) {
 		return n, ErrInvalidSignature
 	}
 

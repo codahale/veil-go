@@ -2,6 +2,7 @@ package schnorr
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"github.com/codahale/veil/pkg/veil/internal/r255"
@@ -17,13 +18,119 @@ func TestSignAndVerify(t *testing.T) {
 	// Calculate the public key.
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
-	sig := Sign(d, q, []byte("ok"))
-
-	if !Verify(q, sig, []byte("ok")) {
-		t.Error("did not verify")
+	// Write a message through a signer.
+	signer := NewSigner(io.Discard)
+	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
+		t.Fatal(err)
 	}
 
-	if Verify(q, sig, []byte("not ok")) {
+	// Create a signature.
+	sig := signer.Sign(d, q)
+
+	// Read a message through a verifier.
+	verifier := NewVerifier(bytes.NewBufferString("this is great"))
+	if _, err := io.Copy(io.Discard, verifier); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify the signature.
+	if !verifier.Verify(q, sig) {
+		t.Error("didn't verify")
+	}
+}
+
+func TestSignAndVerify_BadKey(t *testing.T) {
+	t.Parallel()
+
+	// Create a fake private key.
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, r255.UniformBytestringSize))
+
+	// Calculate the public key.
+	q := ristretto255.NewElement().ScalarBaseMult(d)
+
+	// Create a fake public key.
+	qP := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0xf2}, r255.UniformBytestringSize))
+
+	// Write a message through a signer.
+	signer := NewSigner(io.Discard)
+	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a signature.
+	sig := signer.Sign(d, q)
+
+	// Read a message through a verifier.
+	verifier := NewVerifier(bytes.NewBufferString("this is great"))
+	if _, err := io.Copy(io.Discard, verifier); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify the signature.
+	if verifier.Verify(qP, sig) {
+		t.Error("didn verify")
+	}
+}
+
+func TestSignAndVerify_BadMessage(t *testing.T) {
+	t.Parallel()
+
+	// Create a fake private key.
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, r255.UniformBytestringSize))
+
+	// Calculate the public key.
+	q := ristretto255.NewElement().ScalarBaseMult(d)
+
+	// Write a message through a signer.
+	signer := NewSigner(io.Discard)
+	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a signature.
+	sig := signer.Sign(d, q)
+
+	// Read a different message through a verifier.
+	verifier := NewVerifier(bytes.NewBufferString("this is not great"))
+	if _, err := io.Copy(io.Discard, verifier); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify the signature.
+	if verifier.Verify(q, sig) {
+		t.Error("did verify")
+	}
+}
+
+func TestSignAndVerify_BadSig(t *testing.T) {
+	t.Parallel()
+
+	// Create a fake private key.
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, r255.UniformBytestringSize))
+
+	// Calculate the public key.
+	q := ristretto255.NewElement().ScalarBaseMult(d)
+
+	// Write a message through a signer.
+	signer := NewSigner(io.Discard)
+	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a signature.
+	sig := signer.Sign(d, q)
+
+	// Modify the signature.
+	sig[0] ^= 1
+
+	// Read a message through a verifier.
+	verifier := NewVerifier(bytes.NewBufferString("this is great"))
+	if _, err := io.Copy(io.Discard, verifier); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify the signature.
+	if verifier.Verify(q, sig) {
 		t.Error("did verify")
 	}
 }
