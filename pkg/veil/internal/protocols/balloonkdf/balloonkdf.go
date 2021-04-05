@@ -1,7 +1,7 @@
 // Package balloon implements memory-hard Balloon Hashing via STROBE.
 //
 // Hashes are generated as follows, given a passphrase P, salt S, space parameter X, time parameter
-// T, and digest size N:
+// T, and key size N:
 //
 //     INIT('veil.kdf.balloon',  level=256)
 //     AD(LE_U32(X), meta=true)
