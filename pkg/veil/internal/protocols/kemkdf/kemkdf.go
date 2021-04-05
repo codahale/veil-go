@@ -55,7 +55,7 @@ func Send(
 	zzS := ristretto255.NewElement().ScalarMult(privS, pubR)
 
 	// Derive the secret from both shared secrets plus all the inputs.
-	secret := DeriveKey(zzE, zzS, pubE, pubR, pubS, n, header)
+	secret := deriveKey(zzE, zzS, pubE, pubR, pubS, n, header)
 
 	// Return the ephemeral public key and the shared secret.
 	return pubE, secret, nil
@@ -76,13 +76,13 @@ func Receive(
 	zzS := ristretto255.NewElement().ScalarMult(privR, pubS)
 
 	// Derive the secret from both shared secrets plus all the inputs.
-	return DeriveKey(zzE, zzS, pubE, pubR, pubS, n, header)
+	return deriveKey(zzE, zzS, pubE, pubR, pubS, n, header)
 }
 
-// DeriveKey returns a key derived from the given ephemeral shared secret, static shared secret,
+// deriveKey returns a key derived from the given ephemeral shared secret, static shared secret,
 // the ephemeral public key, the recipient's public key, the sender's public key, the length of the
 // secret in bytes, and whether or not the key is for a header or a message.
-func DeriveKey(zzE, zzS, pubE, pubR, pubS *ristretto255.Element, n int, header bool) []byte {
+func deriveKey(zzE, zzS, pubE, pubR, pubS *ristretto255.Element, n int, header bool) []byte {
 	// Allocate a buffer for encoding ristretto255 points.
 	b := make([]byte, r255.ElementSize)
 
