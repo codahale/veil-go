@@ -37,7 +37,7 @@ func TestDeriveKey(t *testing.T) {
 		key := DeriveKey(zzE, zzS, pubE, pubR, pubS, 16, true)
 
 		assert.Equal(t, "derived header key",
-			"c2810ccf1280b5a5e1a22fc5a02c394e", hex.EncodeToString(key))
+			"080bc88b7392e41c2f43add5e54db746", hex.EncodeToString(key))
 	})
 
 	t.Run("message key", func(t *testing.T) {
@@ -46,6 +46,6 @@ func TestDeriveKey(t *testing.T) {
 		key := DeriveKey(zzE, zzS, pubE, pubR, pubS, 16, false)
 
 		assert.Equal(t, "derived header key",
-			"1f389b8c295c3a11039ba2499e482d52", hex.EncodeToString(key))
+			"f95375b5e1fc05c18a860221715b13c7", hex.EncodeToString(key))
 	})
 }

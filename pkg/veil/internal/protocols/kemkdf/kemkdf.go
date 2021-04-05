@@ -1,19 +1,22 @@
 // Package kemkdf provides the underlying STROBE protocol for Veil's KEM KDF function.
 //
-// Key derivation is as follows, given an ephemeral shared secret point ZZ_e, a static shared secret
-// point ZZ_s, the ephemeral public key Q_e, the recipient's public key Q_r, the sender's public key
-// Q_s, the size of the derived key N, and an intent tag T (which can be either 'header' or
-// 'message'):
+// Key derivation is as follows, given a protocol name P, an ephemeral shared secret point ZZ_e, a
+// static shared secret point ZZ_s, the ephemeral public key Q_e, the recipient's public key Q_r,
+// the sender's public key Q_s, and the size of the derived key N:
 //
-//     INIT('veil.kdf.kem', level=256)
-//     AD(T,                meta=true)
-//     AD(LE_U32(N),        meta=true)
+//     INIT(P,       level=256)
+//     AD(LE_U32(N), meta=true)
 //     KEY(ZZ_e)
 //     KEY(ZZ_s)
 //     AD(Q_e)
 //     AD(Q_r)
 //     AD(Q_s)
 //     PRF(N)
+//
+// The two recognized protocol identifiers are:
+//
+// * `veil.kdf.kem.header`, used to encrypt message headers
+// * `veil.kdf.kem.message`, used to encrypt message bodies
 package kemkdf
 
 import (
@@ -30,11 +33,14 @@ func DeriveKey(zzE, zzS *ristretto255.Element, pubE, pubR, pubS *r255.PublicKey,
 	// Allocate a buffer for encoding ristretto255 points.
 	b := make([]byte, r255.PublicKeySize)
 
-	// Initialize the protocol.
-	kdf := protocols.New("veil.kdf.kem")
+	// Pick a protocol name.
+	proto := "veil.kem.kdf.message"
+	if header {
+		proto = "veil.kem.kdf.header"
+	}
 
-	// Add the intent tag to the protocol.
-	protocols.Must(kdf.AD(intentTag(header), &strobe.Options{Meta: true}))
+	// Initialize the protocol.
+	kdf := protocols.New(proto)
 
 	// Add the output size to the protocol.
 	protocols.Must(kdf.AD(protocols.LittleEndianU32(n), &strobe.Options{Meta: true}))
@@ -59,12 +65,4 @@ func DeriveKey(zzE, zzS *ristretto255.Element, pubE, pubR, pubS *r255.PublicKey,
 	protocols.Must(kdf.PRF(k, false))
 
 	return k
-}
-
-func intentTag(header bool) []byte {
-	if header {
-		return []byte("header")
-	}
-
-	return []byte("message")
 }
