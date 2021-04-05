@@ -9,6 +9,8 @@ import (
 )
 
 func TestDerivation(t *testing.T) {
+	t.Parallel()
+
 	d0, q0, err := rng.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
@@ -24,15 +26,12 @@ func TestDerivation(t *testing.T) {
 	assert.Equal(t, "derived elements", q1p.String(), q1.String())
 
 	// Derive an element with a different label.
-	qX := DeriveElement(q0, "two")
-
-	if qX.Equal(q1) == 1 {
+	if qX := DeriveElement(q0, "two"); qX.Equal(q1) == 1 {
 		t.Errorf("%s and %s should not be equal", qX, q1)
 	}
 
-	dX := DeriveScalar(d0, "two")
-
-	if dX.Equal(d1) == 1 {
+	// Derive a scalar with a different label.
+	if dX := DeriveScalar(d0, "two"); dX.Equal(d1) == 1 {
 		t.Errorf("%s and %s should not be equal", dX, d1)
 	}
 }
