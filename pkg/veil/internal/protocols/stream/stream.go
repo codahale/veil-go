@@ -69,7 +69,7 @@ func New(key, associatedData []byte, blockSize, tagSize int) *Protocol {
 	}
 }
 
-// Encrypt ratchets the protocol's state, encrypts the plaintext, appends an authentication tag,
+// Encrypt encrypts the plaintext, appends an authentication tag, ratchets the protocol's state,
 // and returns the result. If this is is the last block in the stream, final must be true.
 func (p *Protocol) Encrypt(block []byte, final bool) []byte {
 	// Copy the input to the stream's buffer.
@@ -88,9 +88,9 @@ func (p *Protocol) Encrypt(block []byte, final bool) []byte {
 	return append(p.b[:len(block)], p.tag...)
 }
 
-// Decrypt ratchets the protocol's state, decrypts the plaintext, detaches the authentication tag,
-// verifies it, and returns the plaintext. If this is is the last block in the stream, final must be
-// true. If the inputs are not exactly the same as the outputs of Encrypt, an error will be
+// Decrypt decrypts the plaintext, detaches the authentication tag, verifies it, ratchets the
+// protocol's state, and returns the plaintext. If this is is the last block in the stream, final
+// must be true. If the inputs are not exactly the same as the outputs of Encrypt, an error will be
 // returned.
 func (p *Protocol) Decrypt(block []byte, final bool) ([]byte, error) {
 	// Copy the input to the stream's buffer.
