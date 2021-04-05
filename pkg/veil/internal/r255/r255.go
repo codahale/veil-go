@@ -14,7 +14,6 @@
 package r255
 
 import (
-	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -101,7 +100,7 @@ type PrivateKey struct {
 func NewEphemeralKeys() (*PrivateKey, *PublicKey, error) {
 	// Generate a random secret key.
 	var r [SecretKeySize]byte
-	if _, err := rand.Read(r[:]); err != nil {
+	if _, err := rng.Read(r[:]); err != nil {
 		return nil, nil, err
 	}
 
