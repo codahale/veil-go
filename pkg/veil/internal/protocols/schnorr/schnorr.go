@@ -10,13 +10,14 @@
 //     ...
 //     SEND_CLR(M_0, streaming=true)
 //
-// This protocol's context is cloned, and the clone is used to derive a deterministic nonce:
+// This protocol's context is cloned and the clone is used to derive a deterministic nonce r from
+// the previously-sent message contents and the signer's private scalar d:
 //
 //     KEY(d)
 //     PRF(64) -> r
+//     RATCHET(32)
 //
-// Once this nonce is generated, the clone context is discarded and r is returned to the parent
-// context:
+// Once r is generated, the clone's context is discarded and r is returned to the parent context:
 //
 //     R = rG
 //     SEND_CLR(Q)
@@ -81,6 +82,7 @@ func (sn *Signer) Write(p []byte) (n int, err error) {
 		return
 	}
 
+	// Transmit the written data to the protocol.
 	protocols.Must(sn.schnorr.SendCLR(p[:n], &strobe.Options{Streaming: true}))
 
 	return
@@ -94,8 +96,8 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 		sig [SignatureSize]byte
 	)
 
-	// Deterministically derive a nonce via veil.schnorr.nonce.
-	r := deriveNonce(sn.schnorr.Clone(), d)
+	// Deterministically derive a nonce in a cloned context.
+	r := sn.deriveNonce(d)
 
 	// Calculate the signature ephemeral.
 	R := ristretto255.NewElement().ScalarBaseMult(r)
@@ -125,7 +127,27 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 	return sig[:]
 }
 
-// Signer is a pass-through io.Reader which adds read data to a STROBE protocol for verification.
+func (sn *Signer) deriveNonce(d *ristretto255.Scalar) *ristretto255.Scalar {
+	var buf [r255.UniformBytestringSize]byte
+
+	// Clone the protocol context. This step requires knowledge of the signer's private key, so it
+	// can't be part of the verification process.
+	clone := sn.schnorr.Clone()
+
+	// Key the clone with the signer's private key.
+	protocols.Must(clone.KEY(d.Encode(nil), false))
+
+	// Derive a nonce.
+	protocols.Must(clone.PRF(buf[:], false))
+
+	// Ratchet the protocol.
+	protocols.Must(clone.RATCHET(protocols.RatchetSize))
+
+	// Map the nonce to a scalar.
+	return ristretto255.NewScalar().FromUniformBytes(buf[:])
+}
+
+// Verifier is a pass-through io.Reader which adds read data to a STROBE protocol for verification.
 type Verifier struct {
 	schnorr *strobe.Strobe
 	src     io.Reader
@@ -202,19 +224,6 @@ func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
 	Rp = ristretto255.NewElement().Subtract(Rp, ky)
 
 	return Rp.Equal(R) == 1
-}
-
-func deriveNonce(clone *strobe.Strobe, d *ristretto255.Scalar) *ristretto255.Scalar {
-	var buf [r255.UniformBytestringSize]byte
-
-	// Key the clone with the signer's private key.
-	protocols.Must(clone.KEY(d.Encode(nil), false))
-
-	// Derive a nonce.
-	protocols.Must(clone.PRF(buf[:], false))
-
-	// Map the nonce to a scalar.
-	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }
 
 var (
