@@ -5,8 +5,8 @@ import (
 	"errors"
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/kemkdf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
@@ -48,7 +48,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	}
 
 	// Derive the shared ratchet key between the sender's public key and the ephemeral private key.
-	key := kem.Receive(privEH, pubEH, pkS.q, pubEM, authenc.KeySize, false)
+	key := kemkdf.Receive(privEH, pubEH, pkS.q, pubEM, authenc.KeySize, false)
 
 	// Initialize an AEAD reader with the ratchet key, using the encrypted headers as authenticated
 	// data.
@@ -132,7 +132,7 @@ func (pk *PrivateKey) decryptHeader(
 	// Iterate through all possible senders.
 	for _, pubS := range senders {
 		// Re-derive the shared key between the sender and recipient.
-		key := kem.Receive(pk.d, pubR, pubS.q, pubEH, authenc.KeySize, true)
+		key := kemkdf.Receive(pk.d, pubR, pubS.q, pubEH, authenc.KeySize, true)
 
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.

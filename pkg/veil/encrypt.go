@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/kemkdf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
@@ -45,7 +45,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pubEM, key, err := kem.Send(pk.d, pubS, pubEH, authenc.KeySize, false)
+	pubEM, key, err := kemkdf.Send(pk.d, pubS, pubEH, authenc.KeySize, false)
 	if err != nil {
 		return int64(n), err
 	}
@@ -107,7 +107,7 @@ func (pk *PrivateKey) encryptHeaders(
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate a header ephemeral key and shared key for the recipient.
-		pubEH, key, err := kem.Send(pk.d, pubS, pkR.q, authenc.KeySize, true)
+		pubEH, key, err := kemkdf.Send(pk.d, pubS, pkR.q, authenc.KeySize, true)
 		if err != nil {
 			return nil, err
 		}
