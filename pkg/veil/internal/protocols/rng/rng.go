@@ -7,6 +7,7 @@
 // When a block of random data is required, a block B of equivalent size is read from the host
 // machine's RNG, and the following operations performed:
 //
+//     AD(LE_U64(LEN(B)), meta=true)
 //     KEY(B)
 //     PRF(LEN(B)) -> B
 //     RATCHET(32)
@@ -17,6 +18,7 @@ package rng
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols"
@@ -34,10 +36,15 @@ func Read(b []byte) (int, error) {
 var Reader io.Reader = &reader{rng: protocols.New("veil.rng")}
 
 type reader struct {
-	rng *strobe.Strobe
+	rng    *strobe.Strobe
+	lenBuf [8]byte
 }
 
 func (r *reader) Read(p []byte) (n int, err error) {
+	// Include length of PRF request as associated data.
+	binary.LittleEndian.PutUint64(r.lenBuf[:], uint64(len(p)))
+	protocols.Must(r.rng.AD(r.lenBuf[:], &strobe.Options{Meta: true}))
+
 	// Read a new block of data from the underlying RNG.
 	if _, err := rand.Read(p); err != nil {
 		return 0, err
