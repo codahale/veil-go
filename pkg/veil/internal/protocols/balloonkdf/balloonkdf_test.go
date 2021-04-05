@@ -86,3 +86,12 @@ func TestHash(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkDeriveKey(b *testing.B) {
+	passphrase := []byte("this is not a strong passphrase")
+	salt := make([]byte, 32)
+
+	for i := 0; i < b.N; i++ {
+		_ = DeriveKey(passphrase, salt, 1024, 16, 32)
+	}
+}

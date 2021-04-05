@@ -13,3 +13,11 @@ func TestReader_Read(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func BenchmarkRead(b *testing.B) {
+	buf := make([]byte, 1024*1024)
+
+	for i := 0; i < b.N; i++ {
+		_, _ = Read(buf)
+	}
+}

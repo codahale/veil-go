@@ -107,3 +107,37 @@ func TestHeaderTagModification(t *testing.T) {
 		t.Fatal("should not have decrypted")
 	}
 }
+
+func BenchmarkEncryptHeader(b *testing.B) {
+	key := []byte("this is a good time")
+	plaintext := []byte("welcome to the jungle")
+
+	_, pubEH, err := rng.NewEphemeralKeys()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = EncryptHeader(key, pubEH, plaintext, 16)
+	}
+}
+
+func BenchmarkDecryptHeader(b *testing.B) {
+	key := []byte("this is a good time")
+	plaintext := []byte("welcome to the jungle")
+
+	_, pubEH, err := rng.NewEphemeralKeys()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	ciphertext := EncryptHeader(key, pubEH, plaintext, 16)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, _ = DecryptHeader(key, pubEH, ciphertext, 16)
+	}
+}

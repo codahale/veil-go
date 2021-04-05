@@ -125,3 +125,54 @@ func TestSignAndVerify_BadSig(t *testing.T) {
 		t.Error("did verify")
 	}
 }
+
+func BenchmarkSigner(b *testing.B) {
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, r255.UniformBytestringSize))
+	q := ristretto255.NewElement().ScalarBaseMult(d)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		signer := NewSigner(io.Discard)
+
+		if _, err := io.CopyN(signer, &fakeReader{}, 1024*1024); err != nil {
+			b.Fatal(err)
+		}
+
+		_ = signer.Sign(d, q)
+	}
+}
+
+func BenchmarkVerifier(b *testing.B) {
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, r255.UniformBytestringSize))
+	q := ristretto255.NewElement().ScalarBaseMult(d)
+
+	signer := NewSigner(io.Discard)
+
+	if _, err := io.CopyN(signer, &fakeReader{}, 1024*1024); err != nil {
+		b.Fatal(err)
+	}
+
+	sig := signer.Sign(d, q)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		verifier := NewVerifier(&fakeReader{})
+		if _, err := io.CopyN(io.Discard, verifier, 1024*1024); err != nil {
+			b.Fatal(err)
+		}
+
+		if !verifier.Verify(q, sig) {
+			b.Fatal("should have verified")
+		}
+	}
+}
+
+type fakeReader struct{}
+
+func (f *fakeReader) Read(p []byte) (n int, err error) {
+	return len(p), nil
+}
+
+var _ io.Reader = &fakeReader{}

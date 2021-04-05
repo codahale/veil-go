@@ -63,3 +63,25 @@ func TestSecretKeyTagModification(t *testing.T) {
 		t.Fatal("should not have decrypted")
 	}
 }
+
+func BenchmarkEncryptSecretKey(b *testing.B) {
+	key := []byte("this is a good time")
+	plaintext := []byte("welcome to the jungle")
+
+	for i := 0; i < b.N; i++ {
+		_ = EncryptSecretKey(key, plaintext, 16)
+	}
+}
+
+func BenchmarkDecryptSecretKey(b *testing.B) {
+	key := []byte("this is a good time")
+	plaintext := []byte("welcome to the jungle")
+
+	ciphertext := EncryptSecretKey(key, plaintext, 16)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, _ = DecryptSecretKey(key, ciphertext, 16)
+	}
+}
