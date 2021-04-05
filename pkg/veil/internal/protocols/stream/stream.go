@@ -84,11 +84,8 @@ func (p *Protocol) Encrypt(block []byte, final bool) []byte {
 	// Ratchet the protocol.
 	p.ratchet(final)
 
-	// Make a copy of the ciphertext and tag and return them.
-	ciphertext := make([]byte, len(block), len(block)+len(p.tag))
-	copy(ciphertext, p.b[:len(block)])
-
-	return append(ciphertext, p.tag...)
+	// Return the ciphertext and tag.
+	return append(p.b[:len(block)], p.tag...)
 }
 
 // Decrypt ratchets the protocol's state, decrypts the plaintext, detaches the authentication tag,
