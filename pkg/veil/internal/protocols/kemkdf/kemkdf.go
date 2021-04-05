@@ -1,7 +1,7 @@
 // Package kemkdf provides the underlying STROBE protocol for Veil's KEM KDF function.
 //
-// Key derivation is as follows, given a protocol name P, an ephemeral shared secret point ZZ_e, a
-// static shared secret point ZZ_s, the ephemeral public key Q_e, the recipient's public key Q_r,
+// Key derivation is as follows, given a protocol name P, an ephemeral shared secret element ZZ_e, a
+// static shared secret element ZZ_s, the ephemeral public key Q_e, the recipient's public key Q_r,
 // the sender's public key Q_s, and the size of the derived key N:
 //
 //     INIT(P,       level=256)
@@ -28,6 +28,7 @@ package kemkdf
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
@@ -40,7 +41,7 @@ func Send(
 	privS *ristretto255.Scalar, pubS, pubR *ristretto255.Element, n int, header bool,
 ) (*ristretto255.Element, []byte, error) {
 	// Generate an ephemeral key pair.
-	privE, pubE, err := r255.NewEphemeralKeys()
+	privE, pubE, err := rng.NewEphemeralKeys()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -83,7 +84,7 @@ func Receive(
 // secret in bytes, and whether or not the key is for a header or a message.
 func DeriveKey(zzE, zzS, pubE, pubR, pubS *ristretto255.Element, n int, header bool) []byte {
 	// Allocate a buffer for encoding ristretto255 points.
-	b := make([]byte, r255.PublicKeySize)
+	b := make([]byte, r255.ElementSize)
 
 	// Pick a protocol name.
 	proto := "veil.kem.kdf.message"

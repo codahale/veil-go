@@ -87,5 +87,5 @@ type encryptedSecretKey struct {
 
 const (
 	saltSize       = 32
-	ciphertextSize = r255.SecretKeySize + authenc.TagSize
+	ciphertextSize = r255.UniformBytestringSize + authenc.TagSize
 )

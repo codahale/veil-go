@@ -15,7 +15,7 @@ import (
 // It should never be serialized in plaintext. Use EncryptSecretKey to encrypt it using a
 // passphrase.
 type SecretKey struct {
-	r [r255.SecretKeySize]byte
+	r [r255.UniformBytestringSize]byte
 }
 
 // NewSecretKey creates a new secret key.

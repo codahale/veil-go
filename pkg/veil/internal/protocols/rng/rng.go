@@ -22,6 +22,8 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
 
@@ -60,4 +62,17 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	protocols.Must(r.rng.RATCHET(protocols.RatchetSize))
 
 	return len(p), nil
+}
+
+// NewEphemeralKeys returns a new, random private key, unassociated with any secret key, and its
+// corresponding public key.
+func NewEphemeralKeys() (*ristretto255.Scalar, *ristretto255.Element, error) {
+	var r [r255.UniformBytestringSize]byte
+	if _, err := Read(r[:]); err != nil {
+		return nil, nil, err
+	}
+
+	d := ristretto255.NewScalar().FromUniformBytes(r[:])
+
+	return d, ristretto255.NewElement().ScalarBaseMult(d), nil
 }

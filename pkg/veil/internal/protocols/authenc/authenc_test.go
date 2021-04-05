@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 )
 
 func TestRoundTrip(t *testing.T) {
@@ -13,7 +13,7 @@ func TestRoundTrip(t *testing.T) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := r255.NewEphemeralKeys()
+	_, pubEH, err := rng.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestKeyMismatch(t *testing.T) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := r255.NewEphemeralKeys()
+	_, pubEH, err := rng.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,12 +52,12 @@ func TestPubKeyMismatch(t *testing.T) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := r255.NewEphemeralKeys()
+	_, pubEH, err := rng.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, pubEH2, err := r255.NewEphemeralKeys()
+	_, pubEH2, err := rng.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestCiphertextModification(t *testing.T) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := r255.NewEphemeralKeys()
+	_, pubEH, err := rng.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestTagModification(t *testing.T) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := r255.NewEphemeralKeys()
+	_, pubEH, err := rng.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}

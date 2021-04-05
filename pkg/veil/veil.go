@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
-	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
 // AddFakes adds n randomly-generated public keys to the given set of public keys, shuffles the
@@ -31,7 +30,7 @@ func AddFakes(keys []*PublicKey, n int) ([]*PublicKey, error) {
 
 	// Add n randomly generated keys to the end.
 	for i := 0; i < n; i++ {
-		_, q, err := r255.NewEphemeralKeys()
+		_, q, err := rng.NewEphemeralKeys()
 		if err != nil {
 			return nil, err
 		}

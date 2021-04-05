@@ -1,26 +1,11 @@
-// Package r255 provides ristretto255 functionality.
+// Package r255 provides constants not provided by package ristretto255.
 package r255
 
-import (
-	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
-	"github.com/gtank/ristretto255"
-)
-
 const (
-	PublicKeySize  = 32 // PublicKeySize is the length of a public key in bytes.
-	PrivateKeySize = 32 // PrivateKeySize is the length of a private key in bytes.
-	SecretKeySize  = 64 // SecretKeySize is the length of a secret key in bytes.
+	ElementSize = 32 // ElementSize is the length of an encoded ristretto255 element.
+	ScalarSize  = 32 // ScalarSize is the length of an encoded ristretto255 scalar.
+
+	// UniformBytestringSize is the length of a uniform bytestring which can be mapped to either a
+	// ristretto255 element or scalar.
+	UniformBytestringSize = 64
 )
-
-// NewEphemeralKeys returns a new, random private key, unassociated with any secret key, and its
-// corresponding public key.
-func NewEphemeralKeys() (*ristretto255.Scalar, *ristretto255.Element, error) {
-	var r [SecretKeySize]byte
-	if _, err := rng.Read(r[:]); err != nil {
-		return nil, nil, err
-	}
-
-	d := ristretto255.NewScalar().FromUniformBytes(r[:])
-
-	return d, ristretto255.NewElement().ScalarBaseMult(d), nil
-}

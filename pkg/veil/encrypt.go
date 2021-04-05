@@ -23,7 +23,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	pubS := pk.PublicKey().q
 
 	// Generate an ephemeral header key pair.
-	privEH, pubEH, err := r255.NewEphemeralKeys()
+	privEH, pubEH, err := rng.NewEphemeralKeys()
 	if err != nil {
 		return 0, err
 	}
@@ -91,7 +91,7 @@ func (pk *PrivateKey) encodeHeader(privEH *ristretto255.Scalar, recipients, padd
 
 	// Calculate the message offset and encode it.
 	offset := encryptedHeaderSize*recipients + padding
-	binary.LittleEndian.PutUint32(header[r255.PrivateKeySize:], uint32(offset))
+	binary.LittleEndian.PutUint32(header[r255.ScalarSize:], uint32(offset))
 
 	return header
 }
@@ -131,7 +131,7 @@ func (pk *PrivateKey) encryptHeaders(
 }
 
 const (
-	blockSize           = 64 * 1024               // 64KiB
-	headerSize          = r255.PrivateKeySize + 4 // 4 bytes for message offset
-	encryptedHeaderSize = r255.PublicKeySize + headerSize + authenc.TagSize
+	blockSize           = 64 * 1024           // 64KiB
+	headerSize          = r255.ScalarSize + 4 // 4 bytes for message offset
+	encryptedHeaderSize = r255.ElementSize + headerSize + authenc.TagSize
 )

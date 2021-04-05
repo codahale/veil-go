@@ -37,7 +37,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	pubEH := ristretto255.NewElement().ScalarBaseMult(privEH)
 
 	// Read the ephemeral message public key.
-	buf := make([]byte, r255.PublicKeySize)
+	buf := make([]byte, r255.ElementSize)
 	if _, err := io.ReadFull(src, buf); err != nil {
 		return nil, 0, err
 	}
@@ -123,12 +123,12 @@ func (pk *PrivateKey) decryptHeader(
 ) (*PublicKey, *ristretto255.Scalar, int) {
 	// Decode the possible public key.
 	pubEH := ristretto255.NewElement()
-	if err := pubEH.Decode(buf[:r255.PublicKeySize]); err != nil {
+	if err := pubEH.Decode(buf[:r255.ElementSize]); err != nil {
 		return nil, nil, 0
 	}
 
 	// Extract the ciphertext.
-	ciphertext := buf[r255.PublicKeySize:]
+	ciphertext := buf[r255.ElementSize:]
 
 	// Iterate through all possible senders.
 	for _, pubS := range senders {
@@ -145,11 +145,11 @@ func (pk *PrivateKey) decryptHeader(
 		// If the header wss successfully decrypted, decode the ephemeral message private key and
 		// message offset.
 		privEM := ristretto255.NewScalar()
-		if err := privEM.Decode(header[:r255.PrivateKeySize]); err != nil {
+		if err := privEM.Decode(header[:r255.ScalarSize]); err != nil {
 			continue
 		}
 
-		offset := binary.LittleEndian.Uint32(header[r255.PrivateKeySize:])
+		offset := binary.LittleEndian.Uint32(header[r255.ScalarSize:])
 
 		// Return the sender's public key, the ephemeral private key, and the offset.
 		return pubS, privEM, int(offset)

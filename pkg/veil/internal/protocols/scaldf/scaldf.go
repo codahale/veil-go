@@ -45,7 +45,7 @@ func DeriveScalar(d *ristretto255.Scalar, label string) *ristretto255.Scalar {
 }
 
 func scalarDF(proto string, l []byte) *ristretto255.Scalar {
-	var buf [r255.SecretKeySize]byte
+	var buf [r255.UniformBytestringSize]byte
 
 	label := protocols.New(proto)
 

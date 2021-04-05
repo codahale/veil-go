@@ -1,6 +1,6 @@
 // Package schnorr provides the underlying STROBE protocol for Veil's Schnorr signatures.
 //
-// Signing is as follows, given a private scalar d, its public point Q, and a message M. First, a
+// Signing is as follows, given a private scalar d, its public element Q, and a message M. First, a
 // deterministic nonce r is derived from the private key and message:
 //
 //     INIT('veil.schnorr.nonce', level=256)
@@ -8,7 +8,7 @@
 //     KEY(d)
 //     PRF(64) -> r
 //
-// Given the nonce r, its public point R = rG is calculated, a second protocol is run:
+// Given the nonce r, its public element R = rG is calculated, a second protocol is run:
 //
 //     INIT('veil.schnorr', level=256)
 //     AD(M)
@@ -18,10 +18,10 @@
 //     s = (kd + r)
 //     SEND_ENC(s) -> S
 //
-// The resulting signature consists of the ephemeral point R and the encrypted signature scalar S.
+// The resulting signature consists of the ephemeral element R and the encrypted signature scalar S.
 //
-// To verify, veil.schnorr is run with a public key Q, an ephemeral point R, an encrypted signature
-// scalar S, and a candidate message M:
+// To verify, veil.schnorr is run with a public key Q, an ephemeral element R, an encrypted
+// signature scalar S, and a candidate message M:
 //
 //     INIT('veil.schnorr', level=256)
 //     AD(M)
@@ -48,7 +48,7 @@ const (
 // Sign uses the given key pair to construct a deterministic Schnorr signature of the given message.
 func Sign(d *ristretto255.Scalar, q *ristretto255.Element, msg []byte) []byte {
 	var (
-		buf [r255.SecretKeySize]byte
+		buf [r255.UniformBytestringSize]byte
 		sig [SignatureSize]byte
 	)
 
@@ -82,7 +82,7 @@ func Sign(d *ristretto255.Scalar, q *ristretto255.Element, msg []byte) []byte {
 	s = ristretto255.NewScalar().Add(s, r)
 
 	// Encrypt the signature scalar.
-	sigB := s.Encode(sig[r255.PublicKeySize:r255.PublicKeySize])
+	sigB := s.Encode(sig[r255.ElementSize:r255.ElementSize])
 	protocols.MustENC(schnorr.SendENC(sigB, &strobe.Options{}))
 
 	// Return the encoding of R and the ciphertext of s as the signature.
@@ -91,7 +91,7 @@ func Sign(d *ristretto255.Scalar, q *ristretto255.Element, msg []byte) []byte {
 
 // Verify uses the given public key to verify the two-part signature of the given candidate message.
 func Verify(q *ristretto255.Element, sig, msg []byte) bool {
-	var buf [r255.SecretKeySize]byte
+	var buf [r255.UniformBytestringSize]byte
 
 	// Check signature length.
 	if len(sig) != SignatureSize {
@@ -99,7 +99,7 @@ func Verify(q *ristretto255.Element, sig, msg []byte) bool {
 	}
 
 	// Split the signature.
-	sigA, sigB := sig[:r255.PublicKeySize], sig[r255.PublicKeySize:]
+	sigA, sigB := sig[:r255.ElementSize], sig[r255.ElementSize:]
 
 	// Decode the signature ephemeral.
 	R := ristretto255.NewElement()
@@ -146,7 +146,7 @@ func Verify(q *ristretto255.Element, sig, msg []byte) bool {
 }
 
 func deriveNonce(d *ristretto255.Scalar, msg []byte) *ristretto255.Scalar {
-	var buf [r255.SecretKeySize]byte
+	var buf [r255.UniformBytestringSize]byte
 
 	nonce := protocols.New("veil.schnorr.nonce")
 

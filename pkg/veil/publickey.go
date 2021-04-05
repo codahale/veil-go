@@ -111,7 +111,7 @@ func (pk *PublicKey) MarshalText() (text []byte, err error) {
 // UnmarshalText decodes the results of MarshalText and updates the receiver to contain the decoded
 // public key.
 func (pk *PublicKey) UnmarshalText(text []byte) error {
-	data := make([]byte, r255.PublicKeySize)
+	data := make([]byte, r255.ElementSize)
 
 	// Decode from base32.
 	_, err := asciiEncoding.Decode(data, text)
@@ -119,7 +119,7 @@ func (pk *PublicKey) UnmarshalText(text []byte) error {
 		return fmt.Errorf("invalid public key: %w", err)
 	}
 
-	// Decode as a ristretto255 point.
+	// Decode as a ristretto255 element.
 	return pk.UnmarshalBinary(data)
 }
 

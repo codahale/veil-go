@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/gtank/ristretto255"
 )
 
@@ -11,7 +12,7 @@ func TestSignAndVerify(t *testing.T) {
 	t.Parallel()
 
 	// Create a fake private key.
-	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{1, 2}, 32))
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, r255.UniformBytestringSize))
 
 	// Calculate the public key.
 	q := ristretto255.NewElement().ScalarBaseMult(d)
