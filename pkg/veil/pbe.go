@@ -39,7 +39,7 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]by
 	key := balloonkdf.DeriveKey(passphrase, encSK.Salt[:], encSK.Params.Space, encSK.Params.Time, authenc.KeySize)
 
 	// Encrypt the secret key.
-	copy(encSK.Ciphertext[:], authenc.EncryptSecretKey(key, sk.k.Encode(nil), authenc.TagSize))
+	copy(encSK.Ciphertext[:], authenc.EncryptSecretKey(key, sk.r[:], authenc.TagSize))
 
 	// Encode the balloon hashing params, the salt, and the ciphertext.
 	buf := bytes.NewBuffer(nil)
@@ -52,10 +52,14 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]by
 
 // DecryptSecretKey decrypts the given secret key with the given passphrase. Returns the decrypted
 // secret key.
-func DecryptSecretKey(sk, passphrase []byte) (*SecretKey, error) {
+func DecryptSecretKey(ciphertext, passphrase []byte) (*SecretKey, error) {
+	var (
+		encSK encryptedSecretKey
+		sk    SecretKey
+	)
+
 	// Decode the encrypted secret key.
-	var encSK encryptedSecretKey
-	if err := binary.Read(bytes.NewReader(sk), binary.LittleEndian, &encSK); err != nil {
+	if err := binary.Read(bytes.NewReader(ciphertext), binary.LittleEndian, &encSK); err != nil {
 		return nil, err
 	}
 
@@ -68,14 +72,10 @@ func DecryptSecretKey(sk, passphrase []byte) (*SecretKey, error) {
 		return nil, err
 	}
 
-	// Decode the secret key.
-	dsk, err := r255.DecodeSecretKey(plaintext)
-	if err != nil {
-		return nil, err
-	}
+	// Copy it and return it.
+	copy(sk.r[:], plaintext)
 
-	// Return it.
-	return &SecretKey{k: dsk}, nil
+	return &sk, err
 }
 
 // encryptedSecretKey is a fixed-size struct of the encoded values for an encrypted secret key.

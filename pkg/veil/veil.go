@@ -31,12 +31,12 @@ func AddFakes(keys []*PublicKey, n int) ([]*PublicKey, error) {
 
 	// Add n randomly generated keys to the end.
 	for i := 0; i < n; i++ {
-		_, pub, err := r255.NewEphemeralKeys()
+		_, q, err := r255.NewEphemeralKeys()
 		if err != nil {
 			return nil, err
 		}
 
-		out = append(out, &PublicKey{k: pub})
+		out = append(out, &PublicKey{q: q})
 	}
 
 	// Shuffle the recipients. This will randomly distribute the N fake recipients throughout the

@@ -11,12 +11,15 @@ package kem
 import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols/kemkdf"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/gtank/ristretto255"
 )
 
 // Send returns an ephemeral public key and a shared secret given the sender's private key, the
 // sender's public key, the recipient's public key, the length of the secret in bytes, and whether
 // or not this is a header key.
-func Send(privS *r255.PrivateKey, pubS, pubR *r255.PublicKey, n int, header bool) (*r255.PublicKey, []byte, error) {
+func Send(
+	privS *ristretto255.Scalar, pubS, pubR *ristretto255.Element, n int, header bool,
+) (*ristretto255.Element, []byte, error) {
 	// Generate an ephemeral key pair.
 	privE, pubE, err := r255.NewEphemeralKeys()
 	if err != nil {
@@ -25,11 +28,11 @@ func Send(privS *r255.PrivateKey, pubS, pubR *r255.PublicKey, n int, header bool
 
 	// Calculate the ephemeral shared secret between the ephemeral private key and the recipient's
 	// public key.
-	zzE := privE.DiffieHellman(pubR)
+	zzE := ristretto255.NewElement().ScalarMult(privE, pubR)
 
 	// Calculate the static shared secret between the sender's private key and the recipient's
 	// public key.
-	zzS := privS.DiffieHellman(pubR)
+	zzS := ristretto255.NewElement().ScalarMult(privS, pubR)
 
 	// Derive the secret from both shared secrets plus all the inputs.
 	secret := kemkdf.DeriveKey(zzE, zzS, pubE, pubR, pubS, n, header)
@@ -41,14 +44,16 @@ func Send(privS *r255.PrivateKey, pubS, pubR *r255.PublicKey, n int, header bool
 // Receive generates a shared secret given the recipient's private key, the recipient's public key,
 // the sender's public key, the ephemeral public key, the length of the shared secret in bytes, and
 // whether or not this is a header key.
-func Receive(privR *r255.PrivateKey, pubR, pubS, pubE *r255.PublicKey, n int, header bool) []byte {
+func Receive(
+	privR *ristretto255.Scalar, pubR, pubS, pubE *ristretto255.Element, n int, header bool,
+) []byte {
 	// Calculate the ephemeral shared secret between the recipient's secret key and the ephemeral
 	// public key.
-	zzE := privR.DiffieHellman(pubE)
+	zzE := ristretto255.NewElement().ScalarMult(privR, pubE)
 
 	// Calculate the static shared secret between the recipient's secret key and the sender's public
 	// key.
-	zzS := privR.DiffieHellman(pubS)
+	zzS := ristretto255.NewElement().ScalarMult(privR, pubS)
 
 	// Derive the secret from both shared secrets plus all the inputs.
 	return kemkdf.DeriveKey(zzE, zzS, pubE, pubR, pubS, n, header)

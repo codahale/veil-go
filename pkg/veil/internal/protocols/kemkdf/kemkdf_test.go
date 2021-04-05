@@ -13,23 +13,11 @@ import (
 func TestDeriveKey(t *testing.T) {
 	t.Parallel()
 
-	zzE := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x04}, 64))
-	zzS := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x49}, 64))
-
-	pubE, _ := r255.DecodePublicKey([]byte{
-		0x16, 0x1d, 0xba, 0x1e, 0x8d, 0xa2, 0x6d, 0x86, 0x01, 0xc2, 0x89, 0x0c, 0xa5, 0xcd, 0x01, 0x3f,
-		0xab, 0x45, 0x75, 0x03, 0x13, 0xa4, 0x2e, 0x67, 0xbb, 0x08, 0x65, 0x62, 0x57, 0x8e, 0x3a, 0x59,
-	})
-
-	pubR, _ := r255.DecodePublicKey([]byte{
-		0x3a, 0xca, 0xb9, 0x22, 0x71, 0xdd, 0x43, 0x42, 0xa1, 0xcf, 0x57, 0xf9, 0x5f, 0xa5, 0xc5, 0x4e,
-		0xdd, 0x37, 0x0e, 0xee, 0x80, 0xcc, 0x6c, 0x41, 0x1c, 0xaf, 0x9e, 0x2c, 0x2b, 0xac, 0x28, 0x1e,
-	})
-
-	pubS, _ := r255.DecodePublicKey([]byte{
-		0x8a, 0xa7, 0x11, 0xe5, 0x62, 0xec, 0x77, 0x8d, 0x0f, 0x17, 0x69, 0xf2, 0x28, 0x5b, 0x0e, 0x3b,
-		0x4b, 0x65, 0x83, 0x5a, 0xe4, 0xf9, 0xda, 0x30, 0x6f, 0x88, 0x18, 0x7e, 0x91, 0xd7, 0xe2, 0x5a,
-	})
+	zzE := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x04}, r255.SecretKeySize))
+	zzS := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x49}, r255.SecretKeySize))
+	pubE := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x88}, r255.SecretKeySize))
+	pubR := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0xf1}, r255.SecretKeySize))
+	pubS := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0xd5}, r255.SecretKeySize))
 
 	t.Run("header key", func(t *testing.T) {
 		t.Parallel()
@@ -37,7 +25,7 @@ func TestDeriveKey(t *testing.T) {
 		key := DeriveKey(zzE, zzS, pubE, pubR, pubS, 16, true)
 
 		assert.Equal(t, "derived header key",
-			"080bc88b7392e41c2f43add5e54db746", hex.EncodeToString(key))
+			"7e621113e6d67b9749f2b99d261f4f01", hex.EncodeToString(key))
 	})
 
 	t.Run("message key", func(t *testing.T) {
@@ -46,6 +34,6 @@ func TestDeriveKey(t *testing.T) {
 		key := DeriveKey(zzE, zzS, pubE, pubR, pubS, 16, false)
 
 		assert.Equal(t, "derived header key",
-			"f95375b5e1fc05c18a860221715b13c7", hex.EncodeToString(key))
+			"55bf3ef5d8ba68112ac04d2213edb468", hex.EncodeToString(key))
 	})
 }

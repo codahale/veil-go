@@ -1,8 +1,12 @@
 package veil
 
 import (
+	"encoding/hex"
 	"fmt"
 
+	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/skid"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
@@ -11,36 +15,38 @@ import (
 // It should never be serialized in plaintext. Use EncryptSecretKey to encrypt it using a
 // passphrase.
 type SecretKey struct {
-	k *r255.SecretKey
+	r [r255.SecretKeySize]byte
 }
 
 // NewSecretKey creates a new secret key.
 func NewSecretKey() (*SecretKey, error) {
-	sk, err := r255.NewSecretKey()
-	if err != nil {
+	var sk SecretKey
+
+	// Generate a random 64-byte key.
+	if _, err := rng.Read(sk.r[:]); err != nil {
 		return nil, err
 	}
 
-	return &SecretKey{k: sk}, nil
+	return &sk, nil
 }
 
 // PrivateKey returns a private key for the given key ID.
 func (sk *SecretKey) PrivateKey(keyID string) *PrivateKey {
-	root := PrivateKey{k: sk.k.PrivateKey(idSeparator)}
+	priv := PrivateKey{d: scaldf.DeriveScalar(scaldf.SecretScalar(sk.r[:]), idSeparator)}
 
-	return root.Derive(keyID)
+	return priv.Derive(keyID)
 }
 
 // PublicKey returns a public key for the given key ID.
 func (sk *SecretKey) PublicKey(keyID string) *PublicKey {
-	root := PublicKey{k: sk.k.PublicKey(idSeparator)}
+	priv := PrivateKey{d: scaldf.DeriveScalar(scaldf.SecretScalar(sk.r[:]), idSeparator)}
 
-	return root.Derive(keyID)
+	return priv.PublicKey().Derive(keyID)
 }
 
 // String returns a safe identifier for the key.
 func (sk *SecretKey) String() string {
-	return sk.k.String()
+	return hex.EncodeToString(skid.ID(sk.r[:], 8))
 }
 
 var _ fmt.Stringer = &SecretKey{}

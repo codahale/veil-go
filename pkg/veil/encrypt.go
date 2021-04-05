@@ -11,6 +11,7 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/codahale/veil/pkg/veil/internal/streamio"
+	"github.com/gtank/ristretto255"
 )
 
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
@@ -18,7 +19,7 @@ import (
 // error reported while encrypting, if any.
 func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
 	// Re-derive the sender's public key.
-	pubS := pk.k.PublicKey()
+	pubS := pk.PublicKey().q
 
 	// Generate an ephemeral header key pair.
 	privEH, pubEH, err := r255.NewEphemeralKeys()
@@ -43,7 +44,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pubEM, key, err := kem.Send(pk.k, pubS, pubEH, authenc.KeySize, false)
+	pubEM, key, err := kem.Send(pk.d, pubS, pubEH, authenc.KeySize, false)
 	if err != nil {
 		return int64(n), err
 	}
@@ -69,10 +70,10 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	}
 
 	// Create a signature of the digest of the plaintext.
-	sig := pk.k.Sign(h.Digest())
+	sig, _ := pk.SignDetached(bytes.NewReader(h.Digest()))
 
 	// Append the signature to the plaintext.
-	cn, err := w.Write(sig)
+	cn, err := w.Write(sig.b)
 	if err != nil {
 		return bn + int64(n+an+cn), err
 	}
@@ -82,7 +83,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 }
 
 // encodeHeader encodes the ephemeral header private key and the message offset.
-func (pk *PrivateKey) encodeHeader(privEH *r255.PrivateKey, recipients, padding int) []byte {
+func (pk *PrivateKey) encodeHeader(privEH *ristretto255.Scalar, recipients, padding int) []byte {
 	// Copy the private key.
 	header := make([]byte, headerSize)
 	copy(header, privEH.Encode(nil))
@@ -97,7 +98,7 @@ func (pk *PrivateKey) encodeHeader(privEH *r255.PrivateKey, recipients, padding 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
 // fake recipients.
 func (pk *PrivateKey) encryptHeaders(
-	pubS *r255.PublicKey, header []byte, publicKeys []*PublicKey, padding int,
+	pubS *ristretto255.Element, header []byte, publicKeys []*PublicKey, padding int,
 ) ([]byte, error) {
 	// Allocate a buffer for the entire header.
 	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
@@ -105,7 +106,7 @@ func (pk *PrivateKey) encryptHeaders(
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate a header ephemeral key and shared key for the recipient.
-		pubEH, key, err := kem.Send(pk.k, pubS, pkR.k, authenc.KeySize, true)
+		pubEH, key, err := kem.Send(pk.d, pubS, pkR.q, authenc.KeySize, true)
 		if err != nil {
 			return nil, err
 		}

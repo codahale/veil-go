@@ -59,7 +59,7 @@ package authenc
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols"
-	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
 
@@ -74,7 +74,7 @@ const (
 
 // EncryptHeader encrypts the header with the key, appending a tag of the given size for
 // authentication.
-func EncryptHeader(key []byte, pubEH *r255.PublicKey, header []byte, tagSize int) []byte {
+func EncryptHeader(key []byte, pubEH *ristretto255.Element, header []byte, tagSize int) []byte {
 	// Initialize a new protocol.
 	authenc := newProtocol(headerProto, key, tagSize)
 
@@ -98,7 +98,7 @@ func EncryptHeader(key []byte, pubEH *r255.PublicKey, header []byte, tagSize int
 
 // DecryptHeader decrypts the encrypted header using the key, detaching and verifying the
 // authentication tag of the given size.
-func DecryptHeader(key []byte, pubEH *r255.PublicKey, encHeader []byte, tagSize int) ([]byte, error) {
+func DecryptHeader(key []byte, pubEH *ristretto255.Element, encHeader []byte, tagSize int) ([]byte, error) {
 	authenc := newProtocol(headerProto, key, tagSize)
 
 	// Witness the ephemeral public key.

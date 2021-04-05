@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/codahale/veil/pkg/veil/internal/r255"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 )
 
 // ErrInvalidSignature is returned when a signature, public key, and message do not match.
@@ -24,7 +24,7 @@ func (s *Signature) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes the signature from bytes.
 func (s *Signature) UnmarshalBinary(data []byte) error {
-	if len(data) != r255.SignatureSize {
+	if len(data) != schnorr.SignatureSize {
 		return ErrInvalidSignature
 	}
 

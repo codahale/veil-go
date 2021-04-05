@@ -6,26 +6,29 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/codahale/veil/pkg/veil/internal/streamio"
+	"github.com/gtank/ristretto255"
 )
 
 // PublicKey is a key that's used to verify and encrypt messages.
 //
 // It can be marshalled and unmarshalled as a base32 string for human consumption.
 type PublicKey struct {
-	k *r255.PublicKey
+	q *ristretto255.Element
 }
 
 // Derive derives a PublicKey from the receiver with the given sub-key ID.
 func (pk *PublicKey) Derive(subKeyID string) *PublicKey {
-	key := pk.k
+	q := pk.q
 
 	for _, id := range splitID(subKeyID) {
-		key = key.Derive(id)
+		q = scaldf.DeriveElement(q, id)
 	}
 
-	return &PublicKey{k: key}
+	return &PublicKey{q: q}
 }
 
 // VerifyDetached returns nil if the given signature was created by the owner of the given public
@@ -38,7 +41,7 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 	}
 
 	// Verify the signature against the digest.
-	if !pk.k.Verify(h.Digest(), sig.b) {
+	if !schnorr.Verify(pk.q, sig.b[:r255.PublicKeySize], sig.b[r255.PublicKeySize:], h.Digest()) {
 		return ErrInvalidSignature
 	}
 
@@ -49,7 +52,7 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	// Copy the message contents to dst and the msghash STROBE protocol and detatch the signature.
 	h := msghash.NewWriter(digestSize)
-	sr := streamio.NewSignatureReader(src, r255.SignatureSize)
+	sr := streamio.NewSignatureReader(src, schnorr.SignatureSize)
 	tr := io.TeeReader(sr, h)
 
 	// Copy all data from src into dst via msghash, skipping the appended signature.
@@ -58,8 +61,9 @@ func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 		return n, err
 	}
 
-	// Verify the signature.
-	if !pk.k.Verify(h.Digest(), sr.Signature) {
+	// Verify the signature against the digest.
+	sig := sr.Signature
+	if !schnorr.Verify(pk.q, sig[:r255.PublicKeySize], sig[r255.PublicKeySize:], h.Digest()) {
 		return n, ErrInvalidSignature
 	}
 
@@ -78,24 +82,24 @@ func (pk *PublicKey) String() string {
 
 // MarshalBinary encodes the public key into a 32-byte slice.
 func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
-	return pk.k.Encode(nil), nil
+	return pk.q.Encode(nil), nil
 }
 
 // UnmarshalBinary decodes the public key from a 32-byte slice.
 func (pk *PublicKey) UnmarshalBinary(data []byte) error {
-	k, err := r255.DecodePublicKey(data)
-	if err != nil {
+	q := ristretto255.NewElement()
+	if err := q.Decode(data); err != nil {
 		return err
 	}
 
-	pk.k = k
+	pk.q = q
 
 	return nil
 }
 
 // MarshalText encodes the public key into unpadded base32 text and returns the result.
 func (pk *PublicKey) MarshalText() (text []byte, err error) {
-	b := pk.k.Encode(nil)
+	b := pk.q.Encode(nil)
 
 	text = make([]byte, asciiEncoding.EncodedLen(len(b)))
 
@@ -116,14 +120,7 @@ func (pk *PublicKey) UnmarshalText(text []byte) error {
 	}
 
 	// Decode as a ristretto255 point.
-	k, err := r255.DecodePublicKey(data)
-	if err != nil {
-		return fmt.Errorf("invalid public key: %w", err)
-	}
-
-	pk.k = k
-
-	return nil
+	return pk.UnmarshalBinary(data)
 }
 
 var (

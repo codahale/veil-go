@@ -36,13 +36,18 @@ package schnorr
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
 
+const (
+	SignatureSize = 64 // SignatureSize is the length of a signature in bytes.
+)
+
 // Sign uses the given key pair to construct a deterministic Schnorr signature of the given message.
 func Sign(d *ristretto255.Scalar, q *ristretto255.Element, msg []byte) ([]byte, []byte) {
-	var buf [64]byte
+	var buf [r255.SecretKeySize]byte
 
 	// Deterministically derive a nonce via veil.schnorr.nonce.
 	r := deriveNonce(d, msg)
@@ -83,7 +88,7 @@ func Sign(d *ristretto255.Scalar, q *ristretto255.Element, msg []byte) ([]byte, 
 
 // Verify uses the given public key to verify the two-part signature of the given candidate message.
 func Verify(q *ristretto255.Element, sigA, sigB, msg []byte) bool {
-	var buf [64]byte
+	var buf [r255.SecretKeySize]byte
 
 	// Decode the signature ephemeral.
 	R := ristretto255.NewElement()
@@ -130,7 +135,7 @@ func Verify(q *ristretto255.Element, sigA, sigB, msg []byte) bool {
 }
 
 func deriveNonce(d *ristretto255.Scalar, msg []byte) *ristretto255.Scalar {
-	var buf [64]byte
+	var buf [r255.SecretKeySize]byte
 
 	nonce := protocols.New("veil.schnorr.nonce")
 

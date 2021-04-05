@@ -14,8 +14,8 @@ func TestPublicKey_Derive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	abcd := s.PublicKey("/a/b/c/d").k
-	abcdP := s.PublicKey("/a/b").Derive("/c/d").k
+	abcd := s.PublicKey("/a/b/c/d")
+	abcdP := s.PublicKey("/a/b").Derive("/c/d")
 
 	assert.Equal(t, "derived key", abcd.String(), abcdP.String())
 }
