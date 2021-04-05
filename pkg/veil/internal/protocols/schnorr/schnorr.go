@@ -46,15 +46,18 @@ const (
 )
 
 // Sign uses the given key pair to construct a deterministic Schnorr signature of the given message.
-func Sign(d *ristretto255.Scalar, q *ristretto255.Element, msg []byte) ([]byte, []byte) {
-	var buf [r255.SecretKeySize]byte
+func Sign(d *ristretto255.Scalar, q *ristretto255.Element, msg []byte) []byte {
+	var (
+		buf [r255.SecretKeySize]byte
+		sig [SignatureSize]byte
+	)
 
 	// Deterministically derive a nonce via veil.schnorr.nonce.
 	r := deriveNonce(d, msg)
 
 	// Calculate the signature ephemeral.
 	R := ristretto255.NewElement().ScalarBaseMult(r)
-	sigA := R.Encode(nil)
+	sigA := R.Encode(sig[:0])
 
 	// Initialize the veil.schnorr protocol.
 	schnorr := protocols.New("veil.schnorr")
@@ -79,16 +82,24 @@ func Sign(d *ristretto255.Scalar, q *ristretto255.Element, msg []byte) ([]byte, 
 	s = ristretto255.NewScalar().Add(s, r)
 
 	// Encrypt the signature scalar.
-	sigB := s.Encode(nil)
+	sigB := s.Encode(sig[r255.PublicKeySize:r255.PublicKeySize])
 	protocols.MustENC(schnorr.SendENC(sigB, &strobe.Options{}))
 
 	// Return the encoding of R and the ciphertext of s as the signature.
-	return sigA, sigB
+	return sig[:]
 }
 
 // Verify uses the given public key to verify the two-part signature of the given candidate message.
-func Verify(q *ristretto255.Element, sigA, sigB, msg []byte) bool {
+func Verify(q *ristretto255.Element, sig, msg []byte) bool {
 	var buf [r255.SecretKeySize]byte
+
+	// Check signature length.
+	if len(sig) != SignatureSize {
+		return false
+	}
+
+	// Split the signature.
+	sigA, sigB := sig[:r255.PublicKeySize], sig[r255.PublicKeySize:]
 
 	// Decode the signature ephemeral.
 	R := ristretto255.NewElement()

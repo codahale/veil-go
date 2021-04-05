@@ -9,6 +9,7 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/msghash"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
+	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/codahale/veil/pkg/veil/internal/streamio"
 	"github.com/gtank/ristretto255"
@@ -70,10 +71,10 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	}
 
 	// Create a signature of the digest of the plaintext.
-	sig, _ := pk.SignDetached(bytes.NewReader(h.Digest()))
+	sig := schnorr.Sign(pk.d, pk.PublicKey().q, h.Digest())
 
 	// Append the signature to the plaintext.
-	cn, err := w.Write(sig.b)
+	cn, err := w.Write(sig)
 	if err != nil {
 		return bn + int64(n+an+cn), err
 	}

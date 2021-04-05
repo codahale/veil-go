@@ -16,13 +16,13 @@ func TestSignAndVerify(t *testing.T) {
 	// Calculate the public key.
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
-	sigA, sigB := Sign(d, q, []byte("ok"))
+	sig := Sign(d, q, []byte("ok"))
 
-	if !Verify(q, sigA, sigB, []byte("ok")) {
+	if !Verify(q, sig, []byte("ok")) {
 		t.Error("did not verify")
 	}
 
-	if Verify(q, sigA, sigB, []byte("not ok")) {
+	if Verify(q, sig, []byte("not ok")) {
 		t.Error("did verify")
 	}
 }

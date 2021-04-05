@@ -1,7 +1,6 @@
 package veil
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -67,7 +66,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	}
 
 	// Verify the signature of the digest.
-	if pkS.VerifyDetached(bytes.NewReader(h.Digest()), &Signature{b: sr.Signature}) != nil {
+	if !schnorr.Verify(pkS.q, sr.Signature, h.Digest()) {
 		return nil, n, ErrInvalidCiphertext
 	}
 

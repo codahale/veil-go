@@ -41,7 +41,7 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 	}
 
 	// Verify the signature against the digest.
-	if !schnorr.Verify(pk.q, sig.b[:r255.PublicKeySize], sig.b[r255.PublicKeySize:], h.Digest()) {
+	if !schnorr.Verify(pk.q, sig.b, h.Digest()) {
 		return ErrInvalidSignature
 	}
 
@@ -63,7 +63,7 @@ func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 
 	// Verify the signature against the digest.
 	sig := sr.Signature
-	if !schnorr.Verify(pk.q, sig[:r255.PublicKeySize], sig[r255.PublicKeySize:], h.Digest()) {
+	if !schnorr.Verify(pk.q, sig, h.Digest()) {
 		return n, ErrInvalidSignature
 	}
 

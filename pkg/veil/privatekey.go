@@ -39,9 +39,9 @@ func (pk *PrivateKey) SignDetached(src io.Reader) (*Signature, error) {
 	}
 
 	// Create a signature of the digest.
-	sigA, sigB := schnorr.Sign(pk.d, pk.PublicKey().q, h.Digest())
+	sig := schnorr.Sign(pk.d, pk.PublicKey().q, h.Digest())
 
-	return &Signature{b: append(sigA, sigB...)}, nil
+	return &Signature{b: sig}, nil
 }
 
 // Sign copies src to dst, creates a signature of the contents of src, and appends it to dst.
@@ -57,10 +57,10 @@ func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	}
 
 	// Create a signature of the digest.
-	sigA, sigB := schnorr.Sign(pk.d, pk.PublicKey().q, h.Digest())
+	sig := schnorr.Sign(pk.d, pk.PublicKey().q, h.Digest())
 
 	// Append the signature.
-	sn, err := dst.Write(append(sigA, sigB...))
+	sn, err := dst.Write(sig)
 
 	// Return the bytes written and any errors.
 	return n + int64(sn), err
