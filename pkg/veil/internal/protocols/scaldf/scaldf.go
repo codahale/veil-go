@@ -20,8 +20,8 @@ import (
 )
 
 // SecretScalar derives a secret scalar from the given bytestring.
-func SecretScalar(r []byte) *ristretto255.Scalar {
-	return scalarDF("veil.scaldf.secret", r)
+func SecretScalar(r *[r255.UniformBytestringSize]byte) *ristretto255.Scalar {
+	return scalarDF("veil.scaldf.secret", r[:])
 }
 
 // DeriveElement securely derives a child element from a parent element given a label. Without the
@@ -31,7 +31,7 @@ func DeriveElement(q *ristretto255.Element, label string) *ristretto255.Element 
 	r := scalarDF("veil.scaldf.label", []byte(label))
 	rG := ristretto255.NewElement().ScalarBaseMult(r)
 
-	// Return the current public key plus the delta.
+	// Return the given element plus the delta element.
 	return ristretto255.NewElement().Add(q, rG)
 }
 
@@ -41,6 +41,7 @@ func DeriveScalar(d *ristretto255.Scalar, label string) *ristretto255.Scalar {
 	// Calculate the delta for the derived scalar.
 	r := scalarDF("veil.scaldf.label", []byte(label))
 
+	// Return the given scalar plus the delta scalar.
 	return ristretto255.NewScalar().Add(d, r)
 }
 

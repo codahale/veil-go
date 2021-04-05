@@ -33,11 +33,11 @@ func NewSecretKey() (*SecretKey, error) {
 
 // PrivateKey returns a private key for the given key ID.
 func (sk *SecretKey) PrivateKey(keyID string) *PrivateKey {
-	d := scaldf.DeriveScalar(scaldf.SecretScalar(sk.r[:]), idSeparator)
+	d := scaldf.DeriveScalar(scaldf.SecretScalar(&sk.r), idSeparator)
 	q := ristretto255.NewElement().ScalarBaseMult(d)
-	priv := PrivateKey{d: d, q: q}
+	root := PrivateKey{d: d, q: q}
 
-	return priv.Derive(keyID)
+	return root.Derive(keyID)
 }
 
 // PublicKey returns a public key for the given key ID.
@@ -47,7 +47,7 @@ func (sk *SecretKey) PublicKey(keyID string) *PublicKey {
 
 // String returns a safe identifier for the key.
 func (sk *SecretKey) String() string {
-	return hex.EncodeToString(skid.ID(sk.r[:], 8))
+	return hex.EncodeToString(skid.ID(&sk.r, 8))
 }
 
 var _ fmt.Stringer = &SecretKey{}
