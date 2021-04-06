@@ -12,11 +12,13 @@
 package veil
 
 import (
+	"crypto/rand"
 	"encoding/base32"
 	"errors"
 	"strings"
 
 	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/gtank/ristretto255"
 )
 
 var (
@@ -32,18 +34,19 @@ var (
 // results, and returns them. This allows senders of messages to conceal the true number of
 // recipients of a particular message.
 func AddFakes(keys []*PublicKey, n int) ([]*PublicKey, error) {
+	var buf [internal.UniformBytestringSize]byte
+
 	// Make a copy of the public keys.
 	out := make([]*PublicKey, len(keys), len(keys)+n)
 	copy(out, keys)
 
-	// Add n randomly generated keys to the end.
+	// Add n randomly generated elements to the end.
 	for i := 0; i < n; i++ {
-		_, q, err := internal.NewEphemeralKeys()
-		if err != nil {
+		if _, err := rand.Read(buf[:]); err != nil {
 			return nil, err
 		}
 
-		out = append(out, &PublicKey{q: q})
+		out = append(out, &PublicKey{q: ristretto255.NewElement().FromUniformBytes(buf[:])})
 	}
 
 	// Shuffle the recipients. This will randomly distribute the N fake recipients throughout the
