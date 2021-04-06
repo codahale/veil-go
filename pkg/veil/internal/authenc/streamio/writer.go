@@ -11,14 +11,14 @@ import (
 func NewWriter(dst io.Writer, key, encryptedHeaders []byte, blockSize int) io.WriteCloser {
 	return &writer{
 		w:         dst,
-		stream:    authenc.NewStreamEncrypter(key, encryptedHeaders, blockSize, authenc.TagSize),
+		stream:    authenc.NewStreamSealer(key, encryptedHeaders, blockSize, authenc.TagSize),
 		plaintext: make([]byte, blockSize),
 	}
 }
 
 type writer struct {
 	w            io.Writer
-	stream       *authenc.StreamEncrypter
+	stream       *authenc.StreamSealer
 	plaintext    []byte
 	plaintextPos int
 	ciphertext   []byte
@@ -46,7 +46,7 @@ func (w *writer) Write(p []byte) (n int, err error) {
 		}
 
 		// Otherwise, encrypt the plaintext buffer.
-		w.ciphertext = w.stream.Encrypt(w.plaintext[:ptLim], false)
+		w.ciphertext = w.stream.Seal(w.plaintext[:ptLim], false)
 
 		// And write the ciphertext to the underlying writer.
 		if _, err := w.w.Write(w.ciphertext); err != nil {
@@ -64,7 +64,7 @@ func (w *writer) Close() error {
 		return nil
 	}
 
-	w.ciphertext = w.stream.Encrypt(w.plaintext[:w.plaintextPos], true)
+	w.ciphertext = w.stream.Seal(w.plaintext[:w.plaintextPos], true)
 
 	if _, err := w.w.Write(w.ciphertext); err != nil {
 		return err

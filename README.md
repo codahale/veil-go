@@ -19,7 +19,7 @@ keys.
 
 Veil uses just two distinct primitives:
 
-* [STROBE](https://eprint.iacr.org/2017/003.pdf) for confidentiality, authentication, and integrity.
+* [STROBE](https://strobe.sourceforge.io) for confidentiality, authentication, and integrity.
 * [ristretto255](https://ristretto.group) for key agreement and signing.
 
 ### STROBE Protocols

@@ -5,7 +5,7 @@ import (
 	"github.com/sammyne/strobe"
 )
 
-// StreamEncrypter encrypts blocks of a message stream.
+// StreamSealer encrypts blocks of a message stream.
 //
 // Encryption of a message stream is as follows, given a key K, block size B, and tag size N:
 //
@@ -14,7 +14,7 @@ import (
 //     AD(LE_U32(N)),              meta=true)
 //     KEY(K)
 //
-// Encryption begins by witnessing the encrypted message headers, H:
+// Encryption begins by sending the encrypted message headers, H:
 //
 //     SEND_CLR(H)
 //
@@ -34,37 +34,39 @@ import (
 //     RATCHET(32)
 //
 // The ciphertext and N-byte tag are returned.
-type StreamEncrypter struct {
+type StreamSealer struct {
 	stream *strobe.Strobe
 	b, tag []byte
 }
 
-func NewStreamEncrypter(key, encryptedHeaders []byte, blockSize, tagSize int) *StreamEncrypter {
+// NewStreamSealer creates a new StreamSealer with the given key, encrypted headers, block size, and
+// tag size.
+func NewStreamSealer(key, encryptedHeaders []byte, blockSize, tagSize int) *StreamSealer {
 	stream := initStream(key, blockSize, tagSize)
 
-	// Witness the encrypted headers.
+	// Transmit the encrypted headers.
 	internal.Must(stream.SendCLR(encryptedHeaders, &strobe.Options{}))
 
-	return &StreamEncrypter{
+	return &StreamSealer{
 		stream: stream,
 		b:      make([]byte, blockSize),
 		tag:    make([]byte, tagSize),
 	}
 }
 
-// Encrypt encrypts the plaintext, appends an authentication tag, ratchets the protocol's state,
+// Seal encrypts the plaintext, appends an authentication tag, ratchets the protocol's state,
 // and returns the result. If this is is the last block in the stream, final must be true.
-func (s *StreamEncrypter) Encrypt(block []byte, final bool) []byte {
+func (s *StreamSealer) Seal(plaintext []byte, final bool) []byte {
 	// If this is the final block, mark that in the stream metadata.
 	if final {
 		finalizeStream(s.stream)
 	}
 
 	// Copy the input to the stream's buffer.
-	copy(s.b, block)
+	copy(s.b, plaintext)
 
 	// Encrypt it in place.
-	internal.MustENC(s.stream.SendENC(s.b[:len(block)], &strobe.Options{}))
+	internal.MustENC(s.stream.SendENC(s.b[:len(plaintext)], &strobe.Options{}))
 
 	// Create a MAC.
 	internal.Must(s.stream.SendMAC(s.tag, &strobe.Options{}))
@@ -73,10 +75,10 @@ func (s *StreamEncrypter) Encrypt(block []byte, final bool) []byte {
 	internal.Must(s.stream.RATCHET(internal.RatchetSize))
 
 	// Return the ciphertext and tag.
-	return append(s.b[:len(block)], s.tag...)
+	return append(s.b[:len(plaintext)], s.tag...)
 }
 
-// StreamDecrypter decrypts blocks of a message stream.
+// StreamOpener decrypts blocks of a message stream.
 //
 // Decryption of a message stream is as follows, given a key K, block size B, and tag size N:
 //
@@ -85,7 +87,7 @@ func (s *StreamEncrypter) Encrypt(block []byte, final bool) []byte {
 //     AD(LE_U32(N)),              meta=true)
 //     KEY(K)
 //
-// Decryption begins by witnessing the encrypted message headers, H:
+// Decryption begins by receiving the encrypted message headers, H:
 //
 //     RECV_CLR(H)
 //
@@ -105,40 +107,40 @@ func (s *StreamEncrypter) Encrypt(block []byte, final bool) []byte {
 //     RATCHET(32)
 //
 // If the RECV_MAC operation is successful, the plaintext block is returned.
-type StreamDecrypter struct {
+type StreamOpener struct {
 	stream *strobe.Strobe
 	b, tag []byte
 }
 
-// NewStreamDecrypter creates a new streaming AEAD decrypter with the given key, encrypted headers,
-// block size, and tag size.
-func NewStreamDecrypter(key, encryptedHeaders []byte, blockSize, tagSize int) *StreamDecrypter {
+// NewStreamOpener creates a new StreamOpener with the given key, encrypted headers, block size, and
+// tag size.
+func NewStreamOpener(key, encryptedHeaders []byte, blockSize, tagSize int) *StreamOpener {
 	stream := initStream(key, blockSize, tagSize)
 
 	// Witness the encrypted headers.
 	internal.Must(stream.RecvCLR(encryptedHeaders, &strobe.Options{}))
 
-	return &StreamDecrypter{
+	return &StreamOpener{
 		stream: stream,
 		b:      make([]byte, blockSize),
 		tag:    make([]byte, tagSize),
 	}
 }
 
-// Decrypt decrypts the plaintext, detaches the authentication tag, verifies it, ratchets the
+// Open decrypts the ciphertext, detaches the authentication tag, verifies it, ratchets the
 // protocol's state, and returns the plaintext. If this is is the last block in the stream, final
-// must be true. If the inputs are not exactly the same as the outputs of Encrypt, an error will be
+// must be true. If the inputs are not exactly the same as the outputs of Seal, an error will be
 // returned.
-func (s *StreamDecrypter) Decrypt(block []byte, final bool) ([]byte, error) {
+func (s *StreamOpener) Open(ciphertext []byte, final bool) ([]byte, error) {
 	// If this is the final block, mark that in the stream metadata.
 	if final {
 		finalizeStream(s.stream)
 	}
 
 	// Copy the input to the stream's buffer.
-	n := len(block) - len(s.tag)
-	copy(s.tag, block[n:])
-	copy(s.b, block[:n])
+	n := len(ciphertext) - len(s.tag)
+	copy(s.tag, ciphertext[n:])
+	copy(s.b, ciphertext[:n])
 
 	// Decrypt it in place.
 	internal.MustENC(s.stream.RecvENC(s.b[:n], &strobe.Options{}))
@@ -175,10 +177,5 @@ func initStream(key []byte, blockSize, tagSize int) *strobe.Strobe {
 }
 
 func finalizeStream(stream *strobe.Strobe) {
-	internal.Must(stream.AD([]byte(finalizationTag), &strobe.Options{Meta: true}))
+	internal.Must(stream.AD([]byte(("final")), &strobe.Options{Meta: true}))
 }
-
-const (
-	// finalizationTag is the associated data used to finalize the ratchet chain.
-	finalizationTag = "final"
-)

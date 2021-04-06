@@ -11,7 +11,7 @@ import (
 // veil.authenc.stream STROBE protocol.
 func NewReader(src io.Reader, key, encryptedHeaders []byte, blockSize int) io.Reader {
 	return &reader{
-		stream:     authenc.NewStreamDecrypter(key, encryptedHeaders, blockSize, authenc.TagSize),
+		stream:     authenc.NewStreamOpener(key, encryptedHeaders, blockSize, authenc.TagSize),
 		r:          src,
 		ciphertext: make([]byte, blockSize+authenc.TagSize+1), // extra byte for determining last block
 	}
@@ -19,7 +19,7 @@ func NewReader(src io.Reader, key, encryptedHeaders []byte, blockSize int) io.Re
 
 type reader struct {
 	r             io.Reader
-	stream        *authenc.StreamDecrypter
+	stream        *authenc.StreamOpener
 	plaintext     []byte
 	plaintextPos  int
 	ciphertext    []byte
@@ -60,7 +60,7 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	}
 
 	// Decrypt the block we just read.
-	r.plaintext, err = r.stream.Decrypt(r.ciphertext[:segment], lastSegment)
+	r.plaintext, err = r.stream.Open(r.ciphertext[:segment], lastSegment)
 	if err != nil {
 		return 0, err
 	}
