@@ -61,27 +61,24 @@ func DeriveKey(passphrase, salt []byte, space, time, n int) []byte {
 	idx := make([]byte, n)
 
 	// Allocate blocks.
-	buf := make([][]byte, space)
-	for i := range buf {
-		buf[i] = make([]byte, n)
-	}
+	buf := make([]byte, space*n)
 
 	// Initialize first block.
-	hashCounter(balloon, &ctr, ctrBuf[:], buf[0], nil, nil)
+	hashCounter(balloon, &ctr, ctrBuf[:], buf[0:n], nil, nil)
 
 	// Initialize all other blocks.
 	for m := 1; m < space-1; m++ {
-		hashCounter(balloon, &ctr, ctrBuf[:], buf[m], buf[m-1], nil)
+		hashCounter(balloon, &ctr, ctrBuf[:], buf[(m*n):(m*n)+n], buf[(m-1)*n:(m-1)*n+n], nil)
 	}
 
 	// Mix buffer contents.
 	for t := 1; t < time; t++ {
 		for m := 1; m < space; m++ {
 			// Hash last and current blocks.
-			prev := buf[(m-1)%space]
-			hashCounter(balloon, &ctr, ctrBuf[:], buf[m], prev, buf[m])
+			j := (m - 1) % space
+			hashCounter(balloon, &ctr, ctrBuf[:], buf[m*n:m*n+n], buf[j*n:j*n+n], buf[m*n:m*n+n])
 
-			// Hash pseudorandomly chosen blocks.
+			// Hash pseudo-randomly chosen blocks.
 			for i := 0; i < delta; i++ {
 				// Map indexes to a block and hash it and the salt.
 				binary.LittleEndian.PutUint32(idx[0:], uint32(t))
@@ -91,12 +88,12 @@ func DeriveKey(passphrase, salt []byte, space, time, n int) []byte {
 
 				// Map the hashed index block back to an index and hash that block.
 				other := int(binary.LittleEndian.Uint64(idx) % uint64(space))
-				hashCounter(balloon, &ctr, ctrBuf[:], buf[m], buf[other], nil)
+				hashCounter(balloon, &ctr, ctrBuf[:], buf[m*n:m*n+n], buf[other*n:other*n+n], nil)
 			}
 		}
 	}
 
-	return buf[space-1]
+	return buf[(space-1)*n:]
 }
 
 func hashCounter(s *strobe.Strobe, ctr *uint64, ctrBuf, dst, left, right []byte) {
