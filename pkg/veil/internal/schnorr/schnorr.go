@@ -76,7 +76,7 @@ func NewSigner() *Signer {
 }
 
 func (sn *Signer) Write(p []byte) (n int, err error) {
-	// Transmit the written data to the protocol.
+	// Update the protocol with the written data.
 	internal.Must(sn.schnorr.SendCLR(p, &strobe.Options{Streaming: true}))
 
 	return len(p), nil
@@ -158,7 +158,7 @@ func NewVerifier() *Verifier {
 }
 
 func (vr *Verifier) Write(p []byte) (n int, err error) {
-	// Transmit the written data to the protocol.
+	// Update the protocol with the written data.
 	internal.Must(vr.schnorr.RecvCLR(p, &strobe.Options{Streaming: true}))
 
 	return len(p), nil
