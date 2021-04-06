@@ -50,7 +50,7 @@ package schnorr
 import (
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
@@ -68,10 +68,10 @@ type Signer struct {
 // NewSigner returns a Signer instance which passes writes through to dst.
 func NewSigner(dst io.Writer) *Signer {
 	// Initialize a new protocol.
-	schnorr := protocols.New("veil.schnorr")
+	schnorr := internal.Strobe("veil.schnorr")
 
 	// Prep it for streaming cleartext.
-	protocols.Must(schnorr.SendCLR(nil, &strobe.Options{}))
+	internal.Must(schnorr.SendCLR(nil, &strobe.Options{}))
 
 	return &Signer{schnorr: schnorr, dst: dst}
 }
@@ -83,7 +83,7 @@ func (sn *Signer) Write(p []byte) (n int, err error) {
 	}
 
 	// Transmit the written data to the protocol.
-	protocols.Must(sn.schnorr.SendCLR(p[:n], &strobe.Options{Streaming: true}))
+	internal.Must(sn.schnorr.SendCLR(p[:n], &strobe.Options{Streaming: true}))
 
 	return
 }
@@ -92,7 +92,7 @@ func (sn *Signer) Write(p []byte) (n int, err error) {
 // written data.
 func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 	var (
-		buf [protocols.UniformBytestringSize]byte
+		buf [internal.UniformBytestringSize]byte
 		sig [SignatureSize]byte
 	)
 
@@ -104,13 +104,13 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 	sigA := R.Encode(sig[:0])
 
 	// Transmit the signer's public key.
-	protocols.Must(sn.schnorr.SendCLR(q.Encode(nil), &strobe.Options{}))
+	internal.Must(sn.schnorr.SendCLR(q.Encode(nil), &strobe.Options{}))
 
 	// Transmit the signature ephemeral.
-	protocols.Must(sn.schnorr.SendCLR(sigA, &strobe.Options{}))
+	internal.Must(sn.schnorr.SendCLR(sigA, &strobe.Options{}))
 
 	// Derive a challenge value.
-	protocols.Must(sn.schnorr.PRF(buf[:], false))
+	internal.Must(sn.schnorr.PRF(buf[:], false))
 
 	// Map the challenge value to a scalar.
 	k := ristretto255.NewScalar().FromUniformBytes(buf[:])
@@ -120,28 +120,28 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 	s = ristretto255.NewScalar().Add(s, r)
 
 	// Encrypt the signature scalar.
-	sigB := s.Encode(sig[protocols.ElementSize:protocols.ElementSize])
-	protocols.MustENC(sn.schnorr.SendENC(sigB, &strobe.Options{}))
+	sigB := s.Encode(sig[internal.ElementSize:internal.ElementSize])
+	internal.MustENC(sn.schnorr.SendENC(sigB, &strobe.Options{}))
 
 	// Return the encoding of R and the ciphertext of s as the signature.
 	return sig[:]
 }
 
 func (sn *Signer) deriveNonce(d *ristretto255.Scalar) *ristretto255.Scalar {
-	var buf [protocols.UniformBytestringSize]byte
+	var buf [internal.UniformBytestringSize]byte
 
 	// Clone the protocol context. This step requires knowledge of the signer's private key, so it
 	// can't be part of the verification process.
 	clone := sn.schnorr.Clone()
 
 	// Key the clone with the signer's private key.
-	protocols.Must(clone.KEY(d.Encode(nil), false))
+	internal.Must(clone.KEY(d.Encode(nil), false))
 
 	// Derive a nonce.
-	protocols.Must(clone.PRF(buf[:], false))
+	internal.Must(clone.PRF(buf[:], false))
 
 	// Ratchet the protocol.
-	protocols.Must(clone.RATCHET(protocols.RatchetSize))
+	internal.Must(clone.RATCHET(internal.RatchetSize))
 
 	// Map the nonce to a scalar.
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])
@@ -156,10 +156,10 @@ type Verifier struct {
 // NewVerifier returns a Verifier instance which passes reads through to src.
 func NewVerifier(src io.Reader) *Verifier {
 	// Initialize a new protocol.
-	schnorr := protocols.New("veil.schnorr")
+	schnorr := internal.Strobe("veil.schnorr")
 
 	// Prep it for streaming cleartext.
-	protocols.Must(schnorr.RecvCLR(nil, &strobe.Options{}))
+	internal.Must(schnorr.RecvCLR(nil, &strobe.Options{}))
 
 	return &Verifier{schnorr: schnorr, src: src}
 }
@@ -170,14 +170,14 @@ func (vr *Verifier) Read(p []byte) (n int, err error) {
 		return
 	}
 
-	protocols.Must(vr.schnorr.RecvCLR(p[:n], &strobe.Options{Streaming: true}))
+	internal.Must(vr.schnorr.RecvCLR(p[:n], &strobe.Options{Streaming: true}))
 
 	return
 }
 
 // Verify uses the given public key to verify the signature of the previously read data.
 func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
-	var buf [protocols.UniformBytestringSize]byte
+	var buf [internal.UniformBytestringSize]byte
 
 	// Check signature length.
 	if len(sig) != SignatureSize {
@@ -185,7 +185,7 @@ func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
 	}
 
 	// Split the signature.
-	sigA, sigB := sig[:protocols.ElementSize], sig[protocols.ElementSize:]
+	sigA, sigB := sig[:internal.ElementSize], sig[internal.ElementSize:]
 
 	// Decode the signature ephemeral.
 	R := ristretto255.NewElement()
@@ -194,13 +194,13 @@ func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
 	}
 
 	// Receive the signer's public key.
-	protocols.Must(vr.schnorr.RecvCLR(q.Encode(nil), &strobe.Options{}))
+	internal.Must(vr.schnorr.RecvCLR(q.Encode(nil), &strobe.Options{}))
 
 	// Receive the signature ephemeral.
-	protocols.Must(vr.schnorr.RecvCLR(sigA, &strobe.Options{}))
+	internal.Must(vr.schnorr.RecvCLR(sigA, &strobe.Options{}))
 
 	// Derive a challenge value.
-	protocols.Must(vr.schnorr.PRF(buf[:], false))
+	internal.Must(vr.schnorr.PRF(buf[:], false))
 
 	// Map the challenge value to a scalar.
 	k := ristretto255.NewScalar().FromUniformBytes(buf[:])
@@ -210,7 +210,7 @@ func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
 	copy(sb, sigB)
 
 	// Decrypt the signature scalar.
-	protocols.MustENC(vr.schnorr.RecvENC(sb, &strobe.Options{}))
+	internal.MustENC(vr.schnorr.RecvENC(sb, &strobe.Options{}))
 
 	// Decode the signature scalar.
 	s := ristretto255.NewScalar()

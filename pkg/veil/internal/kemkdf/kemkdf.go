@@ -27,8 +27,8 @@
 package kemkdf
 
 import (
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
+	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/codahale/veil/pkg/veil/internal/rng"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
@@ -83,7 +83,7 @@ func Receive(
 // secret in bytes, and whether or not the key is for a header or a message.
 func deriveKey(zzE, zzS, pubE, pubR, pubS *ristretto255.Element, n int, header bool) []byte {
 	// Allocate a buffer for encoding ristretto255 elements.
-	b := make([]byte, protocols.ElementSize)
+	b := make([]byte, internal.ElementSize)
 
 	// Pick a protocol name.
 	proto := "veil.kem.kdf.message"
@@ -92,29 +92,29 @@ func deriveKey(zzE, zzS, pubE, pubR, pubS *ristretto255.Element, n int, header b
 	}
 
 	// Initialize the protocol.
-	kdf := protocols.New(proto)
+	kdf := internal.Strobe(proto)
 
 	// Add the output size to the protocol.
-	protocols.Must(kdf.AD(protocols.LittleEndianU32(n), &strobe.Options{Meta: true}))
+	internal.Must(kdf.AD(internal.LittleEndianU32(n), &strobe.Options{Meta: true}))
 
 	// Add the ephemeral shared secret to the protocol.
-	protocols.Must(kdf.KEY(zzE.Encode(b[:0]), false))
+	internal.Must(kdf.KEY(zzE.Encode(b[:0]), false))
 
 	// Add the static shared secret to the protocol.
-	protocols.Must(kdf.KEY(zzS.Encode(b[:0]), false))
+	internal.Must(kdf.KEY(zzS.Encode(b[:0]), false))
 
 	// Add the ephemeral public key to the protocol.
-	protocols.Must(kdf.AD(pubE.Encode(b[:0]), &strobe.Options{}))
+	internal.Must(kdf.AD(pubE.Encode(b[:0]), &strobe.Options{}))
 
 	// Add the recipient's public key to the protocol.
-	protocols.Must(kdf.AD(pubR.Encode(b[:0]), &strobe.Options{}))
+	internal.Must(kdf.AD(pubR.Encode(b[:0]), &strobe.Options{}))
 
 	// Add the sender's public key to the protocol.
-	protocols.Must(kdf.AD(pubS.Encode(b[:0]), &strobe.Options{}))
+	internal.Must(kdf.AD(pubS.Encode(b[:0]), &strobe.Options{}))
 
 	// Extract an n-byte derived secret and return it.
 	k := make([]byte, n)
-	protocols.Must(kdf.PRF(k, false))
+	internal.Must(kdf.PRF(k, false))
 
 	return k
 }

@@ -1,7 +1,7 @@
 package authenc
 
 import (
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
@@ -25,18 +25,18 @@ func EncryptHeader(key []byte, pubEH *ristretto255.Element, header []byte, tagSi
 	ae := newAE(headerProto, key, tagSize)
 
 	// Witness the ephemeral public key.
-	protocols.Must(ae.SendCLR(pubEH.Encode(nil), &strobe.Options{}))
+	internal.Must(ae.SendCLR(pubEH.Encode(nil), &strobe.Options{}))
 
 	// Copy the plaintext to a buffer.
 	ciphertext := make([]byte, len(header), len(header)+tagSize)
 	copy(ciphertext, header)
 
 	// Encrypt it in place.
-	protocols.MustENC(ae.SendENC(ciphertext, &strobe.Options{}))
+	internal.MustENC(ae.SendENC(ciphertext, &strobe.Options{}))
 
 	// Create a MAC.
 	tag := make([]byte, tagSize)
-	protocols.Must(ae.SendMAC(tag, &strobe.Options{}))
+	internal.Must(ae.SendMAC(tag, &strobe.Options{}))
 
 	// Return the ciphertext and tag.
 	return append(ciphertext, tag...)
@@ -60,7 +60,7 @@ func DecryptHeader(key []byte, pubEH *ristretto255.Element, encHeader []byte, ta
 	ae := newAE(headerProto, key, tagSize)
 
 	// Witness the ephemeral public key.
-	protocols.Must(ae.RecvCLR(pubEH.Encode(nil), &strobe.Options{}))
+	internal.Must(ae.RecvCLR(pubEH.Encode(nil), &strobe.Options{}))
 
 	// Copy the ciphertext to a buffer.
 	plaintext := make([]byte, len(encHeader)-tagSize)
@@ -71,7 +71,7 @@ func DecryptHeader(key []byte, pubEH *ristretto255.Element, encHeader []byte, ta
 	copy(tag, encHeader[len(encHeader)-tagSize:])
 
 	// Decrypt it in place.
-	protocols.MustENC(ae.RecvENC(plaintext, &strobe.Options{}))
+	internal.MustENC(ae.RecvENC(plaintext, &strobe.Options{}))
 
 	// Verify the MAC.
 	if err := ae.RecvMAC(tag, &strobe.Options{}); err != nil {

@@ -4,10 +4,10 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/skid"
+	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/codahale/veil/pkg/veil/internal/rng"
+	"github.com/codahale/veil/pkg/veil/internal/scaldf"
+	"github.com/codahale/veil/pkg/veil/internal/skid"
 	"github.com/gtank/ristretto255"
 )
 
@@ -16,7 +16,7 @@ import (
 // It should never be serialized in plaintext. Use EncryptSecretKey to encrypt it using a
 // passphrase.
 type SecretKey struct {
-	r [protocols.UniformBytestringSize]byte
+	r [internal.UniformBytestringSize]byte
 }
 
 // NewSecretKey creates a new secret key.

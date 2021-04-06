@@ -5,12 +5,12 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc/streamio"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/kemkdf"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
+	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/codahale/veil/pkg/veil/internal/authenc"
+	"github.com/codahale/veil/pkg/veil/internal/authenc/streamio"
+	"github.com/codahale/veil/pkg/veil/internal/kemkdf"
+	"github.com/codahale/veil/pkg/veil/internal/rng"
+	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/gtank/ristretto255"
 )
 
@@ -86,7 +86,7 @@ func (pk *PrivateKey) encodeHeader(privEH *ristretto255.Scalar, recipients, padd
 
 	// Calculate the message offset and encode it.
 	offset := encryptedHeaderSize*recipients + padding
-	binary.LittleEndian.PutUint32(header[protocols.ScalarSize:], uint32(offset))
+	binary.LittleEndian.PutUint32(header[internal.ScalarSize:], uint32(offset))
 
 	return header
 }
@@ -124,6 +124,6 @@ func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, pad
 }
 
 const (
-	headerSize          = protocols.ScalarSize + 4 // 4 bytes for message offset
-	encryptedHeaderSize = protocols.ElementSize + headerSize + authenc.TagSize
+	headerSize          = internal.ScalarSize + 4 // 4 bytes for message offset
+	encryptedHeaderSize = internal.ElementSize + headerSize + authenc.TagSize
 )

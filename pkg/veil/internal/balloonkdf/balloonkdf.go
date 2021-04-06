@@ -25,7 +25,7 @@ package balloonkdf
 import (
 	"encoding/binary"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/sammyne/strobe"
 )
 
@@ -34,22 +34,22 @@ func DeriveKey(passphrase, salt []byte, space, time uint32, n int) []byte {
 	n += n % 2 // round up
 
 	// Initialize a new protocol.
-	balloon := protocols.New("veil.kdf.balloon")
+	balloon := internal.Strobe("veil.kdf.balloon")
 
 	// Include the space parameter as associated data.
-	protocols.Must(balloon.AD(protocols.LittleEndianU32(int(space)), &strobe.Options{Meta: true}))
+	internal.Must(balloon.AD(internal.LittleEndianU32(int(space)), &strobe.Options{Meta: true}))
 
 	// Include the time parameter as associated data.
-	protocols.Must(balloon.AD(protocols.LittleEndianU32(int(time)), &strobe.Options{Meta: true}))
+	internal.Must(balloon.AD(internal.LittleEndianU32(int(time)), &strobe.Options{Meta: true}))
 
 	// Include the size parameter as associated data.
-	protocols.Must(balloon.AD(protocols.LittleEndianU32(n), &strobe.Options{Meta: true}))
+	internal.Must(balloon.AD(internal.LittleEndianU32(n), &strobe.Options{Meta: true}))
 
 	// Key the protocol with the passphrase.
-	protocols.Must(balloon.KEY(protocols.Copy(passphrase), false))
+	internal.Must(balloon.KEY(internal.Copy(passphrase), false))
 
 	// Include the salt as associated data.
-	protocols.Must(balloon.AD(salt, &strobe.Options{}))
+	internal.Must(balloon.AD(salt, &strobe.Options{}))
 
 	// Allocate a 64-bit counter and a buffer for its encoding.
 	var (
@@ -107,16 +107,16 @@ func hashCounter(s *strobe.Strobe, ctr *uint64, ctrBuf, dst, left, right []byte)
 	binary.LittleEndian.PutUint64(ctrBuf, *ctr)
 
 	// Hash the counter.
-	protocols.Must(s.AD(ctrBuf, &strobe.Options{}))
+	internal.Must(s.AD(ctrBuf, &strobe.Options{}))
 
 	// Hash the left block.
-	protocols.Must(s.AD(left, &strobe.Options{}))
+	internal.Must(s.AD(left, &strobe.Options{}))
 
 	// Hash the right block.
-	protocols.Must(s.AD(right, &strobe.Options{}))
+	internal.Must(s.AD(right, &strobe.Options{}))
 
 	// Extract a new block.
-	protocols.Must(s.PRF(dst, false))
+	internal.Must(s.PRF(dst, false))
 }
 
 const (

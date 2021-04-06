@@ -36,8 +36,7 @@ Veil includes STROBE protocols for the following capabilities:
 * `veil.skid`: safe identifiers for Veil secret keys
 
 Full details and documentation can be found in the 
-[`pkg/veil/internal/protocols`](https://github.com/codahale/veil/tree/main/pkg/veil/internal/protocols)
-directory.
+[`pkg/veil/internal`](https://github.com/codahale/veil/tree/main/pkg/veil/internal) directory.
 
 ### Child Key Derivation
 

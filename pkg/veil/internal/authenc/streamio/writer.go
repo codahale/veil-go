@@ -3,7 +3,7 @@ package streamio
 import (
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
+	"github.com/codahale/veil/pkg/veil/internal/authenc"
 )
 
 // NewWriter returns an io.Writer which groups writes into blocks, encrypts them with the

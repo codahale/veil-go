@@ -21,7 +21,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
@@ -34,7 +34,7 @@ func Read(b []byte) (int, error) {
 
 //nolint:gochecknoglobals // need a singleton
 // Reader is a global, shared instance of a cryptographically secure random number generator.
-var Reader io.Reader = &reader{rng: protocols.New("veil.rng")}
+var Reader io.Reader = &reader{rng: internal.Strobe("veil.rng")}
 
 type reader struct {
 	rng    *strobe.Strobe
@@ -44,7 +44,7 @@ type reader struct {
 func (r *reader) Read(p []byte) (n int, err error) {
 	// Include length of PRF request as associated data.
 	binary.LittleEndian.PutUint64(r.lenBuf[:], uint64(len(p)))
-	protocols.Must(r.rng.AD(r.lenBuf[:], &strobe.Options{Meta: true}))
+	internal.Must(r.rng.AD(r.lenBuf[:], &strobe.Options{Meta: true}))
 
 	// Read a new block of data from the underlying RNG.
 	if _, err := rand.Read(p); err != nil {
@@ -52,13 +52,13 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	}
 
 	// Re-key the protocol with the block.
-	protocols.Must(r.rng.KEY(p, false))
+	internal.Must(r.rng.KEY(p, false))
 
 	// Return the results of the PRF.
-	protocols.Must(r.rng.PRF(p, false))
+	internal.Must(r.rng.PRF(p, false))
 
 	// Ratchet the state of the RNG to prevent rollback.
-	protocols.Must(r.rng.RATCHET(protocols.RatchetSize))
+	internal.Must(r.rng.RATCHET(internal.RatchetSize))
 
 	return len(p), nil
 }
@@ -66,7 +66,7 @@ func (r *reader) Read(p []byte) (n int, err error) {
 // NewEphemeralKeys returns a new, random private key, unassociated with any secret key, and its
 // corresponding public key.
 func NewEphemeralKeys() (*ristretto255.Scalar, *ristretto255.Element, error) {
-	var r [protocols.UniformBytestringSize]byte
+	var r [internal.UniformBytestringSize]byte
 	if _, err := Read(r[:]); err != nil {
 		return nil, nil, err
 	}

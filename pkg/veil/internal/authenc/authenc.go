@@ -2,7 +2,7 @@
 package authenc
 
 import (
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/sammyne/strobe"
 )
 
@@ -17,13 +17,13 @@ const (
 
 func newAE(protocol string, key []byte, tagSize int) *strobe.Strobe {
 	// Create a new protocol.
-	ae := protocols.New(protocol)
+	ae := internal.Strobe(protocol)
 
 	// Add the tag size to the protocol.
-	protocols.Must(ae.AD(protocols.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
+	internal.Must(ae.AD(internal.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
 
 	// Initialize the protocol with the key.
-	protocols.Must(ae.KEY(protocols.Copy(key), false))
+	internal.Must(ae.KEY(internal.Copy(key), false))
 
 	return ae
 }

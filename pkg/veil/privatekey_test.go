@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
+	"github.com/codahale/veil/pkg/veil/internal/rng"
 )
 
 func TestPrivateKey_Derive(t *testing.T) {

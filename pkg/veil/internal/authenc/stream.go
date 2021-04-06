@@ -1,7 +1,7 @@
 package authenc
 
 import (
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/sammyne/strobe"
 )
 
@@ -43,7 +43,7 @@ func NewStreamEncrypter(key, encryptedHeaders []byte, blockSize, tagSize int) *S
 	stream := initStream(key, blockSize, tagSize)
 
 	// Witness the encrypted headers.
-	protocols.Must(stream.SendCLR(encryptedHeaders, &strobe.Options{}))
+	internal.Must(stream.SendCLR(encryptedHeaders, &strobe.Options{}))
 
 	return &StreamEncrypter{
 		stream: stream,
@@ -64,13 +64,13 @@ func (s *StreamEncrypter) Encrypt(block []byte, final bool) []byte {
 	copy(s.b, block)
 
 	// Encrypt it in place.
-	protocols.MustENC(s.stream.SendENC(s.b[:len(block)], &strobe.Options{}))
+	internal.MustENC(s.stream.SendENC(s.b[:len(block)], &strobe.Options{}))
 
 	// Create a MAC.
-	protocols.Must(s.stream.SendMAC(s.tag, &strobe.Options{}))
+	internal.Must(s.stream.SendMAC(s.tag, &strobe.Options{}))
 
 	// Ratchet the stream.
-	protocols.Must(s.stream.RATCHET(protocols.RatchetSize))
+	internal.Must(s.stream.RATCHET(internal.RatchetSize))
 
 	// Return the ciphertext and tag.
 	return append(s.b[:len(block)], s.tag...)
@@ -116,7 +116,7 @@ func NewStreamDecrypter(key, encryptedHeaders []byte, blockSize, tagSize int) *S
 	stream := initStream(key, blockSize, tagSize)
 
 	// Witness the encrypted headers.
-	protocols.Must(stream.RecvCLR(encryptedHeaders, &strobe.Options{}))
+	internal.Must(stream.RecvCLR(encryptedHeaders, &strobe.Options{}))
 
 	return &StreamDecrypter{
 		stream: stream,
@@ -141,7 +141,7 @@ func (s *StreamDecrypter) Decrypt(block []byte, final bool) ([]byte, error) {
 	copy(s.b, block[:n])
 
 	// Decrypt it in place.
-	protocols.MustENC(s.stream.RecvENC(s.b[:n], &strobe.Options{}))
+	internal.MustENC(s.stream.RecvENC(s.b[:n], &strobe.Options{}))
 
 	// Check the MAC.
 	if err := s.stream.RecvMAC(s.tag, &strobe.Options{}); err != nil {
@@ -149,7 +149,7 @@ func (s *StreamDecrypter) Decrypt(block []byte, final bool) ([]byte, error) {
 	}
 
 	// Ratchet the stream.
-	protocols.Must(s.stream.RATCHET(protocols.RatchetSize))
+	internal.Must(s.stream.RATCHET(internal.RatchetSize))
 
 	// Make a copy of the plaintext and return it.
 	plaintext := make([]byte, n)
@@ -160,22 +160,22 @@ func (s *StreamDecrypter) Decrypt(block []byte, final bool) ([]byte, error) {
 
 func initStream(key []byte, blockSize, tagSize int) *strobe.Strobe {
 	// Initialize a new AEAD stream protocol.
-	stream := protocols.New("veil.authenc.stream")
+	stream := internal.Strobe("veil.authenc.stream")
 
 	// Add the block size to the protocol.
-	protocols.Must(stream.AD(protocols.LittleEndianU32(blockSize), &strobe.Options{Meta: true}))
+	internal.Must(stream.AD(internal.LittleEndianU32(blockSize), &strobe.Options{Meta: true}))
 
 	// Add the tag size to the protocol.
-	protocols.Must(stream.AD(protocols.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
+	internal.Must(stream.AD(internal.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
 
 	// Initialize the protocol with the given key.
-	protocols.Must(stream.KEY(protocols.Copy(key), false))
+	internal.Must(stream.KEY(internal.Copy(key), false))
 
 	return stream
 }
 
 func finalizeStream(stream *strobe.Strobe) {
-	protocols.Must(stream.AD([]byte(finalizationTag), &strobe.Options{Meta: true}))
+	internal.Must(stream.AD([]byte(finalizationTag), &strobe.Options{Meta: true}))
 }
 
 const (

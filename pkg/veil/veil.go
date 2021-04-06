@@ -18,7 +18,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
+	"github.com/codahale/veil/pkg/veil/internal/rng"
 )
 
 var (

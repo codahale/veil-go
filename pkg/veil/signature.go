@@ -4,7 +4,7 @@ import (
 	"encoding"
 	"fmt"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
+	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 )
 
 // Signature is a digital signature of a message, created by the holder of a secret key, which can

@@ -9,20 +9,20 @@
 package skid
 
 import (
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/sammyne/strobe"
 )
 
 // ID returns a safe identifier for the secret key which is n bytes long.
-func ID(secretKey *[protocols.UniformBytestringSize]byte, n int) []byte {
-	skid := protocols.New("veil.skid")
+func ID(secretKey *[internal.UniformBytestringSize]byte, n int) []byte {
+	skid := internal.Strobe("veil.skid")
 
-	protocols.Must(skid.AD(protocols.LittleEndianU32(n), &strobe.Options{Meta: true}))
+	internal.Must(skid.AD(internal.LittleEndianU32(n), &strobe.Options{Meta: true}))
 
-	protocols.Must(skid.KEY(protocols.Copy(secretKey[:]), false))
+	internal.Must(skid.KEY(internal.Copy(secretKey[:]), false))
 
 	id := make([]byte, n)
-	protocols.Must(skid.PRF(id, false))
+	internal.Must(skid.PRF(id, false))
 
 	return id
 }

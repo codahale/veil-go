@@ -1,7 +1,7 @@
 package authenc
 
 import (
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/sammyne/strobe"
 )
 
@@ -26,11 +26,11 @@ func EncryptSecretKey(key, secretKey []byte, tagSize int) []byte {
 	copy(ciphertext, secretKey)
 
 	// Encrypt it in place.
-	protocols.MustENC(ae.SendENC(ciphertext, &strobe.Options{}))
+	internal.MustENC(ae.SendENC(ciphertext, &strobe.Options{}))
 
 	// Create a MAC.
 	tag := make([]byte, tagSize)
-	protocols.Must(ae.SendMAC(tag, &strobe.Options{}))
+	internal.Must(ae.SendMAC(tag, &strobe.Options{}))
 
 	// Return the ciphertext and tag.
 	return append(ciphertext, tag...)
@@ -61,7 +61,7 @@ func DecryptSecretKey(key, encSecretKey []byte, tagSize int) ([]byte, error) {
 	copy(tag, encSecretKey[len(encSecretKey)-tagSize:])
 
 	// Decrypt it in place.
-	protocols.MustENC(ae.RecvENC(plaintext, &strobe.Options{}))
+	internal.MustENC(ae.RecvENC(plaintext, &strobe.Options{}))
 
 	// Verify the MAC.
 	if err := ae.RecvMAC(tag, &strobe.Options{}); err != nil {

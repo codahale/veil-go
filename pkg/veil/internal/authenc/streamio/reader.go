@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
+	"github.com/codahale/veil/pkg/veil/internal/authenc"
 )
 
 // NewReader returns an io.Reader which reads encrypted blocks from src and decrypts them using the

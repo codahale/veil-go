@@ -3,8 +3,8 @@ package veil
 import (
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
+	"github.com/codahale/veil/pkg/veil/internal/scaldf"
+	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/gtank/ristretto255"
 )
 

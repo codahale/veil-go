@@ -6,19 +6,19 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
-	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
+	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/codahale/veil/pkg/veil/internal/rng"
 	"github.com/gtank/ristretto255"
 )
 
 func TestDeriveKey(t *testing.T) {
 	t.Parallel()
 
-	zzE := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x04}, protocols.UniformBytestringSize))
-	zzS := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x49}, protocols.UniformBytestringSize))
-	pubE := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x88}, protocols.UniformBytestringSize))
-	pubR := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0xf1}, protocols.UniformBytestringSize))
-	pubS := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0xd5}, protocols.UniformBytestringSize))
+	zzE := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x04}, internal.UniformBytestringSize))
+	zzS := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x49}, internal.UniformBytestringSize))
+	pubE := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x88}, internal.UniformBytestringSize))
+	pubR := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0xf1}, internal.UniformBytestringSize))
+	pubS := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0xd5}, internal.UniformBytestringSize))
 
 	t.Run("header key", func(t *testing.T) {
 		t.Parallel()

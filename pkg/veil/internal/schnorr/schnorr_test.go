@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocols"
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/gtank/ristretto255"
 )
 
@@ -13,7 +13,7 @@ func TestSignAndVerify(t *testing.T) {
 	t.Parallel()
 
 	// Create a fake private key.
-	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, protocols.UniformBytestringSize))
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 
 	// Calculate the public key.
 	q := ristretto255.NewElement().ScalarBaseMult(d)
@@ -40,13 +40,13 @@ func TestSignAndVerify_BadKey(t *testing.T) {
 	t.Parallel()
 
 	// Create a fake private key.
-	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, protocols.UniformBytestringSize))
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 
 	// Calculate the public key.
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
 	// Create a fake public key.
-	qP := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0xf2}, protocols.UniformBytestringSize))
+	qP := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 
 	// Write a message through a signer.
 	signer := NewSigner(io.Discard)
@@ -70,7 +70,7 @@ func TestSignAndVerify_BadMessage(t *testing.T) {
 	t.Parallel()
 
 	// Create a fake private key.
-	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, protocols.UniformBytestringSize))
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 
 	// Calculate the public key.
 	q := ristretto255.NewElement().ScalarBaseMult(d)
@@ -97,7 +97,7 @@ func TestSignAndVerify_BadSig(t *testing.T) {
 	t.Parallel()
 
 	// Create a fake private key.
-	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, protocols.UniformBytestringSize))
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 
 	// Calculate the public key.
 	q := ristretto255.NewElement().ScalarBaseMult(d)
@@ -127,7 +127,7 @@ func TestSignAndVerify_BadSig(t *testing.T) {
 }
 
 func BenchmarkSigner(b *testing.B) {
-	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, protocols.UniformBytestringSize))
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
 	b.ResetTimer()
@@ -144,7 +144,7 @@ func BenchmarkSigner(b *testing.B) {
 }
 
 func BenchmarkVerifier(b *testing.B) {
-	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, protocols.UniformBytestringSize))
+	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
 	signer := NewSigner(io.Discard)
