@@ -1,6 +1,7 @@
 package scaldf
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
@@ -11,10 +12,8 @@ import (
 func TestDerivation(t *testing.T) {
 	t.Parallel()
 
-	d0, q0, err := internal.NewEphemeralKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
+	d0 := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0x89}, internal.UniformBytestringSize))
+	q0 := ristretto255.NewElement().ScalarBaseMult(d0)
 
 	// Derive the scalar and element in parallel.
 	d1 := DeriveScalar(d0, "one")

@@ -1,10 +1,12 @@
 package authenc
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
 	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/gtank/ristretto255"
 )
 
 func TestHeaderRoundTrip(t *testing.T) {
@@ -12,12 +14,6 @@ func TestHeaderRoundTrip(t *testing.T) {
 
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
-
-	_, pubEH, err := internal.NewEphemeralKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	ciphertext := EncryptHeader(key, pubEH, plaintext, 16)
 
 	decrypted, err := DecryptHeader(key, pubEH, ciphertext, 16)
@@ -33,12 +29,6 @@ func TestHeaderKeyMismatch(t *testing.T) {
 
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
-
-	_, pubEH, err := internal.NewEphemeralKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	ciphertext := EncryptHeader(key, pubEH, plaintext, 16)
 
 	if _, err := DecryptHeader([]byte("ok well no then"), pubEH, ciphertext, 16); err == nil {
@@ -51,19 +41,9 @@ func TestHeaderPubKeyMismatch(t *testing.T) {
 
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
-
-	_, pubEH, err := internal.NewEphemeralKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, pubEH2, err := internal.NewEphemeralKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	ciphertext := EncryptHeader(key, pubEH, plaintext, 16)
 
+	pubEH2 := ristretto255.NewElement().Add(pubEH, pubEH)
 	if _, err := DecryptHeader(key, pubEH2, ciphertext, 16); err == nil {
 		t.Fatal("should not have decrypted")
 	}
@@ -74,11 +54,6 @@ func TestHeaderCiphertextModification(t *testing.T) {
 
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
-
-	_, pubEH, err := internal.NewEphemeralKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	ciphertext := EncryptHeader(key, pubEH, plaintext, 16)
 	ciphertext[0] ^= 1
@@ -93,12 +68,6 @@ func TestHeaderTagModification(t *testing.T) {
 
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
-
-	_, pubEH, err := internal.NewEphemeralKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	ciphertext := EncryptHeader(key, pubEH, plaintext, 16)
 
 	ciphertext[len(ciphertext)-1] ^= 1
@@ -112,11 +81,6 @@ func BenchmarkEncryptHeader(b *testing.B) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := internal.NewEphemeralKeys()
-	if err != nil {
-		b.Fatal(err)
-	}
-
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
@@ -127,12 +91,6 @@ func BenchmarkEncryptHeader(b *testing.B) {
 func BenchmarkDecryptHeader(b *testing.B) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
-
-	_, pubEH, err := internal.NewEphemeralKeys()
-	if err != nil {
-		b.Fatal(err)
-	}
-
 	ciphertext := EncryptHeader(key, pubEH, plaintext, 16)
 
 	b.ResetTimer()
@@ -141,3 +99,6 @@ func BenchmarkDecryptHeader(b *testing.B) {
 		_, _ = DecryptHeader(key, pubEH, ciphertext, 16)
 	}
 }
+
+//nolint:gochecknoglobals // test setup
+var pubEH = ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x12}, internal.UniformBytestringSize))
