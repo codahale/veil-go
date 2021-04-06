@@ -63,6 +63,7 @@ func BenchmarkReceive(b *testing.B) {
 	}
 }
 
+//nolint:gochecknoglobals // test values
 var (
 	privA = ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0x20}, internal.UniformBytestringSize))
 	pubA  = ristretto255.NewElement().ScalarBaseMult(privA)
