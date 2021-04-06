@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"github.com/codahale/veil/pkg/veil/internal/rng"
+	"github.com/codahale/veil/pkg/veil/internal"
 )
 
 func TestHeaderRoundTrip(t *testing.T) {
@@ -13,7 +13,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := rng.NewEphemeralKeys()
+	_, pubEH, err := internal.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestHeaderKeyMismatch(t *testing.T) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := rng.NewEphemeralKeys()
+	_, pubEH, err := internal.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,12 +52,12 @@ func TestHeaderPubKeyMismatch(t *testing.T) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := rng.NewEphemeralKeys()
+	_, pubEH, err := internal.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, pubEH2, err := rng.NewEphemeralKeys()
+	_, pubEH2, err := internal.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestHeaderCiphertextModification(t *testing.T) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := rng.NewEphemeralKeys()
+	_, pubEH, err := internal.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestHeaderTagModification(t *testing.T) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := rng.NewEphemeralKeys()
+	_, pubEH, err := internal.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func BenchmarkEncryptHeader(b *testing.B) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := rng.NewEphemeralKeys()
+	_, pubEH, err := internal.NewEphemeralKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func BenchmarkDecryptHeader(b *testing.B) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	_, pubEH, err := rng.NewEphemeralKeys()
+	_, pubEH, err := internal.NewEphemeralKeys()
 	if err != nil {
 		b.Fatal(err)
 	}

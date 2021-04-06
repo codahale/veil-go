@@ -4,14 +4,14 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"github.com/codahale/veil/pkg/veil/internal/rng"
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/gtank/ristretto255"
 )
 
 func TestDerivation(t *testing.T) {
 	t.Parallel()
 
-	d0, q0, err := rng.NewEphemeralKeys()
+	d0, q0, err := internal.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}

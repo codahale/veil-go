@@ -45,7 +45,6 @@ package kemkdf
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/rng"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
@@ -57,7 +56,7 @@ func Send(
 	privS *ristretto255.Scalar, pubS, pubR *ristretto255.Element, n int, header bool,
 ) (*ristretto255.Element, []byte, error) {
 	// Generate an ephemeral key pair.
-	privE, pubE, err := rng.NewEphemeralKeys()
+	privE, pubE, err := internal.NewEphemeralKeys()
 	if err != nil {
 		return nil, nil, err
 	}

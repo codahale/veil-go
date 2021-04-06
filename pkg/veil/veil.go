@@ -16,7 +16,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/codahale/veil/pkg/veil/internal/rng"
+	"github.com/codahale/veil/pkg/veil/internal"
 )
 
 var (
@@ -38,7 +38,7 @@ func AddFakes(keys []*PublicKey, n int) ([]*PublicKey, error) {
 
 	// Add n randomly generated keys to the end.
 	for i := 0; i < n; i++ {
-		_, q, err := rng.NewEphemeralKeys()
+		_, q, err := internal.NewEphemeralKeys()
 		if err != nil {
 			return nil, err
 		}
@@ -59,7 +59,7 @@ func AddFakes(keys []*PublicKey, n int) ([]*PublicKey, error) {
 func Shuffle(keys []*PublicKey) error {
 	for i := len(keys) - 1; i > 0; i-- {
 		// Randomly pick a card from the unshuffled deck.
-		j := rng.IntN(i + 1)
+		j := internal.IntN(i + 1)
 
 		// Swap it with the current card.
 		keys[i], keys[j] = keys[j], keys[i]

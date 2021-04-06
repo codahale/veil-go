@@ -1,11 +1,11 @@
 package veil
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/rng"
 	"github.com/codahale/veil/pkg/veil/internal/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/skid"
 	"github.com/gtank/ristretto255"
@@ -24,7 +24,7 @@ func NewSecretKey() (*SecretKey, error) {
 	var sk SecretKey
 
 	// Generate a random 64-byte key.
-	if _, err := rng.Read(sk.r[:]); err != nil {
+	if _, err := rand.Read(sk.r[:]); err != nil {
 		return nil, err
 	}
 

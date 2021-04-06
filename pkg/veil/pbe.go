@@ -2,12 +2,12 @@ package veil
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/balloonkdf"
-	"github.com/codahale/veil/pkg/veil/internal/rng"
 )
 
 // PBEParams contains the parameters of the passphrase-based KDF.
@@ -31,7 +31,7 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]by
 	}
 
 	// Generate a random salt.
-	if _, err := rng.Read(encSK.Salt[:]); err != nil {
+	if _, err := rand.Read(encSK.Salt[:]); err != nil {
 		return nil, err
 	}
 

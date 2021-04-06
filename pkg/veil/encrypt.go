@@ -2,6 +2,7 @@ package veil
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"io"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/authenc/streamio"
 	"github.com/codahale/veil/pkg/veil/internal/kemkdf"
-	"github.com/codahale/veil/pkg/veil/internal/rng"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/gtank/ristretto255"
 )
@@ -19,7 +19,7 @@ import (
 // error reported while encrypting, if any.
 func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
 	// Generate an ephemeral header key pair.
-	privEH, pubEH, err := rng.NewEphemeralKeys()
+	privEH, pubEH, err := internal.NewEphemeralKeys()
 	if err != nil {
 		return 0, err
 	}
@@ -116,7 +116,7 @@ func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, pad
 
 	// Add padding if any is required.
 	if padding > 0 {
-		if _, err := io.CopyN(buf, rng.Reader, int64(padding)); err != nil {
+		if _, err := io.CopyN(buf, rand.Reader, int64(padding)); err != nil {
 			return nil, err
 		}
 	}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/codahale/gubbins/assert"
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/rng"
 	"github.com/gtank/ristretto255"
 )
 
@@ -42,12 +41,12 @@ func TestDeriveKey(t *testing.T) {
 func TestExchange(t *testing.T) {
 	t.Parallel()
 
-	privA, pubA, err := rng.NewEphemeralKeys()
+	privA, pubA, err := internal.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	privB, pubB, err := rng.NewEphemeralKeys()
+	privB, pubB, err := internal.NewEphemeralKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,12 +62,12 @@ func TestExchange(t *testing.T) {
 }
 
 func BenchmarkSend(b *testing.B) {
-	privA, pubA, err := rng.NewEphemeralKeys()
+	privA, pubA, err := internal.NewEphemeralKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	_, pubB, err := rng.NewEphemeralKeys()
+	_, pubB, err := internal.NewEphemeralKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -81,12 +80,12 @@ func BenchmarkSend(b *testing.B) {
 }
 
 func BenchmarkReceive(b *testing.B) {
-	privA, pubA, err := rng.NewEphemeralKeys()
+	privA, pubA, err := internal.NewEphemeralKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	privB, pubB, err := rng.NewEphemeralKeys()
+	privB, pubB, err := internal.NewEphemeralKeys()
 	if err != nil {
 		b.Fatal(err)
 	}

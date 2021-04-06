@@ -4,8 +4,11 @@
 package internal
 
 import (
+	"crypto/rand"
 	"encoding/binary"
+	"math/big"
 
+	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
 
@@ -64,4 +67,27 @@ func Copy(b []byte) []byte {
 	copy(c, b)
 
 	return c
+}
+
+// IntN returns a cryptographically random integer selected uniformly from [0,max).
+func IntN(max int) int {
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+	if err != nil {
+		panic(err)
+	}
+
+	return int(n.Int64())
+}
+
+// NewEphemeralKeys returns a new, random private key, unassociated with any secret key, and its
+// corresponding public key.
+func NewEphemeralKeys() (*ristretto255.Scalar, *ristretto255.Element, error) {
+	var r [UniformBytestringSize]byte
+	if _, err := rand.Read(r[:]); err != nil {
+		return nil, nil, err
+	}
+
+	d := ristretto255.NewScalar().FromUniformBytes(r[:])
+
+	return d, ristretto255.NewElement().ScalarBaseMult(d), nil
 }
