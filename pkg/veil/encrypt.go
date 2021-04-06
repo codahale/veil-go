@@ -56,11 +56,12 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	// data.
 	encryptor := streamio.NewWriter(dst, key, headers, streamio.BlockSize)
 
-	// Sign the plaintext before it's encrypted.
-	signer := schnorr.NewSigner(encryptor)
+	// Create a signer and add the encrypted headers to the signed data.
+	signer := schnorr.NewSigner()
+	_, _ = signer.Write(headers)
 
-	// Encrypt the plaintext as a stream.
-	bn, err := io.Copy(signer, src)
+	// Encrypt the plaintext as a stream, and add the plaintext to the signed data.
+	bn, err := io.Copy(io.MultiWriter(encryptor, signer), src)
 	if err != nil {
 		return bn + int64(n+an), err
 	}

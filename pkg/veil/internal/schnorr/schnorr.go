@@ -59,33 +59,27 @@ const (
 	SignatureSize = 64 // SignatureSize is the length of a signature in bytes.
 )
 
-// Signer is a pass-through io.Writer which adds written data to a STROBE protocol for signing.
+// Signer is an io.Writer which adds written data to a STROBE protocol for signing.
 type Signer struct {
 	schnorr *strobe.Strobe
-	dst     io.Writer
 }
 
-// NewSigner returns a Signer instance which passes writes through to dst.
-func NewSigner(dst io.Writer) *Signer {
+// NewSigner returns a Signer instance.
+func NewSigner() *Signer {
 	// Initialize a new protocol.
 	schnorr := internal.Strobe("veil.schnorr")
 
 	// Prep it for streaming cleartext.
 	internal.Must(schnorr.SendCLR(nil, &strobe.Options{}))
 
-	return &Signer{schnorr: schnorr, dst: dst}
+	return &Signer{schnorr: schnorr}
 }
 
 func (sn *Signer) Write(p []byte) (n int, err error) {
-	n, err = sn.dst.Write(p)
-	if err != nil {
-		return
-	}
-
 	// Transmit the written data to the protocol.
-	internal.Must(sn.schnorr.SendCLR(p[:n], &strobe.Options{Streaming: true}))
+	internal.Must(sn.schnorr.SendCLR(p, &strobe.Options{Streaming: true}))
 
-	return
+	return len(p), nil
 }
 
 // Sign uses the given key pair to construct a deterministic Schnorr signature of the previously
@@ -147,32 +141,27 @@ func (sn *Signer) deriveNonce(d *ristretto255.Scalar) *ristretto255.Scalar {
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }
 
-// Verifier is a pass-through io.Reader which adds read data to a STROBE protocol for verification.
+// Verifier is an io.Writer which adds written data to a STROBE protocol for verification.
 type Verifier struct {
 	schnorr *strobe.Strobe
-	src     io.Reader
 }
 
-// NewVerifier returns a Verifier instance which passes reads through to src.
-func NewVerifier(src io.Reader) *Verifier {
+// NewVerifier returns a Verifier instance.
+func NewVerifier() *Verifier {
 	// Initialize a new protocol.
 	schnorr := internal.Strobe("veil.schnorr")
 
 	// Prep it for streaming cleartext.
 	internal.Must(schnorr.RecvCLR(nil, &strobe.Options{}))
 
-	return &Verifier{schnorr: schnorr, src: src}
+	return &Verifier{schnorr: schnorr}
 }
 
-func (vr *Verifier) Read(p []byte) (n int, err error) {
-	n, err = vr.src.Read(p)
-	if err != nil {
-		return
-	}
+func (vr *Verifier) Write(p []byte) (n int, err error) {
+	// Transmit the written data to the protocol.
+	internal.Must(vr.schnorr.RecvCLR(p, &strobe.Options{Streaming: true}))
 
-	internal.Must(vr.schnorr.RecvCLR(p[:n], &strobe.Options{Streaming: true}))
-
-	return
+	return len(p), nil
 }
 
 // Verify uses the given public key to verify the signature of the previously read data.
@@ -228,5 +217,5 @@ func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
 
 var (
 	_ io.Writer = &Signer{}
-	_ io.Reader = &Verifier{}
+	_ io.Writer = &Verifier{}
 )

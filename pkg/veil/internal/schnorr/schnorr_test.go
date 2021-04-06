@@ -18,15 +18,15 @@ func TestSignAndVerify(t *testing.T) {
 	// Calculate the public key.
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
-	// Write a message through a signer.
-	signer := NewSigner(io.Discard)
+	// Write a message to a signer.
+	signer := NewSigner()
 	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
-	// Read a message through a verifier.
-	verifier := NewVerifier(bytes.NewBufferString("this is great"))
-	if _, err := io.Copy(io.Discard, verifier); err != nil {
+	// Write a message to a verifier.
+	verifier := NewVerifier()
+	if _, err := io.Copy(verifier, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -48,15 +48,15 @@ func TestSignAndVerify_BadKey(t *testing.T) {
 	// Create a fake public key.
 	qP := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 
-	// Write a message through a signer.
-	signer := NewSigner(io.Discard)
+	// Write a message to a signer.
+	signer := NewSigner()
 	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
-	// Read a message through a verifier.
-	verifier := NewVerifier(bytes.NewBufferString("this is great"))
-	if _, err := io.Copy(io.Discard, verifier); err != nil {
+	// Write a message to a verifier.
+	verifier := NewVerifier()
+	if _, err := io.Copy(verifier, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -75,15 +75,15 @@ func TestSignAndVerify_BadMessage(t *testing.T) {
 	// Calculate the public key.
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
-	// Write a message through a signer.
-	signer := NewSigner(io.Discard)
+	// Write a message to a signer.
+	signer := NewSigner()
 	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
-	// Read a different message through a verifier.
-	verifier := NewVerifier(bytes.NewBufferString("this is not great"))
-	if _, err := io.Copy(io.Discard, verifier); err != nil {
+	// Write a different message to a verifier.
+	verifier := NewVerifier()
+	if _, err := io.Copy(verifier, bytes.NewBufferString("this is not great")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -102,8 +102,8 @@ func TestSignAndVerify_BadSig(t *testing.T) {
 	// Calculate the public key.
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
-	// Write a message through a signer.
-	signer := NewSigner(io.Discard)
+	// Write a message to a signer.
+	signer := NewSigner()
 	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
@@ -114,9 +114,9 @@ func TestSignAndVerify_BadSig(t *testing.T) {
 	// Modify the signature.
 	sig[0] ^= 1
 
-	// Read a message through a verifier.
-	verifier := NewVerifier(bytes.NewBufferString("this is great"))
-	if _, err := io.Copy(io.Discard, verifier); err != nil {
+	// Write a message to a verifier.
+	verifier := NewVerifier()
+	if _, err := io.Copy(verifier, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -133,7 +133,7 @@ func BenchmarkSigner(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		signer := NewSigner(io.Discard)
+		signer := NewSigner()
 
 		if _, err := io.CopyN(signer, &fakeReader{}, 1024*1024); err != nil {
 			b.Fatal(err)
@@ -147,7 +147,7 @@ func BenchmarkVerifier(b *testing.B) {
 	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
-	signer := NewSigner(io.Discard)
+	signer := NewSigner()
 
 	if _, err := io.CopyN(signer, &fakeReader{}, 1024*1024); err != nil {
 		b.Fatal(err)
@@ -158,8 +158,8 @@ func BenchmarkVerifier(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		verifier := NewVerifier(&fakeReader{})
-		if _, err := io.CopyN(io.Discard, verifier, 1024*1024); err != nil {
+		verifier := NewVerifier()
+		if _, err := io.CopyN(verifier, &fakeReader{}, 1024*1024); err != nil {
 			b.Fatal(err)
 		}
 

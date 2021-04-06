@@ -60,7 +60,8 @@ recipient, the sender encrypts a copy of the header using `veil.kdf.kem.header` 
 `veil.authenc.header`. Finally, the sender adds optional random padding to the end of the encrypted
 headers.
 
-Second, the sender uses `veil.schnorr` to create a signature of the plaintext.
+Second, the sender uses `veil.schnorr` to create a signature of both the encrypted headers
+(including any padding) and the plaintext.
 
 Finally, the sender uses `veil.kdf.kem.message` and `veil.authenc.stream` to encrypt the message and
 the signature using the ephemeral header public key.
@@ -69,7 +70,7 @@ To decrypt a message, the recipient iterates through the message, searching for 
 using the shared secret between the ephemeral header public key and recipient's private key. When a
 header is successfully decrypted, the ephemeral header private key and the sender's public key is
 used to re-derive the shared secret, and the message is decrypted. The signature is verified against
-the plaintext, assuring authenticity.
+the encrypted headers and the plaintext, assuring authenticity.
 
 ### Passphrase-Based Encryption
 
