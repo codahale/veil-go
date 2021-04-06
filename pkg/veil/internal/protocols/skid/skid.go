@@ -10,12 +10,11 @@ package skid
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols"
-	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/sammyne/strobe"
 )
 
 // ID returns a safe identifier for the secret key which is n bytes long.
-func ID(secretKey *[r255.UniformBytestringSize]byte, n int) []byte {
+func ID(secretKey *[protocols.UniformBytestringSize]byte, n int) []byte {
 	skid := protocols.New("veil.skid")
 
 	protocols.Must(skid.AD(protocols.LittleEndianU32(n), &strobe.Options{Meta: true}))

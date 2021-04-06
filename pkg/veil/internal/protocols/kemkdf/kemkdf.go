@@ -29,7 +29,6 @@ package kemkdf
 import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
-	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
@@ -84,7 +83,7 @@ func Receive(
 // secret in bytes, and whether or not the key is for a header or a message.
 func deriveKey(zzE, zzS, pubE, pubR, pubS *ristretto255.Element, n int, header bool) []byte {
 	// Allocate a buffer for encoding ristretto255 elements.
-	b := make([]byte, r255.ElementSize)
+	b := make([]byte, protocols.ElementSize)
 
 	// Pick a protocol name.
 	proto := "veil.kem.kdf.message"

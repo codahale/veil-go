@@ -51,7 +51,6 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal/protocols"
-	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
@@ -93,7 +92,7 @@ func (sn *Signer) Write(p []byte) (n int, err error) {
 // written data.
 func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 	var (
-		buf [r255.UniformBytestringSize]byte
+		buf [protocols.UniformBytestringSize]byte
 		sig [SignatureSize]byte
 	)
 
@@ -121,7 +120,7 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 	s = ristretto255.NewScalar().Add(s, r)
 
 	// Encrypt the signature scalar.
-	sigB := s.Encode(sig[r255.ElementSize:r255.ElementSize])
+	sigB := s.Encode(sig[protocols.ElementSize:protocols.ElementSize])
 	protocols.MustENC(sn.schnorr.SendENC(sigB, &strobe.Options{}))
 
 	// Return the encoding of R and the ciphertext of s as the signature.
@@ -129,7 +128,7 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 }
 
 func (sn *Signer) deriveNonce(d *ristretto255.Scalar) *ristretto255.Scalar {
-	var buf [r255.UniformBytestringSize]byte
+	var buf [protocols.UniformBytestringSize]byte
 
 	// Clone the protocol context. This step requires knowledge of the signer's private key, so it
 	// can't be part of the verification process.
@@ -178,7 +177,7 @@ func (vr *Verifier) Read(p []byte) (n int, err error) {
 
 // Verify uses the given public key to verify the signature of the previously read data.
 func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
-	var buf [r255.UniformBytestringSize]byte
+	var buf [protocols.UniformBytestringSize]byte
 
 	// Check signature length.
 	if len(sig) != SignatureSize {
@@ -186,7 +185,7 @@ func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
 	}
 
 	// Split the signature.
-	sigA, sigB := sig[:r255.ElementSize], sig[r255.ElementSize:]
+	sigA, sigB := sig[:protocols.ElementSize], sig[protocols.ElementSize:]
 
 	// Decode the signature ephemeral.
 	R := ristretto255.NewElement()

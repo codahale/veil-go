@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/codahale/veil/pkg/veil/internal/protocols"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/balloonkdf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/rng"
-	"github.com/codahale/veil/pkg/veil/internal/r255"
 )
 
 // PBEParams contains the parameters of the passphrase-based KDF.
@@ -87,5 +87,5 @@ type encryptedSecretKey struct {
 
 const (
 	saltSize       = 32
-	ciphertextSize = r255.UniformBytestringSize + authenc.TagSize
+	ciphertextSize = protocols.UniformBytestringSize + authenc.TagSize
 )

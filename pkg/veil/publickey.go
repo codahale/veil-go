@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal/protocols"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr/sigio"
-	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/gtank/ristretto255"
 )
 
@@ -110,7 +110,7 @@ func (pk *PublicKey) MarshalText() (text []byte, err error) {
 // UnmarshalText decodes the results of MarshalText and updates the receiver to contain the decoded
 // public key.
 func (pk *PublicKey) UnmarshalText(text []byte) error {
-	data := make([]byte, r255.ElementSize)
+	data := make([]byte, protocols.ElementSize)
 
 	// Decode from base32.
 	_, err := asciiEncoding.Decode(data, text)

@@ -15,12 +15,11 @@ package scaldf
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal/protocols"
-	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/gtank/ristretto255"
 )
 
 // SecretScalar derives a secret scalar from the given bytestring.
-func SecretScalar(r *[r255.UniformBytestringSize]byte) *ristretto255.Scalar {
+func SecretScalar(r *[protocols.UniformBytestringSize]byte) *ristretto255.Scalar {
 	return scalarDF("veil.scaldf.secret", r[:])
 }
 
@@ -46,7 +45,7 @@ func DeriveScalar(d *ristretto255.Scalar, label string) *ristretto255.Scalar {
 }
 
 func scalarDF(proto string, l []byte) *ristretto255.Scalar {
-	var buf [r255.UniformBytestringSize]byte
+	var buf [protocols.UniformBytestringSize]byte
 
 	label := protocols.New(proto)
 

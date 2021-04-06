@@ -10,6 +10,13 @@ import (
 )
 
 const (
+	ElementSize = 32 // ElementSize is the length of an encoded ristretto255 element.
+	ScalarSize  = 32 // ScalarSize is the length of an encoded ristretto255 scalar.
+
+	// UniformBytestringSize is the length of a uniform bytestring which can be mapped to either a
+	// ristretto255 element or scalar.
+	UniformBytestringSize = 64
+
 	// RatchetSize determines the amount of state to reset during each ratchet.
 	//
 	//     Setting L = sec/8 bytes is sufficient when R ≥ sec/8. That is, set L to 16 bytes or 32

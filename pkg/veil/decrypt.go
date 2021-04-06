@@ -5,12 +5,12 @@ import (
 	"errors"
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal/protocols"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/authenc/streamio"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/kemkdf"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/protocols/schnorr/sigio"
-	"github.com/codahale/veil/pkg/veil/internal/r255"
 	"github.com/gtank/ristretto255"
 )
 
@@ -32,7 +32,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	pubEH := ristretto255.NewElement().ScalarBaseMult(privEH)
 
 	// Read the ephemeral message public key.
-	buf := make([]byte, r255.ElementSize)
+	buf := make([]byte, protocols.ElementSize)
 	if _, err := io.ReadFull(src, buf); err != nil {
 		return nil, 0, err
 	}
@@ -114,12 +114,12 @@ func (pk *PrivateKey) findHeader(
 func (pk *PrivateKey) decryptHeader(buf []byte, senders []*PublicKey) (*PublicKey, *ristretto255.Scalar, int) {
 	// Decode the possible public key.
 	pubEH := ristretto255.NewElement()
-	if err := pubEH.Decode(buf[:r255.ElementSize]); err != nil {
+	if err := pubEH.Decode(buf[:protocols.ElementSize]); err != nil {
 		return nil, nil, 0
 	}
 
 	// Extract the ciphertext.
-	ciphertext := buf[r255.ElementSize:]
+	ciphertext := buf[protocols.ElementSize:]
 
 	// Iterate through all possible senders.
 	for _, pubS := range senders {
@@ -136,11 +136,11 @@ func (pk *PrivateKey) decryptHeader(buf []byte, senders []*PublicKey) (*PublicKe
 		// If the header wss successfully decrypted, decode the ephemeral message private key and
 		// message offset.
 		privEM := ristretto255.NewScalar()
-		if err := privEM.Decode(header[:r255.ScalarSize]); err != nil {
+		if err := privEM.Decode(header[:protocols.ScalarSize]); err != nil {
 			continue
 		}
 
-		offset := binary.LittleEndian.Uint32(header[r255.ScalarSize:])
+		offset := binary.LittleEndian.Uint32(header[protocols.ScalarSize:])
 
 		// Return the sender's public key, the ephemeral private key, and the offset.
 		return pubS, privEM, int(offset)
