@@ -1,5 +1,15 @@
 // Package kemkdf provides the underlying STROBE protocol for Veil's KEM KDF function.
 //
+// Key encapsulation generates an ephemeral key pair, d_e and Q_e, and uses the sender's key pair,
+// d_s and Q_s, and the receiver's public key, Q_r, to calculate two Diffie-Hellman shared secret
+// elements, ZZ_e and ZZ_s:
+//
+//     ZZ_e = d_eQ_r
+//     ZZ_s = d_sQ_r
+//
+// The ephemeral element Q_e is sent in clear text, along with data encrypted symmetrically with a
+// derived key.
+//
 // Key derivation is as follows, given a protocol name P, an ephemeral shared secret element ZZ_e, a
 // static shared secret element ZZ_s, the ephemeral public key Q_e, the recipient's public key Q_r,
 // the sender's public key Q_s, and the size of the derived key N:
@@ -18,12 +28,19 @@
 // * `veil.kdf.kem.header`, used to encrypt message headers
 // * `veil.kdf.kem.message`, used to encrypt message bodies
 //
+// Key de-encapsulation receives the ephemeral element Q_e and a ciphertext and re-calculates the
+// shared secret elements, given the recipient's private key d_r and sender's public key Q_s:
+//
+//     ZZ_e = d_rQ_e
+//     ZZ_s = d_rQ_s
+//
+// The symmetric key is re-derived and the ciphertext is decrypted.
+//
 // As a One-Pass Unified Model `C(1e, 2s, ECC CDH)` key agreement scheme (per NIST SP 800-56A), this
 // KEM provides assurance that the message was encrypted by the holder of the sender's private key.
 // XDH mutability issues are mitigated by the inclusion of the ephemeral public key and the
-// recipient's public key in the HKDF inputs. Deriving the key and nonce from the ephemeral shared
-// secret eliminates the possibility of nonce misuse, results in a shorter ciphertext by eliding the
-// nonce, and adds key-commitment with all public keys as openers.
+// recipient's public key in the KDF inputs. Deriving the key from all data sent or received adds
+// key-commitment with all public keys as openers.
 package kemkdf
 
 import (
