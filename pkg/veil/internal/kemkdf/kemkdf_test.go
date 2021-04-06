@@ -41,16 +41,6 @@ func TestDeriveKey(t *testing.T) {
 func TestExchange(t *testing.T) {
 	t.Parallel()
 
-	privA, pubA, err := internal.NewEphemeralKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	privB, pubB, err := internal.NewEphemeralKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	pkW, secretA, err := Send(privA, pubA, pubB, 20, true)
 	if err != nil {
 		t.Fatal(err)
@@ -62,34 +52,12 @@ func TestExchange(t *testing.T) {
 }
 
 func BenchmarkSend(b *testing.B) {
-	privA, pubA, err := internal.NewEphemeralKeys()
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	_, pubB, err := internal.NewEphemeralKeys()
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	b.ResetTimer()
-
 	for i := 0; i < b.N; i++ {
 		_, _, _ = Send(privA, pubA, pubB, 20, false)
 	}
 }
 
 func BenchmarkReceive(b *testing.B) {
-	privA, pubA, err := internal.NewEphemeralKeys()
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	privB, pubB, err := internal.NewEphemeralKeys()
-	if err != nil {
-		b.Fatal(err)
-	}
-
 	pkW, _, err := Send(privA, pubA, pubB, 20, false)
 	if err != nil {
 		b.Fatal(err)
@@ -101,3 +69,11 @@ func BenchmarkReceive(b *testing.B) {
 		_ = Receive(privB, pubB, pubA, pkW, 20, false)
 	}
 }
+
+var (
+	privA = ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0x20}, internal.UniformBytestringSize))
+	pubA  = ristretto255.NewElement().ScalarBaseMult(privA)
+
+	privB = ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0x44}, internal.UniformBytestringSize))
+	pubB  = ristretto255.NewElement().ScalarBaseMult(privB)
+)
