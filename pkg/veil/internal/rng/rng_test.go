@@ -14,6 +14,15 @@ func TestReader_Read(t *testing.T) {
 	}
 }
 
+func TestIntN(t *testing.T) {
+	for i := 0; i < 10_000; i++ {
+		j := IntN(10_000)
+		if 0 > j || j >= 10_000 {
+			t.Fatalf("%d is outside [0,10_000)", j)
+		}
+	}
+}
+
 func BenchmarkRead(b *testing.B) {
 	buf := make([]byte, 1024*1024)
 

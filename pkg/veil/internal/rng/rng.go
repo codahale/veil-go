@@ -20,11 +20,22 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"io"
+	"math/big"
 
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
+
+// IntN returns a cryptographically random integer selected uniformly from [0,max).
+func IntN(max int) int {
+	n, err := rand.Int(Reader, big.NewInt(int64(max)))
+	if err != nil {
+		panic(err)
+	}
+
+	return int(n.Int64())
+}
 
 // Read is a helper function that calls Reader.Read using io.ReadFull. On return, n == len(b) if and
 // only if err == nil.

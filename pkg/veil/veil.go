@@ -12,10 +12,8 @@
 package veil
 
 import (
-	"crypto/rand"
 	"encoding/base32"
 	"errors"
-	"math/big"
 	"strings"
 
 	"github.com/codahale/veil/pkg/veil/internal/rng"
@@ -61,13 +59,7 @@ func AddFakes(keys []*PublicKey, n int) ([]*PublicKey, error) {
 func Shuffle(keys []*PublicKey) error {
 	for i := len(keys) - 1; i > 0; i-- {
 		// Randomly pick a card from the unshuffled deck.
-		b, err := rand.Int(rng.Reader, big.NewInt(int64(i+1)))
-		if err != nil {
-			return err
-		}
-
-		// Convert to a platform int.
-		j := int(b.Int64())
+		j := rng.IntN(i + 1)
 
 		// Swap it with the current card.
 		keys[i], keys[j] = keys[j], keys[i]
