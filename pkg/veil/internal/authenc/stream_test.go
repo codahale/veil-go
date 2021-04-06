@@ -34,6 +34,22 @@ func TestStreamRoundTrip(t *testing.T) {
 	assert.Equal(t, "block 2", b2, p2)
 }
 
+func TestStreamFinalizationMismatch(t *testing.T) {
+	t.Parallel()
+
+	key := []byte("this is some stuff")
+	ad := []byte("ok then")
+	b1 := []byte("woot")
+
+	enc := NewStreamSealer(key, ad, 4, 16)
+	c1 := enc.Seal(b1, true)
+
+	dec := NewStreamOpener(key, ad, 4, 16)
+	if _, err := dec.Open(c1, false); err == nil {
+		t.Fatal("should not have decrypted")
+	}
+}
+
 func TestStreamKeyMismatch(t *testing.T) {
 	t.Parallel()
 
