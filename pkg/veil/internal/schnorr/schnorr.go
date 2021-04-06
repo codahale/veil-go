@@ -97,10 +97,10 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 	R := ristretto255.NewElement().ScalarBaseMult(r)
 	sigA := R.Encode(sig[:0])
 
-	// Transmit the signer's public key.
+	// Send the signer's public key.
 	internal.Must(sn.schnorr.SendCLR(q.Encode(nil), &strobe.Options{}))
 
-	// Transmit the signature ephemeral.
+	// Send the signature ephemeral.
 	internal.Must(sn.schnorr.SendCLR(sigA, &strobe.Options{}))
 
 	// Derive a challenge value.

@@ -44,7 +44,7 @@ type StreamSealer struct {
 func NewStreamSealer(key, encryptedHeaders []byte, blockSize, tagSize int) *StreamSealer {
 	stream := initStream(key, blockSize, tagSize)
 
-	// Transmit the encrypted headers.
+	// Send the encrypted headers.
 	internal.Must(stream.SendCLR(encryptedHeaders, &strobe.Options{}))
 
 	return &StreamSealer{
@@ -117,7 +117,7 @@ type StreamOpener struct {
 func NewStreamOpener(key, encryptedHeaders []byte, blockSize, tagSize int) *StreamOpener {
 	stream := initStream(key, blockSize, tagSize)
 
-	// Witness the encrypted headers.
+	// Receive the encrypted headers.
 	internal.Must(stream.RecvCLR(encryptedHeaders, &strobe.Options{}))
 
 	return &StreamOpener{

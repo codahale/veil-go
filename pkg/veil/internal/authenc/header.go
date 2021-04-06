@@ -24,7 +24,7 @@ func EncryptHeader(key []byte, pubEH *ristretto255.Element, header []byte, tagSi
 	// Initialize a new protocol.
 	ae := newAE(headerProto, key, tagSize)
 
-	// Witness the ephemeral public key.
+	// Send the ephemeral public key.
 	internal.Must(ae.SendCLR(pubEH.Encode(nil), &strobe.Options{}))
 
 	// Copy the plaintext to a buffer.
@@ -59,7 +59,7 @@ func EncryptHeader(key []byte, pubEH *ristretto255.Element, header []byte, tagSi
 func DecryptHeader(key []byte, pubEH *ristretto255.Element, encHeader []byte, tagSize int) ([]byte, error) {
 	ae := newAE(headerProto, key, tagSize)
 
-	// Witness the ephemeral public key.
+	// Receive the ephemeral public key.
 	internal.Must(ae.RecvCLR(pubEH.Encode(nil), &strobe.Options{}))
 
 	// Copy the ciphertext to a buffer.
