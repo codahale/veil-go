@@ -19,19 +19,13 @@ import (
 // error reported while encrypting, if any.
 func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
 	// Generate an ephemeral header key pair.
-	privEH, pubEH, err := internal.NewEphemeralKeys()
-	if err != nil {
-		return 0, err
-	}
+	privEH, pubEH := internal.NewEphemeralKeys()
 
 	// Encode the ephemeral header private key and offset into a header.
 	header := pk.encodeHeader(privEH, len(recipients), padding)
 
-	// Encrypt copies of the header for each recipient.
-	headers, err := pk.encryptHeaders(header, recipients, padding)
-	if err != nil {
-		return 0, err
-	}
+	// Encrypt copies of the header for each recipient and add random padding.
+	headers := pk.encryptHeaders(header, recipients, padding)
 
 	// Write the encrypted headers.
 	n, err := dst.Write(headers)
@@ -41,10 +35,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 
 	// Generate an ephemeral message public key and shared secret between the sender and the
 	// ephemeral header public key.
-	pubEM, key, err := kemkdf.Send(pk.d, pk.q, pubEH, authenc.KeySize, false)
-	if err != nil {
-		return int64(n), err
-	}
+	pubEM, key := kemkdf.Send(pk.d, pk.q, pubEH, authenc.KeySize, false)
 
 	// Write the ephemeral message public key.
 	an, err := dst.Write(pubEM.Encode(nil))
@@ -94,17 +85,14 @@ func (pk *PrivateKey) encodeHeader(privEH *ristretto255.Scalar, recipients, padd
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
 // fake recipients.
-func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padding int) ([]byte, error) {
+func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padding int) []byte {
 	// Allocate a buffer for the entire header.
 	buf := bytes.NewBuffer(make([]byte, 0, len(header)*len(publicKeys)))
 
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
 		// Generate a header ephemeral key and shared key for the recipient.
-		pubEH, key, err := kemkdf.Send(pk.d, pk.q, pkR.q, authenc.KeySize, true)
-		if err != nil {
-			return nil, err
-		}
+		pubEH, key := kemkdf.Send(pk.d, pk.q, pkR.q, authenc.KeySize, true)
 
 		// Encrypt the header for the recipient.
 		b := authenc.EncryptHeader(key, pubEH, header, authenc.TagSize)
@@ -117,11 +105,11 @@ func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, pad
 	// Add padding if any is required.
 	if padding > 0 {
 		if _, err := io.CopyN(buf, rand.Reader, int64(padding)); err != nil {
-			return nil, err
+			panic(err)
 		}
 	}
 
-	return buf.Bytes(), nil
+	return buf.Bytes()
 }
 
 const (

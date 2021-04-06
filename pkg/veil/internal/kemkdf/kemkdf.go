@@ -54,12 +54,9 @@ import (
 // or not this is a header key.
 func Send(
 	privS *ristretto255.Scalar, pubS, pubR *ristretto255.Element, n int, header bool,
-) (*ristretto255.Element, []byte, error) {
+) (*ristretto255.Element, []byte) {
 	// Generate an ephemeral key pair.
-	privE, pubE, err := internal.NewEphemeralKeys()
-	if err != nil {
-		return nil, nil, err
-	}
+	privE, pubE := internal.NewEphemeralKeys()
 
 	// Calculate the ephemeral shared secret between the ephemeral private key and the recipient's
 	// public key.
@@ -73,7 +70,7 @@ func Send(
 	secret := deriveKey(zzE, zzS, pubE, pubR, pubS, n, header)
 
 	// Return the ephemeral public key and the shared secret.
-	return pubE, secret, nil
+	return pubE, secret
 }
 
 // Receive generates a shared secret given the recipient's private key, the recipient's public key,

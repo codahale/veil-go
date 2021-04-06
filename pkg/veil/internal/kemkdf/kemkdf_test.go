@@ -41,11 +41,7 @@ func TestDeriveKey(t *testing.T) {
 func TestExchange(t *testing.T) {
 	t.Parallel()
 
-	pkW, secretA, err := Send(privA, pubA, pubB, 20, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	pkW, secretA := Send(privA, pubA, pubB, 20, true)
 	secretB := Receive(privB, pubB, pubA, pkW, 20, true)
 
 	assert.Equal(t, "derived secrets", secretA, secretB)
@@ -53,15 +49,12 @@ func TestExchange(t *testing.T) {
 
 func BenchmarkSend(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _, _ = Send(privA, pubA, pubB, 20, false)
+		_, _ = Send(privA, pubA, pubB, 20, false)
 	}
 }
 
 func BenchmarkReceive(b *testing.B) {
-	pkW, _, err := Send(privA, pubA, pubB, 20, false)
-	if err != nil {
-		b.Fatal(err)
-	}
+	pkW, _ := Send(privA, pubA, pubB, 20, false)
 
 	b.ResetTimer()
 

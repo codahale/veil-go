@@ -81,13 +81,13 @@ func IntN(max int) int {
 
 // NewEphemeralKeys returns a new, random private key, unassociated with any secret key, and its
 // corresponding public key.
-func NewEphemeralKeys() (*ristretto255.Scalar, *ristretto255.Element, error) {
+func NewEphemeralKeys() (*ristretto255.Scalar, *ristretto255.Element) {
 	var r [UniformBytestringSize]byte
 	if _, err := rand.Read(r[:]); err != nil {
-		return nil, nil, err
+		panic(err)
 	}
 
 	d := ristretto255.NewScalar().FromUniformBytes(r[:])
 
-	return d, ristretto255.NewElement().ScalarBaseMult(d), nil
+	return d, ristretto255.NewElement().ScalarBaseMult(d)
 }
