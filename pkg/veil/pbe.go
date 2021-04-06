@@ -36,7 +36,8 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]by
 	}
 
 	// Use balloon hashing to derive a key from the passphrase and salt.
-	key := balloonkdf.DeriveKey(passphrase, encSK.Salt[:], encSK.Params.Space, encSK.Params.Time, authenc.KeySize)
+	key := balloonkdf.DeriveKey(passphrase, encSK.Salt[:],
+		int(encSK.Params.Space), int(encSK.Params.Time), authenc.KeySize)
 
 	// Encrypt the secret key.
 	copy(encSK.Ciphertext[:], authenc.EncryptSecretKey(key, sk.r[:], authenc.TagSize))
@@ -64,7 +65,8 @@ func DecryptSecretKey(ciphertext, passphrase []byte) (*SecretKey, error) {
 	}
 
 	// Use balloon hashing to re-derive the key from the passphrase and salt.
-	key := balloonkdf.DeriveKey(passphrase, encSK.Salt[:], encSK.Params.Space, encSK.Params.Time, authenc.KeySize)
+	key := balloonkdf.DeriveKey(passphrase, encSK.Salt[:],
+		int(encSK.Params.Space), int(encSK.Params.Time), authenc.KeySize)
 
 	// Decrypt the encrypted secret key.
 	plaintext, err := authenc.DecryptSecretKey(key, encSK.Ciphertext[:], authenc.TagSize)

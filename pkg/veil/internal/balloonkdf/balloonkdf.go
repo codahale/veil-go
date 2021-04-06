@@ -30,17 +30,17 @@ import (
 )
 
 // DeriveKey returns an n-byte key of the given password.
-func DeriveKey(passphrase, salt []byte, space, time uint32, n int) []byte {
+func DeriveKey(passphrase, salt []byte, space, time, n int) []byte {
 	n += n % 2 // round up
 
 	// Initialize a new protocol.
 	balloon := internal.Strobe("veil.kdf.balloon")
 
 	// Include the space parameter as associated data.
-	internal.Must(balloon.AD(internal.LittleEndianU32(int(space)), &strobe.Options{Meta: true}))
+	internal.Must(balloon.AD(internal.LittleEndianU32(space), &strobe.Options{Meta: true}))
 
 	// Include the time parameter as associated data.
-	internal.Must(balloon.AD(internal.LittleEndianU32(int(time)), &strobe.Options{Meta: true}))
+	internal.Must(balloon.AD(internal.LittleEndianU32(time), &strobe.Options{Meta: true}))
 
 	// Include the size parameter as associated data.
 	internal.Must(balloon.AD(internal.LittleEndianU32(n), &strobe.Options{Meta: true}))
@@ -70,13 +70,13 @@ func DeriveKey(passphrase, salt []byte, space, time uint32, n int) []byte {
 	hashCounter(balloon, &ctr, ctrBuf[:], buf[0], nil, nil)
 
 	// Initialize all other blocks.
-	for m := uint32(1); m < space-1; m++ {
+	for m := 1; m < space-1; m++ {
 		hashCounter(balloon, &ctr, ctrBuf[:], buf[m], buf[m-1], nil)
 	}
 
 	// Mix buffer contents.
-	for t := uint32(1); t < time; t++ {
-		for m := uint32(1); m < space; m++ {
+	for t := 1; t < time; t++ {
+		for m := 1; m < space; m++ {
 			// Hash last and current blocks.
 			prev := buf[(m-1)%space]
 			hashCounter(balloon, &ctr, ctrBuf[:], buf[m], prev, buf[m])
@@ -84,8 +84,8 @@ func DeriveKey(passphrase, salt []byte, space, time uint32, n int) []byte {
 			// Hash pseudorandomly chosen blocks.
 			for i := 0; i < delta; i++ {
 				// Map indexes to a block and hash it and the salt.
-				binary.LittleEndian.PutUint32(idx[0:], t)
-				binary.LittleEndian.PutUint32(idx[4:], m)
+				binary.LittleEndian.PutUint32(idx[0:], uint32(t))
+				binary.LittleEndian.PutUint32(idx[4:], uint32(m))
 				binary.LittleEndian.PutUint32(idx[8:], uint32(i))
 				hashCounter(balloon, &ctr, ctrBuf[:], idx, salt, idx)
 

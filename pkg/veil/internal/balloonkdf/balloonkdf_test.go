@@ -11,12 +11,11 @@ func TestHash(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name        string
-		passphrase  []byte
-		salt        []byte
-		space, time uint32
-		size        int
-		hash        string
+		name              string
+		passphrase        []byte
+		salt              []byte
+		space, time, size int
+		hash              string
 	}{
 		{
 			name:       "baseline",
