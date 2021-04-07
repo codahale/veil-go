@@ -30,7 +30,6 @@ Veil includes STROBE protocols for the following capabilities:
 * `veil.pbenc`: memory-hard authenticated encryption using balloon hashing
 * `veil.scaldf.*`: functions for deriving ristretto255 scalars from non-uniform or secret values
 * `veil.schnorr`: fully deterministic Schnorr signatures over ristretto255
-* `veil.skenc`: authenticated encryption for secret keys
 * `veil.skid`: safe identifiers for Veil secret keys
 * `veil.stream`: streaming authenticated encryption with key ratcheting
 
