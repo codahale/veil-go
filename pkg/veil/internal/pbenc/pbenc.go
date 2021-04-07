@@ -1,9 +1,10 @@
 // Package pbenc implements memory-hard password-based encryption via STROBE using balloon hashing.
 //
-// The protocol is initialized as follows, given a passphrase P, salt S, space parameter X, time
-// parameter Y, block size N, and tag size T:
+// The protocol is initialized as follows, given a passphrase P, salt S, delta constant D, space
+// parameter X, time parameter Y, block size N, and tag size T:
 //
 //     INIT('veil.kdf.balloon',  level=256)
+//     AD(LE_U32(D), meta=true)
 //     AD(LE_U32(X), meta=true)
 //     AD(LE_U32(Y), meta=true)
 //     AD(LE_U32(N), meta=true)
@@ -80,11 +81,16 @@ func Decrypt(passphrase, salt, ciphertext []byte, space, time, n, tagSize int) (
 	return plaintext, nil
 }
 
+// initProtocol initializes a new STROBE protocol and executes the Balloon Hashing algorithm. The
+// final block is then used to key the protocol.
 func initProtocol(passphrase, salt []byte, space, time, n, tagSize int) *strobe.Strobe {
 	n += n % 2 // round up
 
 	// Initialize a new protocol.
 	pbenc := internal.Strobe("veil.pbenc")
+
+	// Include the delta constant as associated data.
+	internal.Must(pbenc.AD(internal.LittleEndianU32(delta), &strobe.Options{Meta: true}))
 
 	// Include the space parameter as associated data.
 	internal.Must(pbenc.AD(internal.LittleEndianU32(space), &strobe.Options{Meta: true}))
@@ -110,28 +116,24 @@ func initProtocol(passphrase, salt []byte, space, time, n, tagSize int) *strobe.
 		ctrBuf [8]byte
 	)
 
-	// Allocate an index block.
+	// Allocate an index block and the main buffer.
 	idx := make([]byte, n)
-
-	// Allocate blocks.
 	buf := make([]byte, space*n)
 
-	// Initialize first block.
+	// Step 1: Expand input into buffer.
 	hashCounter(pbenc, &ctr, ctrBuf[:], buf[0:n], nil, nil)
-
-	// Initialize all other blocks.
 	for m := 1; m < space-1; m++ {
 		hashCounter(pbenc, &ctr, ctrBuf[:], buf[(m*n):(m*n)+n], buf[(m-1)*n:(m-1)*n+n], nil)
 	}
 
-	// Mix buffer contents.
+	// Step 2: Mix buffer contents.
 	for t := 1; t < time; t++ {
 		for m := 1; m < space; m++ {
-			// Hash last and current blocks.
+			// Step 2a: Hash last and current blocks.
 			j := (m - 1) % space
 			hashCounter(pbenc, &ctr, ctrBuf[:], buf[m*n:m*n+n], buf[j*n:j*n+n], buf[m*n:m*n+n])
 
-			// Hash pseudo-randomly chosen blocks.
+			// Step 2b: Hash in pseudo-randomly chosen blocks.
 			for i := 0; i < delta; i++ {
 				// Map indexes to a block and hash it and the salt.
 				binary.LittleEndian.PutUint32(idx[0:], uint32(t))
@@ -146,7 +148,7 @@ func initProtocol(passphrase, salt []byte, space, time, n, tagSize int) *strobe.
 		}
 	}
 
-	// Finally, key the protocol with the final block.
+	// Step 3: Extract output from buffer.
 	internal.Must(pbenc.KEY(buf[(space-1)*n:], false))
 
 	return pbenc
