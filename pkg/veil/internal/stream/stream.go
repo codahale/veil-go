@@ -37,10 +37,8 @@ type Sealer struct {
 
 // NewSealer creates a new Sealer with the given key, block size, and tag size.
 func NewSealer(key []byte, blockSize, tagSize int) *Sealer {
-	stream := initStream(key, blockSize, tagSize)
-
 	return &Sealer{
-		stream: stream,
+		stream: initStream(key, blockSize, tagSize),
 		b:      make([]byte, blockSize),
 		tag:    make([]byte, tagSize),
 	}
@@ -102,10 +100,8 @@ type Opener struct {
 
 // NewOpener creates a new Opener with the given key, block size, and tag size.
 func NewOpener(key []byte, blockSize, tagSize int) *Opener {
-	stream := initStream(key, blockSize, tagSize)
-
 	return &Opener{
-		stream: stream,
+		stream: initStream(key, blockSize, tagSize),
 		b:      make([]byte, blockSize),
 		tag:    make([]byte, tagSize),
 	}
