@@ -56,6 +56,8 @@
 package kem
 
 import (
+	"crypto/rand"
+
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
@@ -64,8 +66,17 @@ import (
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
 func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte, tagSize int) []byte {
-	// Generate an ephemeral key pair.
-	dE, qE := internal.NewEphemeralKeys()
+	// Generate a random value.
+	var buf [internal.UniformBytestringSize]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		// Failure to generate a random value here would be catastrophic for the security of the
+		// function.
+		panic(err)
+	}
+
+	// Map the random value to an ephemeral key pair.
+	dE := ristretto255.NewScalar().FromUniformBytes(buf[:])
+	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
 	// Calculate the ephemeral shared secret between the ephemeral private key and the recipient's
 	// public key.

@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"math/big"
 
-	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
 
@@ -82,17 +81,4 @@ func IntN(max int) int {
 	}
 
 	return int(n.Int64())
-}
-
-// NewEphemeralKeys returns a new, random private key, unassociated with any secret key, and its
-// corresponding public key.
-func NewEphemeralKeys() (*ristretto255.Scalar, *ristretto255.Element) {
-	var r [UniformBytestringSize]byte
-	if _, err := rand.Read(r[:]); err != nil {
-		panic(err)
-	}
-
-	d := ristretto255.NewScalar().FromUniformBytes(r[:])
-
-	return d, ristretto255.NewElement().ScalarBaseMult(d)
 }
