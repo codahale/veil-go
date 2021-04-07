@@ -2,12 +2,10 @@ package veil
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/scaldf"
-	"github.com/codahale/veil/pkg/veil/internal/skid"
 	"github.com/gtank/ristretto255"
 )
 
@@ -33,11 +31,7 @@ func NewSecretKey() (*SecretKey, error) {
 
 // PrivateKey returns a private key for the given key ID.
 func (sk *SecretKey) PrivateKey(keyID string) *PrivateKey {
-	d := scaldf.DeriveScalar(scaldf.SecretScalar(&sk.r), idSeparator)
-	q := ristretto255.NewElement().ScalarBaseMult(d)
-	root := PrivateKey{d: d, q: q}
-
-	return root.Derive(keyID)
+	return sk.root().Derive(keyID)
 }
 
 // PublicKey returns a public key for the given key ID.
@@ -47,7 +41,15 @@ func (sk *SecretKey) PublicKey(keyID string) *PublicKey {
 
 // String returns a safe identifier for the key.
 func (sk *SecretKey) String() string {
-	return hex.EncodeToString(skid.ID(&sk.r, 8))
+	return sk.root().PublicKey().String()
+}
+
+// root returns the root private key, derived from the secret key using veil.scaldf.secret-key.
+func (sk *SecretKey) root() *PrivateKey {
+	d := scaldf.SecretScalar(&sk.r)
+	q := ristretto255.NewElement().ScalarBaseMult(d)
+
+	return &PrivateKey{d: d, q: q}
 }
 
 var _ fmt.Stringer = &SecretKey{}
