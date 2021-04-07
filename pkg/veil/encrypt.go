@@ -26,7 +26,10 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	header := pk.encodeHeader(key, len(recipients), padding)
 
 	// Encrypt copies of the header for each recipient and add random padding.
-	headers := pk.encryptHeaders(header, recipients, padding)
+	headers, err := pk.encryptHeaders(header, recipients, padding)
+	if err != nil {
+		return 0, err
+	}
 
 	// Write the encrypted headers.
 	hn, err := dst.Write(headers)
@@ -74,23 +77,28 @@ func (pk *PrivateKey) encodeHeader(key []byte, recipients, padding int) []byte {
 
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
 // fake recipients.
-func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padding int) []byte {
+func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padding int) ([]byte, error) {
 	// Allocate a buffer for the entire header.
 	buf := bytes.NewBuffer(make([]byte, 0, len(publicKeys)*encryptedHeaderSize))
 
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
-		_, _ = buf.Write(kem.Encrypt(pk.d, pk.q, pkR.q, header, internal.TagSize))
+		ciphertext, err := kem.Encrypt(pk.d, pk.q, pkR.q, header, internal.TagSize)
+		if err != nil {
+			return nil, err
+		}
+
+		_, _ = buf.Write(ciphertext)
 	}
 
 	// Add padding if any is required.
 	if padding > 0 {
 		if _, err := io.CopyN(buf, rand.Reader, int64(padding)); err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
 const (

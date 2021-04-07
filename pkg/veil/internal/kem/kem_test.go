@@ -13,7 +13,11 @@ func TestRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	message := []byte("hello this is dog")
-	ciphertext := Encrypt(dS, qS, qR, message, 16)
+
+	ciphertext, err := Encrypt(dS, qS, qR, message, 16)
+	if err != nil {
+		t.Fatal()
+	}
 
 	plaintext, err := Decrypt(dR, qR, qS, ciphertext, 16)
 	if err != nil {
@@ -27,7 +31,12 @@ func TestWrongPrivateKey(t *testing.T) {
 	t.Parallel()
 
 	message := []byte("hello this is dog")
-	ciphertext := Encrypt(dS, qS, qR, message, 16)
+
+	ciphertext, err := Encrypt(dS, qS, qR, message, 16)
+	if err != nil {
+		t.Fatal()
+	}
+
 	dX := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0x69}, internal.UniformBytestringSize))
 
 	if _, err := Decrypt(dX, qR, qS, ciphertext, 16); err == nil {
@@ -39,7 +48,12 @@ func TestWrongPublicKey(t *testing.T) {
 	t.Parallel()
 
 	message := []byte("hello this is dog")
-	ciphertext := Encrypt(dS, qS, qR, message, 16)
+
+	ciphertext, err := Encrypt(dS, qS, qR, message, 16)
+	if err != nil {
+		t.Fatal()
+	}
+
 	qX := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x69}, internal.UniformBytestringSize))
 
 	if _, err := Decrypt(dR, qX, qS, ciphertext, 16); err == nil {
@@ -51,7 +65,12 @@ func TestWrongSenderKey(t *testing.T) {
 	t.Parallel()
 
 	message := []byte("hello this is dog")
-	ciphertext := Encrypt(dS, qS, qR, message, 16)
+
+	ciphertext, err := Encrypt(dS, qS, qR, message, 16)
+	if err != nil {
+		t.Fatal()
+	}
+
 	qX := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x69}, internal.UniformBytestringSize))
 
 	if _, err := Decrypt(dR, qR, qX, ciphertext, 16); err == nil {
@@ -63,7 +82,12 @@ func TestBadEphemeralKey(t *testing.T) {
 	t.Parallel()
 
 	message := []byte("hello this is dog")
-	ciphertext := Encrypt(dS, qS, qR, message, 16)
+
+	ciphertext, err := Encrypt(dS, qS, qR, message, 16)
+	if err != nil {
+		t.Fatal()
+	}
+
 	ciphertext[0] ^= 1
 
 	if _, err := Decrypt(dR, qR, qS, ciphertext, 16); err == nil {
@@ -75,7 +99,12 @@ func TestBadCiphertext(t *testing.T) {
 	t.Parallel()
 
 	message := []byte("hello this is dog")
-	ciphertext := Encrypt(dS, qS, qR, message, 16)
+
+	ciphertext, err := Encrypt(dS, qS, qR, message, 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ciphertext[internal.ElementSize+5] ^= 1
 
 	if _, err := Decrypt(dR, qR, qS, ciphertext, 16); err == nil {
@@ -87,7 +116,12 @@ func TestBadMAC(t *testing.T) {
 	t.Parallel()
 
 	message := []byte("hello this is dog")
-	ciphertext := Encrypt(dS, qS, qR, message, 16)
+
+	ciphertext, err := Encrypt(dS, qS, qR, message, 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ciphertext[len(ciphertext)-4] ^= 1
 
 	if _, err := Decrypt(dR, qR, qS, ciphertext, 16); err == nil {
@@ -99,13 +133,19 @@ func BenchmarkEncrypt(b *testing.B) {
 	message := []byte("hello this is dog")
 
 	for i := 0; i < b.N; i++ {
-		_ = Encrypt(dS, qS, qR, message, 16)
+		if _, err := Encrypt(dS, qS, qR, message, 16); err != nil {
+			b.Fatal()
+		}
 	}
 }
 
 func BenchmarkDecrypt(b *testing.B) {
 	message := []byte("hello this is dog")
-	ciphertext := Encrypt(dS, qS, qR, message, 16)
+
+	ciphertext, err := Encrypt(dS, qS, qR, message, 16)
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	for i := 0; i < b.N; i++ {
 		_, _ = Decrypt(dR, qR, qS, ciphertext, 16)

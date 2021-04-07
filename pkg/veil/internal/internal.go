@@ -81,11 +81,11 @@ func Copy(b []byte) []byte {
 }
 
 // IntN returns a cryptographically random integer selected uniformly from [0,max).
-func IntN(max int) int {
+func IntN(max int) (int, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 
-	return int(n.Int64())
+	return int(n.Int64()), nil
 }

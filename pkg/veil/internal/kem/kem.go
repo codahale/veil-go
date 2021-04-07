@@ -65,13 +65,11 @@ import (
 
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
-func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte, tagSize int) []byte {
+func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte, tagSize int) ([]byte, error) {
 	// Generate a random value.
 	var buf [internal.UniformBytestringSize]byte
 	if _, err := rand.Read(buf[:]); err != nil {
-		// Failure to generate a random value here would be catastrophic for the security of the
-		// function.
-		panic(err)
+		return nil, err
 	}
 
 	// Map the random value to an ephemeral key pair.
@@ -118,7 +116,7 @@ func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []
 	internal.Must(kdf.SendMAC(ciphertext[len(plaintext):], &strobe.Options{}))
 
 	// Return the ephemeral public key, the ciphertext, and the MAC.
-	return append(qE.Encode(nil), ciphertext...)
+	return append(qE.Encode(nil), ciphertext...), nil
 }
 
 // Decrypt decrypts the ciphertext iff it was encrypted by the owner of qS for the owner of qR and

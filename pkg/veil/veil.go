@@ -62,7 +62,10 @@ func AddFakes(keys []*PublicKey, n int) ([]*PublicKey, error) {
 func Shuffle(keys []*PublicKey) error {
 	for i := len(keys) - 1; i > 0; i-- {
 		// Randomly pick a card from the unshuffled deck.
-		j := internal.IntN(i + 1)
+		j, err := internal.IntN(i + 1)
+		if err != nil {
+			return err
+		}
 
 		// Swap it with the current card.
 		keys[i], keys[j] = keys[j], keys[i]
