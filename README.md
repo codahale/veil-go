@@ -59,7 +59,7 @@ padding to the end of the encrypted headers.
 Second, the sender uses `veil.schnorr` to create a signature of the plaintext with the encrypted
 headers (including any padding) as associated data.
 
-Finally, the sender uses `veil.authenc.stream` to encrypt the message and the signature using the
+Finally, the sender uses `veil.stream` to encrypt the message and the signature using the
 message key, again with the encrypted headers as associated data.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable
@@ -69,8 +69,9 @@ authenticity.
 
 ### Passphrase-Based Encryption
 
-To safely store secret keys, `veil.balloon-kdf` is used with a 32-byte random salt to derive a key.
-The secret key is encrypted with `veil.authenc.secret-key`.
+To safely store secret keys, `veil.pbenc` is used with a 32-byte random salt to encrypt the secret
+key. This integrates a memory-hard password hashing algorithm, Balloon Hashing, with authenticated
+encryption.
 
 ## What's the point
 

@@ -8,7 +8,7 @@ import (
 )
 
 // NewWriter returns an io.Writer which groups writes into blocks, encrypts them with the
-// veil.authenc.stream STROBE protocol, and writes them to dst.
+// veil.stream STROBE protocol, and writes them to dst.
 func NewWriter(dst io.Writer, key, associatedData []byte, blockSize int) io.WriteCloser {
 	return &writer{
 		w:         dst,

@@ -9,7 +9,7 @@ import (
 )
 
 // NewReader returns an io.Reader which reads encrypted blocks from src and decrypts them using the
-// veil.authenc.stream STROBE protocol.
+// veil.stream STROBE protocol.
 func NewReader(src io.Reader, key, associatedData []byte, blockSize int) io.Reader {
 	return &reader{
 		stream:     stream.NewOpener(key, associatedData, blockSize, internal.TagSize),
