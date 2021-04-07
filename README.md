@@ -26,8 +26,8 @@ Veil uses just two distinct primitives:
 
 Veil includes STROBE protocols for the following capabilities:
 
-* `veil.balloon`: balloon hashing key derivation for passphrase-based encryption
 * `veil.kem`: a `C(1e, 2s, ECC DH)` key encapsulation mechanism
+* `veil.pbenc`: memory-hard authenticated encryption using balloon hashing
 * `veil.scaldf.*`: functions for deriving ristretto255 scalars from non-uniform or secret values
 * `veil.schnorr`: fully deterministic Schnorr signatures over ristretto255
 * `veil.skenc`: authenticated encryption for secret keys
