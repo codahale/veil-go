@@ -14,6 +14,7 @@ import (
 
 const (
 	ElementSize = 32 // ElementSize is the length of an encoded ristretto255 element.
+	ScalarSize  = 32 // ScalarSize is the length of an encoded ristretto255 scalar.
 	KeySize     = 32 // KeySize is the symmetric key size in bytes.
 	TagSize     = 16 // TagSize is the authentication tag size in bytes.
 
