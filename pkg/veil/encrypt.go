@@ -80,7 +80,6 @@ func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, pad
 
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
-		// Encrypt the header for the recipient.
 		_, _ = buf.Write(kem.Encrypt(pk.d, pk.q, pkR.q, header, internal.TagSize))
 	}
 

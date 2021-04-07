@@ -11,24 +11,29 @@ import (
 	"github.com/sammyne/strobe"
 )
 
+// symmetric encryption constants
 const (
-	ElementSize = 32 // ElementSize is the length of an encoded ristretto255 element.
-	ScalarSize  = 32 // ScalarSize is the length of an encoded ristretto255 scalar.
-	KeySize     = 32 // KeySize is the symmetric key size in bytes.
-	TagSize     = 16 // TagSize is the authentication tag size in bytes.
+	KeySize = 32 // KeySize is the symmetric key size in bytes.
+	TagSize = 16 // TagSize is the authentication tag size in bytes.
 
 	// BlockSize is the recommended block size for streams, as selected by it looking pretty.
 	BlockSize = 64 * 1024 // 64KiB
-
-	// UniformBytestringSize is the length of a uniform bytestring which can be mapped to either a
-	// ristretto255 element or scalar.
-	UniformBytestringSize = 64
 
 	// RatchetSize determines the amount of state to reset during each ratchet.
 	//
 	//     Setting L = sec/8 bytes is sufficient when R ≥ sec/8. That is, set L to 16 bytes or 32
 	//     bytes for Strobe-128/b and Strobe-256/b, respectively.
 	RatchetSize = int(strobe.Bit256) / 8
+)
+
+// ristretto255 constants
+const (
+	ElementSize = 32 // ElementSize is the length of an encoded ristretto255 element.
+	ScalarSize  = 32 // ScalarSize is the length of an encoded ristretto255 scalar.
+
+	// UniformBytestringSize is the length of a uniform bytestring which can be mapped to either a
+	// ristretto255 element or scalar.
+	UniformBytestringSize = 64
 )
 
 // LittleEndianU32 returns n as a 32-bit little endian bit string.
