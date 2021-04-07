@@ -1,17 +1,17 @@
-package authenc
+package stream
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/sammyne/strobe"
 )
 
-// StreamSealer encrypts blocks of a message stream.
+// Sealer encrypts blocks of a message stream.
 //
 // Encryption of a message stream is as follows, given a key K, block size B, and tag size N:
 //
-//     INIT('veil.authenc.stream', level=256)
-//     AD(LE_U32(B)),              meta=true)
-//     AD(LE_U32(N)),              meta=true)
+//     INIT('veil.stream', level=256)
+//     AD(LE_U32(B)),      meta=true)
+//     AD(LE_U32(N)),      meta=true)
 //     KEY(K)
 //
 // Encryption of an intermediate plaintext block P_i is as follows:
@@ -30,16 +30,16 @@ import (
 //     RATCHET(32)
 //
 // The ciphertext and N-byte tag are returned.
-type StreamSealer struct {
+type Sealer struct {
 	stream *strobe.Strobe
 	b, tag []byte
 }
 
-// NewStreamSealer creates a new StreamSealer with the given key, block size, and tag size.
-func NewStreamSealer(key []byte, blockSize, tagSize int) *StreamSealer {
+// NewSealer creates a new Sealer with the given key, block size, and tag size.
+func NewSealer(key []byte, blockSize, tagSize int) *Sealer {
 	stream := initStream(key, blockSize, tagSize)
 
-	return &StreamSealer{
+	return &Sealer{
 		stream: stream,
 		b:      make([]byte, blockSize),
 		tag:    make([]byte, tagSize),
@@ -48,7 +48,7 @@ func NewStreamSealer(key []byte, blockSize, tagSize int) *StreamSealer {
 
 // Seal encrypts the plaintext, appends an authentication tag, ratchets the protocol's state,
 // and returns the result. If this is is the last block in the stream, final must be true.
-func (s *StreamSealer) Seal(plaintext []byte, final bool) []byte {
+func (s *Sealer) Seal(plaintext []byte, final bool) []byte {
 	// If this is the final block, mark that in the stream metadata.
 	if final {
 		finalizeStream(s.stream)
@@ -70,13 +70,13 @@ func (s *StreamSealer) Seal(plaintext []byte, final bool) []byte {
 	return append(s.b[:len(plaintext)], s.tag...)
 }
 
-// StreamOpener decrypts blocks of a message stream.
+// Opener decrypts blocks of a message stream.
 //
 // Decryption of a message stream is as follows, given a key K, block size B, and tag size N:
 //
-//     INIT('veil.authenc.stream', level=256)
-//     AD(LE_U32(B)),              meta=true)
-//     AD(LE_U32(N)),              meta=true)
+//     INIT('veil.stream', level=256)
+//     AD(LE_U32(B)),      meta=true)
+//     AD(LE_U32(N)),      meta=true)
 //     KEY(K)
 //
 // Decryption of an intermediate ciphertext block C_i and authentication tag T_i is as follows:
@@ -95,16 +95,16 @@ func (s *StreamSealer) Seal(plaintext []byte, final bool) []byte {
 //     RATCHET(32)
 //
 // If the RECV_MAC operation is successful, the plaintext block is returned.
-type StreamOpener struct {
+type Opener struct {
 	stream *strobe.Strobe
 	b, tag []byte
 }
 
-// NewStreamOpener creates a new StreamOpener with the given key, block size, and tag size.
-func NewStreamOpener(key []byte, blockSize, tagSize int) *StreamOpener {
+// NewOpener creates a new Opener with the given key, block size, and tag size.
+func NewOpener(key []byte, blockSize, tagSize int) *Opener {
 	stream := initStream(key, blockSize, tagSize)
 
-	return &StreamOpener{
+	return &Opener{
 		stream: stream,
 		b:      make([]byte, blockSize),
 		tag:    make([]byte, tagSize),
@@ -115,7 +115,7 @@ func NewStreamOpener(key []byte, blockSize, tagSize int) *StreamOpener {
 // protocol's state, and returns the plaintext. If this is is the last block in the stream, final
 // must be true. If the inputs are not exactly the same as the outputs of Seal, an error will be
 // returned.
-func (s *StreamOpener) Open(ciphertext []byte, final bool) ([]byte, error) {
+func (s *Opener) Open(ciphertext []byte, final bool) ([]byte, error) {
 	// If this is the final block, mark that in the stream metadata.
 	if final {
 		finalizeStream(s.stream)
@@ -145,8 +145,8 @@ func (s *StreamOpener) Open(ciphertext []byte, final bool) ([]byte, error) {
 }
 
 func initStream(key []byte, blockSize, tagSize int) *strobe.Strobe {
-	// Initialize a new AEAD stream protocol.
-	stream := internal.Strobe("veil.authenc.stream")
+	// Initialize a new stream protocol.
+	stream := internal.Strobe("veil.stream")
 
 	// Add the block size to the protocol.
 	internal.Must(stream.AD(internal.LittleEndianU32(blockSize), &strobe.Options{Meta: true}))

@@ -20,7 +20,7 @@
 //
 // It should be noted that there is no standard balloon hashing algorithm, so this protocol is in
 // the very, very tall grass of cryptography and should never be used.
-package balloonkdf
+package balloon
 
 import (
 	"encoding/binary"
@@ -34,7 +34,7 @@ func DeriveKey(passphrase, salt []byte, space, time, n int) []byte {
 	n += n % 2 // round up
 
 	// Initialize a new protocol.
-	balloon := internal.Strobe("veil.balloon-kdf")
+	balloon := internal.Strobe("veil.balloon")
 
 	// Include the space parameter as associated data.
 	internal.Must(balloon.AD(internal.LittleEndianU32(space), &strobe.Options{Meta: true}))

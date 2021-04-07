@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/authenc"
+	"github.com/codahale/veil/pkg/veil/internal/stream"
 )
 
 // NewWriter returns an io.Writer which groups writes into blocks, encrypts them with the
@@ -12,14 +12,14 @@ import (
 func NewWriter(dst io.Writer, key []byte, blockSize int) io.WriteCloser {
 	return &writer{
 		w:         dst,
-		stream:    authenc.NewStreamSealer(key, blockSize, internal.TagSize),
+		stream:    stream.NewSealer(key, blockSize, internal.TagSize),
 		plaintext: make([]byte, blockSize),
 	}
 }
 
 type writer struct {
 	w            io.Writer
-	stream       *authenc.StreamSealer
+	stream       *stream.Sealer
 	plaintext    []byte
 	plaintextPos int
 	ciphertext   []byte

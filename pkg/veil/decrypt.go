@@ -6,10 +6,10 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/authenc/streamio"
 	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr/sigio"
+	"github.com/codahale/veil/pkg/veil/internal/stream/streamio"
 )
 
 // Decrypt decrypts the data in src if originally encrypted by any of the given public keys. Returns
@@ -27,7 +27,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	}
 
 	// Initialize a stream reader with the message key.
-	decryptor := streamio.NewReader(src, key, streamio.BlockSize)
+	decryptor := streamio.NewReader(src, key, internal.BlockSize)
 
 	// Detach the signature from the plaintext.
 	sr := sigio.NewReader(decryptor, schnorr.SignatureSize)

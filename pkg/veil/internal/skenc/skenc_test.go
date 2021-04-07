@@ -1,4 +1,4 @@
-package authenc
+package skenc
 
 import (
 	"testing"
@@ -6,15 +6,15 @@ import (
 	"github.com/codahale/gubbins/assert"
 )
 
-func TestSecretKeyRoundTrip(t *testing.T) {
+func TestRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	ciphertext := EncryptSecretKey(key, plaintext, 16)
+	ciphertext := Encrypt(key, plaintext, 16)
 
-	decrypted, err := DecryptSecretKey(key, ciphertext, 16)
+	decrypted, err := Decrypt(key, ciphertext, 16)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,66 +22,66 @@ func TestSecretKeyRoundTrip(t *testing.T) {
 	assert.Equal(t, "decrypted", plaintext, decrypted)
 }
 
-func TestSecretKeyKeyMismatch(t *testing.T) {
+func TestKeyMismatch(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	ciphertext := EncryptSecretKey(key, plaintext, 16)
+	ciphertext := Encrypt(key, plaintext, 16)
 
-	if _, err := DecryptSecretKey([]byte("ok well no then"), ciphertext, 16); err == nil {
+	if _, err := Decrypt([]byte("ok well no then"), ciphertext, 16); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
 
-func TestSecretKeyCiphertextModification(t *testing.T) {
+func TestCiphertextModification(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	ciphertext := EncryptSecretKey(key, plaintext, 16)
+	ciphertext := Encrypt(key, plaintext, 16)
 	ciphertext[0] ^= 1
 
-	if _, err := DecryptSecretKey(key, ciphertext, 16); err == nil {
+	if _, err := Decrypt(key, ciphertext, 16); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
 
-func TestSecretKeyTagModification(t *testing.T) {
+func TestTagModification(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	ciphertext := EncryptSecretKey(key, plaintext, 16)
+	ciphertext := Encrypt(key, plaintext, 16)
 
 	ciphertext[len(ciphertext)-1] ^= 1
 
-	if _, err := DecryptSecretKey(key, ciphertext, 16); err == nil {
+	if _, err := Decrypt(key, ciphertext, 16); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
 
-func BenchmarkEncryptSecretKey(b *testing.B) {
+func BenchmarkEncrypt(b *testing.B) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
 	for i := 0; i < b.N; i++ {
-		_ = EncryptSecretKey(key, plaintext, 16)
+		_ = Encrypt(key, plaintext, 16)
 	}
 }
 
-func BenchmarkDecryptSecretKey(b *testing.B) {
+func BenchmarkDecrypt(b *testing.B) {
 	key := []byte("this is a good time")
 	plaintext := []byte("welcome to the jungle")
 
-	ciphertext := EncryptSecretKey(key, plaintext, 16)
+	ciphertext := Encrypt(key, plaintext, 16)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, _ = DecryptSecretKey(key, ciphertext, 16)
+		_, _ = Decrypt(key, ciphertext, 16)
 	}
 }

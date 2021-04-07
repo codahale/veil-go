@@ -18,6 +18,9 @@ const (
 	KeySize     = 32 // KeySize is the symmetric key size in bytes.
 	TagSize     = 16 // TagSize is the authentication tag size in bytes.
 
+	// BlockSize is the recommended block size for streams, as selected by it looking pretty.
+	BlockSize = 64 * 1024 // 64KiB
+
 	// UniformBytestringSize is the length of a uniform bytestring which can be mapped to either a
 	// ristretto255 element or scalar.
 	UniformBytestringSize = 64

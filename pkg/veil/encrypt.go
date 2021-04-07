@@ -7,9 +7,9 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/authenc/streamio"
 	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
+	"github.com/codahale/veil/pkg/veil/internal/stream/streamio"
 )
 
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
@@ -35,7 +35,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	}
 
 	// Initialize a stream writer with the message key.
-	encryptor := streamio.NewWriter(dst, key, streamio.BlockSize)
+	encryptor := streamio.NewWriter(dst, key, internal.BlockSize)
 
 	// Create a signer with the encrypted headers as associated data.
 	signer := schnorr.NewSigner(headers)

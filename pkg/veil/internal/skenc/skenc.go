@@ -1,26 +1,38 @@
-// Package authenc provides the underlying STROBE protocols for Veil's authenticated encryption.
-package authenc
+// Package skenc provides the underlying STROBE protocols for Veil's authenticated secret key
+// encryption.
+//
+// Encryption of a secret key is performed as follows, given a key K, a plaintext secret key R, and
+// a tag size N:
+//
+//     INIT('veil.skenc', level=256)
+//     AD(LE_U32(N)),     meta=true)
+//     KEY(K)
+//     SEND_ENC(R)
+//     SEND_MAC(N)
+//
+// The ciphertext and T-byte tag are then returned.
+//
+// Decryption of a secret key is performed as follows, given a key K, a ciphertext C, an
+// authentication tag T, and a tag size N:
+//
+//     INIT('veil.skenc', level=256)
+//     AD(LE_U32(N)),     meta=true)
+//     KEY(K)
+//     RECV_ENC(C)
+//     RECV_MAC(T)
+//
+// If the RECV_MAC operation is successful, the plaintext secret key is returned.
+package skenc
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/sammyne/strobe"
 )
 
-// EncryptSecretKey encrypts the secret key with the key, appending a tag of the given size for
+// Encrypt encrypts the secret key with the key, appending a tag of the given size for
 // authentication.
-//
-// Encryption of a secret key is performed as follows, given a key K, a plaintext secret key R, and
-// a tag size N:
-//
-//     INIT('veil.authenc.secret-key', level=256)
-//     AD(LE_U32(N)),                  meta=true)
-//     KEY(K)
-//     SEND_ENC(R)
-//     SEND_MAC(N)
-//
-// The ciphertext and T-byte tag are then returned.
-func EncryptSecretKey(key, secretKey []byte, tagSize int) []byte {
-	ae := newAE("veil.authenc.secret-key", key, tagSize)
+func Encrypt(key, secretKey []byte, tagSize int) []byte {
+	ae := newAE("veil.skenc", key, tagSize)
 
 	// Copy the plaintext to a buffer.
 	ciphertext := make([]byte, len(secretKey), len(secretKey)+tagSize)
@@ -37,21 +49,10 @@ func EncryptSecretKey(key, secretKey []byte, tagSize int) []byte {
 	return append(ciphertext, tag...)
 }
 
-// DecryptSecretKey decrypts the encrypted secret key using the key, detaching and verifying the
+// Decrypt decrypts the encrypted secret key using the key, detaching and verifying the
 // authentication tag of the given size.
-//
-// Decryption of a secret key is performed as follows, given a key K, a ciphertext C, an
-// authentication tag T, and a tag size N:
-//
-//     INIT('veil.authenc.secret-key', level=256)
-//     AD(LE_U32(N)),                  meta=true)
-//     KEY(K)
-//     RECV_ENC(C)
-//     RECV_MAC(T)
-//
-// If the RECV_MAC operation is successful, the plaintext secret key is returned.
-func DecryptSecretKey(key, encSecretKey []byte, tagSize int) ([]byte, error) {
-	ae := newAE("veil.authenc.secret-key", key, tagSize)
+func Decrypt(key, encSecretKey []byte, tagSize int) ([]byte, error) {
+	ae := newAE("veil.skenc", key, tagSize)
 
 	// Copy the ciphertext to a buffer.
 	plaintext := make([]byte, len(encSecretKey)-tagSize)

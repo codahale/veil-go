@@ -6,8 +6,8 @@ import (
 	"encoding/binary"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/authenc"
-	"github.com/codahale/veil/pkg/veil/internal/balloonkdf"
+	"github.com/codahale/veil/pkg/veil/internal/balloon"
+	"github.com/codahale/veil/pkg/veil/internal/skenc"
 )
 
 // PBEParams contains the parameters of the passphrase-based KDF.
@@ -36,11 +36,11 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]by
 	}
 
 	// Use balloon hashing to derive a key from the passphrase and salt.
-	key := balloonkdf.DeriveKey(passphrase, encSK.Salt[:],
+	key := balloon.DeriveKey(passphrase, encSK.Salt[:],
 		int(encSK.Params.Space), int(encSK.Params.Time), internal.KeySize)
 
 	// Encrypt the secret key.
-	copy(encSK.Ciphertext[:], authenc.EncryptSecretKey(key, sk.r[:], internal.TagSize))
+	copy(encSK.Ciphertext[:], skenc.Encrypt(key, sk.r[:], internal.TagSize))
 
 	// Encode the balloon hashing params, the salt, and the ciphertext.
 	buf := bytes.NewBuffer(nil)
@@ -65,11 +65,11 @@ func DecryptSecretKey(ciphertext, passphrase []byte) (*SecretKey, error) {
 	}
 
 	// Use balloon hashing to re-derive the key from the passphrase and salt.
-	key := balloonkdf.DeriveKey(passphrase, encSK.Salt[:],
+	key := balloon.DeriveKey(passphrase, encSK.Salt[:],
 		int(encSK.Params.Space), int(encSK.Params.Time), internal.KeySize)
 
 	// Decrypt the encrypted secret key.
-	plaintext, err := authenc.DecryptSecretKey(key, encSK.Ciphertext[:], internal.TagSize)
+	plaintext, err := skenc.Decrypt(key, encSK.Ciphertext[:], internal.TagSize)
 	if err != nil {
 		return nil, err
 	}

@@ -19,7 +19,7 @@ func TestRoundTrip(t *testing.T) {
 	src := bytes.NewBufferString("welcome to paradise")
 	dst := bytes.NewBuffer(nil)
 
-	// Create an AEAD writer.
+	// Create a writer.
 	w := NewWriter(dst, key, 9)
 
 	// Encrypt the input.

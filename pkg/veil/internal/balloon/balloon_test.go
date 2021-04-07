@@ -1,4 +1,4 @@
-package balloonkdf
+package balloon
 
 import (
 	"encoding/hex"
@@ -24,7 +24,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "943559d295f98ff5fa8c54764f87adf4d6867eebce369888f289af43f6bfc410",
+			hash:       "7e18fb9dd47869a7fc0fca4a860a03bfa0913852d41f71a6bae3b0a7e5bdb448",
 		},
 		{
 			name:       "different password",
@@ -33,7 +33,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "377936ec0fb2bea703ab559eeafcf80b64973626dcea965a8bcbba30bd51a83a",
+			hash:       "3eb77960ac52a150e09ea736dd4bd9f75ef51f11d0e20f04030c8b22ca5f7845",
 		},
 		{
 			name:       "different salt",
@@ -42,7 +42,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "fe8dd9dc347c508c416e56ca03cccc809c29434823fe765046e7875508cc623e",
+			hash:       "c478be6c6239d884d3bae1fdd49f1d760b65146c0374fad04e27a1bd7db91de0",
 		},
 		{
 			name:       "different space",
@@ -51,7 +51,7 @@ func TestHash(t *testing.T) {
 			space:      2048,
 			time:       64,
 			size:       32,
-			hash:       "4c4a52f7406673826726ef5cb0d9f636bdf2f080666f50aa59833f77ce982625",
+			hash:       "138b2ab50433b91c9285b986201bb8cb2dd6030be981f537d1c575b5e4010a85",
 		},
 		{
 			name:       "different time",
@@ -60,7 +60,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       96,
 			size:       32,
-			hash:       "ddc16d80d2011bdf2f9074be39927e3dc66a0d4b805952e8fd05c15413461c8e",
+			hash:       "ff0896e889f2dc617f0a5a947ba045c542a51cb71738016392abca70591761d2",
 		},
 		{
 			name:       "different size",
@@ -69,7 +69,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       16,
-			hash:       "61e235f832ccbc6a45940dd2ee55dea6",
+			hash:       "3348426011dd3c9dc39aed86b17094d0",
 		},
 	}
 
