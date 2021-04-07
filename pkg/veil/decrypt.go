@@ -32,9 +32,8 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	// Detach the signature from the plaintext.
 	sr := sigio.NewReader(decryptor, schnorr.SignatureSize)
 
-	// Create a verifier and add the encrypted headers to the verified data.
-	verifier := schnorr.NewVerifier()
-	_, _ = verifier.Write(headers)
+	// Create a verifier with the encrypted headers as associated data.
+	verifier := schnorr.NewVerifier(headers)
 
 	// Decrypt the plaintext as a stream, adding it to the verified data.
 	n, err := io.Copy(dst, io.TeeReader(sr, verifier))

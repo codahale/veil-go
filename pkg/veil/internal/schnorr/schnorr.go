@@ -1,9 +1,10 @@
 // Package schnorr provides the underlying STROBE protocol for Veil's Schnorr signatures.
 //
-// Signing is as follows, given a message in blocks M_0...M_n, a private scalar d, and a public
-// element Q:
+// Signing is as follows, given associated data D, a message in blocks M_0...M_n, a private scalar
+// d, and a public element Q:
 //
 //     INIT('veil.schnorr', level=256)
+//     AD(D)
 //     SEND_CLR('',  streaming=false)
 //     SEND_CLR(M_0, streaming=true)
 //     SEND_CLR(M_1, streaming=true)
@@ -28,10 +29,11 @@
 //
 // The resulting signature consists of the ephemeral element R and the encrypted signature scalar S.
 //
-// To verify, veil.schnorr is run with a message in blocks M_0...M_n, a public element Q, an
-// ephemeral element R, and an encrypted signature scalar S:
+// To verify, veil.schnorr is run with associated data D, message in blocks M_0...M_n, a public
+// element Q, an ephemeral element R, and an encrypted signature scalar S:
 //
 //     INIT('veil.schnorr', level=256)
+//     AD(D)
 //     RECV_CLR('',  streaming=false)
 //     RECV_CLR(M_0, streaming=true)
 //     RECV_CLR(M_1, streaming=true)
@@ -64,10 +66,13 @@ type Signer struct {
 	schnorr *strobe.Strobe
 }
 
-// NewSigner returns a Signer instance.
-func NewSigner() *Signer {
+// NewSigner returns a Signer instance with the given associated dat..
+func NewSigner(associatedData []byte) *Signer {
 	// Initialize a new protocol.
 	schnorr := internal.Strobe("veil.schnorr")
+
+	// Add the associated data to the protocol.
+	internal.Must(schnorr.AD(associatedData, &strobe.Options{}))
 
 	// Prep it for streaming cleartext.
 	internal.Must(schnorr.SendCLR(nil, &strobe.Options{}))
@@ -146,10 +151,13 @@ type Verifier struct {
 	schnorr *strobe.Strobe
 }
 
-// NewVerifier returns a Verifier instance.
-func NewVerifier() *Verifier {
+// NewVerifier returns a Verifier instance with the given associated data.
+func NewVerifier(associatedData []byte) *Verifier {
 	// Initialize a new protocol.
 	schnorr := internal.Strobe("veil.schnorr")
+
+	// Add the associated data to the protocol.
+	internal.Must(schnorr.AD(associatedData, &strobe.Options{}))
 
 	// Prep it for streaming cleartext.
 	internal.Must(schnorr.RecvCLR(nil, &strobe.Options{}))
