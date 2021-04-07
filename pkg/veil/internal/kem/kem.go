@@ -7,9 +7,6 @@
 //     ZZ_e = d_eQ_r
 //     ZZ_s = d_sQ_r
 //
-// The ephemeral element Q_e is sent in clear text, along with data encrypted symmetrically with a
-// derived key.
-//
 // Key encapsulation is as follows, given a plaintext message M and tag size N:
 //
 //     INIT('veil.kem', level=256)
@@ -22,9 +19,10 @@
 //     SEND_ENC(M)
 //     SEND_MAC(N)
 //
-// Key de-encapsulation receives the ephemeral element Q_e, ciphertext C, and tag T and
-// re-calculates the shared secret elements, given the recipient's private key d_r and sender's
-// public key Q_s:
+// The ephemeral element Q_e is sent in clear text, along ciphertext C and tag T.
+//
+// Key de-encapsulation re-calculates the shared secret elements, given the recipient's private key
+// d_r and sender's public key Q_s:
 //
 //     ZZ_e = d_rQ_e
 //     ZZ_s = d_rQ_s
@@ -38,10 +36,10 @@
 //     RECV_CLR(Q_e)
 //     KEY(ZZ_e)
 //     KEY(ZZ_s)
-//     RECV_ENC(M)
-//     RECV_MAC(N)
+//     RECV_ENC(C)
+//     RECV_MAC(T)
 //
-// If the RECV_MAC call is successful, the plaintext message is returned.
+// If the RECV_MAC call is successful, the plaintext message M is returned.
 //
 // As a One-Pass Unified Model C(1e, 2s, ECC CDH) key agreement scheme (per NIST SP 800-56A), this
 // KEM provides assurance that the message was encrypted by the holder of the sender's private key.
@@ -49,10 +47,10 @@
 // recipient's public key in the inputs. Deriving the key from all data sent or received adds
 // key-commitment with all public keys as openers.
 //
-// Unlike C(0e, 2s, ECC DH) schemes, this KEM is not deterministic and will not reveal repeated
-// messages. Unlike ECIES, this KEM binds the sender's identity. This latter property is useful, as
-// it allows for readers to discover the sender's identity before beginning to decrypt the message
-// or verify its signature.
+// Unlike C(0e, 2s) schemes (e.g. NaCl's box construction), this KEM is not deterministic and will
+// not reveal repeated messages. Unlike C(1e, 1s) schemes (e.g. IES), this KEM binds the sender's
+// identity. This latter property is useful, as it allows for readers to discover the sender's
+// identity before beginning to decrypt the message or verify its signature.
 //
 // See https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar3.pdf
 package kem
