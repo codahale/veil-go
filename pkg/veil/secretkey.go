@@ -46,7 +46,7 @@ func (sk *SecretKey) String() string {
 
 // root returns the root private key, derived from the secret key using veil.scaldf.secret-key.
 func (sk *SecretKey) root() *PrivateKey {
-	d := scaldf.SecretScalar(&sk.r)
+	d := scaldf.RootScalar(&sk.r)
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
 	return &PrivateKey{d: d, q: q}
