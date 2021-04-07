@@ -122,6 +122,7 @@ func initProtocol(passphrase, salt []byte, space, time, n, tagSize int) *strobe.
 
 	// Step 1: Expand input into buffer.
 	hashCounter(pbenc, &ctr, ctrBuf[:], buf[0:n], nil, nil)
+
 	for m := 1; m < space-1; m++ {
 		hashCounter(pbenc, &ctr, ctrBuf[:], buf[(m*n):(m*n)+n], buf[(m-1)*n:(m-1)*n+n], nil)
 	}
