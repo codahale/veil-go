@@ -20,7 +20,7 @@ func TestRoundTrip(t *testing.T) {
 	dst := bytes.NewBuffer(nil)
 
 	// Create a writer.
-	w := NewWriter(dst, key, 9)
+	w := NewWriter(dst, key, nil, 9)
 
 	// Encrypt the input.
 	pn, err := io.Copy(w, src)
@@ -42,7 +42,7 @@ func TestRoundTrip(t *testing.T) {
 	dst = bytes.NewBuffer(nil)
 
 	// Create a reader.
-	r := NewReader(src, key, 9)
+	r := NewReader(src, key, nil, 9)
 
 	// Decrypt the input.
 	cn, err := io.Copy(dst, r)
@@ -67,7 +67,7 @@ func BenchmarkWriter(b *testing.B) {
 
 		b.Run(fmt.Sprintf("%d bytes", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				w := NewWriter(io.Discard, key, 64*1024)
+				w := NewWriter(io.Discard, key, nil, 64*1024)
 
 				if _, err := io.CopyN(w, &fakeReader{}, size); err != nil {
 					b.Fatal(err)

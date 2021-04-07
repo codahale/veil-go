@@ -7,11 +7,13 @@ import (
 
 // Sealer encrypts blocks of a message stream.
 //
-// Encryption of a message stream is as follows, given a key K, block size B, and tag size N:
+// Encryption of a message stream is as follows, given a key K, associated data D, block size B, and
+// tag size N:
 //
 //     INIT('veil.stream', level=256)
 //     AD(LE_U32(B)),      meta=true)
 //     AD(LE_U32(N)),      meta=true)
+//     AD(D)
 //     KEY(K)
 //
 // Encryption of an intermediate plaintext block P_i is as follows:
@@ -35,10 +37,10 @@ type Sealer struct {
 	b, tag []byte
 }
 
-// NewSealer creates a new Sealer with the given key, block size, and tag size.
-func NewSealer(key []byte, blockSize, tagSize int) *Sealer {
+// NewSealer creates a new Sealer with the given key, associated data, block size, and tag size.
+func NewSealer(key, associatedData []byte, blockSize, tagSize int) *Sealer {
 	return &Sealer{
-		stream: initStream(key, blockSize, tagSize),
+		stream: initStream(key, associatedData, blockSize, tagSize),
 		b:      make([]byte, blockSize),
 		tag:    make([]byte, tagSize),
 	}
@@ -70,11 +72,13 @@ func (s *Sealer) Seal(plaintext []byte, final bool) []byte {
 
 // Opener decrypts blocks of a message stream.
 //
-// Decryption of a message stream is as follows, given a key K, block size B, and tag size N:
+// Decryption of a message stream is as follows, given a key K, associated data D, block size B, and
+// tag size N:
 //
 //     INIT('veil.stream', level=256)
 //     AD(LE_U32(B)),      meta=true)
 //     AD(LE_U32(N)),      meta=true)
+//     AD(D)
 //     KEY(K)
 //
 // Decryption of an intermediate ciphertext block C_i and authentication tag T_i is as follows:
@@ -98,10 +102,10 @@ type Opener struct {
 	b, tag []byte
 }
 
-// NewOpener creates a new Opener with the given key, block size, and tag size.
-func NewOpener(key []byte, blockSize, tagSize int) *Opener {
+// NewOpener creates a new Opener with the given key, associated data, block size, and tag size.
+func NewOpener(key, associatedData []byte, blockSize, tagSize int) *Opener {
 	return &Opener{
-		stream: initStream(key, blockSize, tagSize),
+		stream: initStream(key, associatedData, blockSize, tagSize),
 		b:      make([]byte, blockSize),
 		tag:    make([]byte, tagSize),
 	}
@@ -140,7 +144,7 @@ func (s *Opener) Open(ciphertext []byte, final bool) ([]byte, error) {
 	return plaintext, nil
 }
 
-func initStream(key []byte, blockSize, tagSize int) *strobe.Strobe {
+func initStream(key, associatedData []byte, blockSize, tagSize int) *strobe.Strobe {
 	// Initialize a new stream protocol.
 	stream := internal.Strobe("veil.stream")
 
@@ -149,6 +153,9 @@ func initStream(key []byte, blockSize, tagSize int) *strobe.Strobe {
 
 	// Add the tag size to the protocol.
 	internal.Must(stream.AD(internal.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
+
+	// Add the associated data to the protocol.
+	internal.Must(stream.AD(associatedData, &strobe.Options{}))
 
 	// Initialize the protocol with the given key.
 	internal.Must(stream.KEY(internal.Copy(key), false))

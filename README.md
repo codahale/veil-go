@@ -58,11 +58,11 @@ message key and the total length of all encrypted headers plus padding. For each
 sender encrypts a copy of the header using `veil.kem`. Finally, the sender adds optional random
 padding to the end of the encrypted headers.
 
-Second, the sender uses `veil.schnorr` to create a signature of both the encrypted headers
-(including any padding) and the plaintext.
+Second, the sender uses `veil.schnorr` to create a signature of the plaintext with the encrypted
+headers (including any padding) as associated data.
 
 Finally, the sender uses `veil.authenc.stream` to encrypt the message and the signature using the
-message key.
+message key, again with the encrypted headers as associated data.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable
 header. When a header is successfully decrypted, the message key is recovered, and the message is

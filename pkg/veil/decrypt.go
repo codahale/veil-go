@@ -26,8 +26,8 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 		return nil, 0, err
 	}
 
-	// Initialize a stream reader with the message key.
-	decryptor := streamio.NewReader(src, key, internal.BlockSize)
+	// Initialize a stream reader with the message key and the encrypted headers as associated data.
+	decryptor := streamio.NewReader(src, key, headers, internal.BlockSize)
 
 	// Detach the signature from the plaintext.
 	sr := sigio.NewReader(decryptor, schnorr.SignatureSize)

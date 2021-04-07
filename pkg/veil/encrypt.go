@@ -34,8 +34,8 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 		return int64(hn), err
 	}
 
-	// Initialize a stream writer with the message key.
-	encryptor := streamio.NewWriter(dst, key, internal.BlockSize)
+	// Initialize a stream writer with the message key and the encrypted headers as associated data.
+	encryptor := streamio.NewWriter(dst, key, headers, internal.BlockSize)
 
 	// Create a signer with the encrypted headers as associated data.
 	signer := schnorr.NewSigner(headers)
