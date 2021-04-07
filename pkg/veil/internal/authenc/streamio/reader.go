@@ -4,16 +4,17 @@ import (
 	"errors"
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/authenc"
 )
 
 // NewReader returns an io.Reader which reads encrypted blocks from src and decrypts them using the
 // veil.authenc.stream STROBE protocol.
-func NewReader(src io.Reader, key, encryptedHeaders []byte, blockSize int) io.Reader {
+func NewReader(src io.Reader, key []byte, blockSize int) io.Reader {
 	return &reader{
-		stream:     authenc.NewStreamOpener(key, encryptedHeaders, blockSize, authenc.TagSize),
+		stream:     authenc.NewStreamOpener(key, blockSize, internal.TagSize),
 		r:          src,
-		ciphertext: make([]byte, blockSize+authenc.TagSize+1), // extra byte for determining last block
+		ciphertext: make([]byte, blockSize+internal.TagSize+1), // extra byte for determining last block
 	}
 }
 

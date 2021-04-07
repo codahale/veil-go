@@ -3,15 +3,16 @@ package streamio
 import (
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/authenc"
 )
 
 // NewWriter returns an io.Writer which groups writes into blocks, encrypts them with the
 // veil.authenc.stream STROBE protocol, and writes them to dst.
-func NewWriter(dst io.Writer, key, encryptedHeaders []byte, blockSize int) io.WriteCloser {
+func NewWriter(dst io.Writer, key []byte, blockSize int) io.WriteCloser {
 	return &writer{
 		w:         dst,
-		stream:    authenc.NewStreamSealer(key, encryptedHeaders, blockSize, authenc.TagSize),
+		stream:    authenc.NewStreamSealer(key, blockSize, internal.TagSize),
 		plaintext: make([]byte, blockSize),
 	}
 }

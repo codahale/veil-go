@@ -37,10 +37,10 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]by
 
 	// Use balloon hashing to derive a key from the passphrase and salt.
 	key := balloonkdf.DeriveKey(passphrase, encSK.Salt[:],
-		int(encSK.Params.Space), int(encSK.Params.Time), authenc.KeySize)
+		int(encSK.Params.Space), int(encSK.Params.Time), internal.KeySize)
 
 	// Encrypt the secret key.
-	copy(encSK.Ciphertext[:], authenc.EncryptSecretKey(key, sk.r[:], authenc.TagSize))
+	copy(encSK.Ciphertext[:], authenc.EncryptSecretKey(key, sk.r[:], internal.TagSize))
 
 	// Encode the balloon hashing params, the salt, and the ciphertext.
 	buf := bytes.NewBuffer(nil)
@@ -66,10 +66,10 @@ func DecryptSecretKey(ciphertext, passphrase []byte) (*SecretKey, error) {
 
 	// Use balloon hashing to re-derive the key from the passphrase and salt.
 	key := balloonkdf.DeriveKey(passphrase, encSK.Salt[:],
-		int(encSK.Params.Space), int(encSK.Params.Time), authenc.KeySize)
+		int(encSK.Params.Space), int(encSK.Params.Time), internal.KeySize)
 
 	// Decrypt the encrypted secret key.
-	plaintext, err := authenc.DecryptSecretKey(key, encSK.Ciphertext[:], authenc.TagSize)
+	plaintext, err := authenc.DecryptSecretKey(key, encSK.Ciphertext[:], internal.TagSize)
 	if err != nil {
 		return nil, err
 	}
@@ -89,5 +89,5 @@ type encryptedSecretKey struct {
 
 const (
 	saltSize       = 32
-	ciphertextSize = internal.UniformBytestringSize + authenc.TagSize
+	ciphertextSize = internal.UniformBytestringSize + internal.TagSize
 )

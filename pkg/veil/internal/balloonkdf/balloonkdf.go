@@ -34,7 +34,7 @@ func DeriveKey(passphrase, salt []byte, space, time, n int) []byte {
 	n += n % 2 // round up
 
 	// Initialize a new protocol.
-	balloon := internal.Strobe("veil.kdf.balloon")
+	balloon := internal.Strobe("veil.balloon-kdf")
 
 	// Include the space parameter as associated data.
 	internal.Must(balloon.AD(internal.LittleEndianU32(space), &strobe.Options{Meta: true}))

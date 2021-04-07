@@ -14,10 +14,6 @@ import (
 //     AD(LE_U32(N)),              meta=true)
 //     KEY(K)
 //
-// Encryption begins by sending the encrypted message headers, H:
-//
-//     SEND_CLR(H)
-//
 // Encryption of an intermediate plaintext block P_i is as follows:
 //
 //     SEND_ENC(P_i)
@@ -39,13 +35,9 @@ type StreamSealer struct {
 	b, tag []byte
 }
 
-// NewStreamSealer creates a new StreamSealer with the given key, encrypted headers, block size, and
-// tag size.
-func NewStreamSealer(key, encryptedHeaders []byte, blockSize, tagSize int) *StreamSealer {
+// NewStreamSealer creates a new StreamSealer with the given key, block size, and tag size.
+func NewStreamSealer(key []byte, blockSize, tagSize int) *StreamSealer {
 	stream := initStream(key, blockSize, tagSize)
-
-	// Send the encrypted headers.
-	internal.Must(stream.SendCLR(encryptedHeaders, &strobe.Options{}))
 
 	return &StreamSealer{
 		stream: stream,
@@ -87,10 +79,6 @@ func (s *StreamSealer) Seal(plaintext []byte, final bool) []byte {
 //     AD(LE_U32(N)),              meta=true)
 //     KEY(K)
 //
-// Decryption begins by receiving the encrypted message headers, H:
-//
-//     RECV_CLR(H)
-//
 // Decryption of an intermediate ciphertext block C_i and authentication tag T_i is as follows:
 //
 //     RECV_ENC(C_i)
@@ -112,13 +100,9 @@ type StreamOpener struct {
 	b, tag []byte
 }
 
-// NewStreamOpener creates a new StreamOpener with the given key, encrypted headers, block size, and
-// tag size.
-func NewStreamOpener(key, encryptedHeaders []byte, blockSize, tagSize int) *StreamOpener {
+// NewStreamOpener creates a new StreamOpener with the given key, block size, and tag size.
+func NewStreamOpener(key []byte, blockSize, tagSize int) *StreamOpener {
 	stream := initStream(key, blockSize, tagSize)
-
-	// Receive the encrypted headers.
-	internal.Must(stream.RecvCLR(encryptedHeaders, &strobe.Options{}))
 
 	return &StreamOpener{
 		stream: stream,

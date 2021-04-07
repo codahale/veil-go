@@ -26,10 +26,10 @@ Veil uses just two distinct primitives:
 
 Veil includes STROBE protocols for the following capabilities:
 
-* `veil.authenc.*`: authenticated encryption for message headers and secret keys
+* `veil.authenc.secret-key`: authenticated encryption for secret keys
 * `veil.authenc.stream`: streaming AEAD encryption with key ratcheting
-* `veil.kdf.balloon`: balloon hashing key derivation for passphrase-based encryption
-* `veil.kdf.kem.*`: key derivation for Veil's key encapsulation algorithm
+* `veil.balloon-kdf`: balloon hashing key derivation for passphrase-based encryption
+* `veil.kem`: a `C(1e, 2s, ECC DH)` key encapsulation mechanism
 * `veil.rng`: a CSPRNG seeded from the underlying host
 * `veil.scaldf.*`: functions for deriving ristretto255 scalars from non-uniform or secret values
 * `veil.schnorr`: fully deterministic Schnorr signatures over ristretto255
@@ -54,27 +54,25 @@ key `friends`, which is in turn used to derive the private key `alice`.
 
 A Veil message combines all of these primitives to provide multi-recipient messages.
 
-First, the sender creates an ephemeral header key pair and creates a header block consisting of the
-ephemeral header private key and the total length of all encrypted headers plus padding. For each
-recipient, the sender encrypts a copy of the header using `veil.kdf.kem.header` and
-`veil.authenc.header`. Finally, the sender adds optional random padding to the end of the encrypted
-headers.
+First, the sender generates a random message key and and creates a header block consisting of the
+message key and the total length of all encrypted headers plus padding. For each recipient, the
+sender encrypts a copy of the header using `veil.kem`. Finally, the sender adds optional random
+padding to the end of the encrypted headers.
 
 Second, the sender uses `veil.schnorr` to create a signature of both the encrypted headers
 (including any padding) and the plaintext.
 
-Finally, the sender uses `veil.kdf.kem.message` and `veil.authenc.stream` to encrypt the message and
-the signature using the ephemeral header public key.
+Finally, the sender uses `veil.authenc.stream` to encrypt the message and the signature using the
+message key.
 
-To decrypt a message, the recipient iterates through the message, searching for a decryptable header
-using the shared secret between the ephemeral header public key and recipient's private key. When a
-header is successfully decrypted, the ephemeral header private key and the sender's public key is
-used to re-derive the shared secret, and the message is decrypted. The signature is verified against
-the encrypted headers and the plaintext, assuring authenticity.
+To decrypt a message, the recipient iterates through the message, searching for a decryptable
+header. When a header is successfully decrypted, the message key is recovered, and the message is
+decrypted. The signature is verified against the encrypted headers and the plaintext, assuring
+authenticity.
 
 ### Passphrase-Based Encryption
 
-To safely store secret keys, `veil.kdf.balloon` is used with a 32-byte random salt to derive a key.
+To safely store secret keys, `veil.balloon-kdf` is used with a 32-byte random salt to derive a key.
 The secret key is encrypted with `veil.authenc.secret-key`.
 
 ## What's the point

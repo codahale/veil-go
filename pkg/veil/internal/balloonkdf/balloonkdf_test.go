@@ -24,7 +24,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "7b0fb95ace7261e41e9aa0efd1003edf3fbf16203b200e556ed177f6ee8ce757",
+			hash:       "943559d295f98ff5fa8c54764f87adf4d6867eebce369888f289af43f6bfc410",
 		},
 		{
 			name:       "different password",
@@ -33,7 +33,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "edeb47b981cc14052f85597a17740c91254f6021aa1781f42d8426b583150e5a",
+			hash:       "377936ec0fb2bea703ab559eeafcf80b64973626dcea965a8bcbba30bd51a83a",
 		},
 		{
 			name:       "different salt",
@@ -42,7 +42,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       32,
-			hash:       "bb3874383a89853501e589868ad494cdd506df55523ca65967dfa972bedb1f6f",
+			hash:       "fe8dd9dc347c508c416e56ca03cccc809c29434823fe765046e7875508cc623e",
 		},
 		{
 			name:       "different space",
@@ -51,7 +51,7 @@ func TestHash(t *testing.T) {
 			space:      2048,
 			time:       64,
 			size:       32,
-			hash:       "23ed4722507eb883c34909e45dc5046534f15126ab420ae250e594757c18eeee",
+			hash:       "4c4a52f7406673826726ef5cb0d9f636bdf2f080666f50aa59833f77ce982625",
 		},
 		{
 			name:       "different time",
@@ -60,7 +60,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       96,
 			size:       32,
-			hash:       "c153e9c73ccf6523bb3bcc9dc8245fa8e7cf1a04e0856c082d8f11ace72be31d",
+			hash:       "ddc16d80d2011bdf2f9074be39927e3dc66a0d4b805952e8fd05c15413461c8e",
 		},
 		{
 			name:       "different size",
@@ -69,7 +69,7 @@ func TestHash(t *testing.T) {
 			space:      1024,
 			time:       64,
 			size:       16,
-			hash:       "1760956afa414b2de6cef9c78fd3066d",
+			hash:       "61e235f832ccbc6a45940dd2ee55dea6",
 		},
 	}
 

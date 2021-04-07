@@ -14,14 +14,13 @@ func TestRoundTrip(t *testing.T) {
 
 	// Constants.
 	key := []byte("this is ok")
-	ad := make([]byte, 19)
 
 	// Set up inputs and outputs.
 	src := bytes.NewBufferString("welcome to paradise")
 	dst := bytes.NewBuffer(nil)
 
 	// Create an AEAD writer.
-	w := NewWriter(dst, key, ad, 9)
+	w := NewWriter(dst, key, 9)
 
 	// Encrypt the input.
 	pn, err := io.Copy(w, src)
@@ -43,7 +42,7 @@ func TestRoundTrip(t *testing.T) {
 	dst = bytes.NewBuffer(nil)
 
 	// Create a reader.
-	r := NewReader(src, key, ad, 9)
+	r := NewReader(src, key, 9)
 
 	// Decrypt the input.
 	cn, err := io.Copy(dst, r)
@@ -61,7 +60,6 @@ func TestRoundTrip(t *testing.T) {
 //nolint:gocognit // It's just loops, guy.
 func BenchmarkWriter(b *testing.B) {
 	key := []byte("this is ok")
-	ad := make([]byte, 19)
 	sizes := []int64{100, 1_000, 10_000, 100_000, 1_000_000}
 
 	for _, size := range sizes {
@@ -69,7 +67,7 @@ func BenchmarkWriter(b *testing.B) {
 
 		b.Run(fmt.Sprintf("%d bytes", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				w := NewWriter(io.Discard, key, ad, 64*1024)
+				w := NewWriter(io.Discard, key, 64*1024)
 
 				if _, err := io.CopyN(w, &fakeReader{}, size); err != nil {
 					b.Fatal(err)

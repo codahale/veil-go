@@ -6,12 +6,10 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/authenc"
 	"github.com/codahale/veil/pkg/veil/internal/authenc/streamio"
-	"github.com/codahale/veil/pkg/veil/internal/kemkdf"
+	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr/sigio"
-	"github.com/gtank/ristretto255"
 )
 
 // Decrypt decrypts the data in src if originally encrypted by any of the given public keys. Returns
@@ -22,33 +20,14 @@ import (
 // to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
 // output written to dst should be discarded, as it cannot be ascertained to be authentic.
 func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey) (*PublicKey, int64, error) {
-	// Find a decryptable header and recover the ephemeral private key.
-	headers, pkS, privEH, err := pk.findHeader(src, senders)
+	// Find a decryptable header and recover the message key.
+	headers, pkS, key, err := pk.findHeader(src, senders)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Re-derive the ephemeral header public key.
-	pubEH := ristretto255.NewElement().ScalarBaseMult(privEH)
-
-	// Read the ephemeral message public key.
-	buf := make([]byte, internal.ElementSize)
-	if _, err := io.ReadFull(src, buf); err != nil {
-		return nil, 0, err
-	}
-
-	// Decode the ephemeral message public key.
-	pubEM := ristretto255.NewElement()
-	if err := pubEM.Decode(buf); err != nil {
-		return nil, 0, err
-	}
-
-	// Derive the shared ratchet key between the sender's public key and the ephemeral private key.
-	key := kemkdf.Receive(privEH, pubEH, pkS.q, pubEM, authenc.KeySize, false)
-
-	// Initialize an AEAD reader with the ratchet key, using the encrypted headers as authenticated
-	// data.
-	decryptor := streamio.NewReader(src, key, headers, streamio.BlockSize)
+	// Initialize a stream reader with the message key.
+	decryptor := streamio.NewReader(src, key, streamio.BlockSize)
 
 	// Detach the signature from the plaintext.
 	sr := sigio.NewReader(decryptor, schnorr.SignatureSize)
@@ -73,10 +52,10 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 }
 
 // findHeader scans src for header blocks encrypted by any of the given possible senders. Returns
-// the full slice of encrypted headers, the sender's public key, and the ephemeral private key.
+// the full slice of encrypted headers, the sender's public key, and the message key.
 func (pk *PrivateKey) findHeader(
 	src io.Reader, senders []*PublicKey,
-) ([]byte, *PublicKey, *ristretto255.Scalar, error) {
+) ([]byte, *PublicKey, []byte, error) {
 	headers := make([]byte, 0, len(senders)*encryptedHeaderSize) // a guess at initial capacity
 	buf := make([]byte, encryptedHeaderSize)
 
@@ -95,7 +74,7 @@ func (pk *PrivateKey) findHeader(
 		headers = append(headers, buf...)
 
 		// Attempt to decrypt the header.
-		pkS, skEH, offset := pk.decryptHeader(buf, senders)
+		pkS, key, offset := pk.decryptHeader(buf, senders)
 
 		// If we successfully decrypt the header, use the message offset to read the remaining
 		// encrypted headers.
@@ -107,46 +86,29 @@ func (pk *PrivateKey) findHeader(
 
 			// Return the full set of encrypted headers, the sender's public key, and the ephemeral
 			// secret key.
-			return append(headers, remaining...), pkS, skEH, nil
+			return append(headers, remaining...), pkS, key, nil
 		}
 	}
 }
 
 // decryptHeader attempts to decrypt the given header block if sent from any of the given public
 // keys.
-func (pk *PrivateKey) decryptHeader(buf []byte, senders []*PublicKey) (*PublicKey, *ristretto255.Scalar, int) {
-	// Decode the possible public key.
-	pubEH := ristretto255.NewElement()
-	if err := pubEH.Decode(buf[:internal.ElementSize]); err != nil {
-		return nil, nil, 0
-	}
-
-	// Extract the ciphertext.
-	ciphertext := buf[internal.ElementSize:]
-
+func (pk *PrivateKey) decryptHeader(buf []byte, senders []*PublicKey) (*PublicKey, []byte, int) {
 	// Iterate through all possible senders.
 	for _, pubS := range senders {
-		// Re-derive the shared key between the sender and recipient.
-		key := kemkdf.Receive(pk.d, pk.q, pubS.q, pubEH, authenc.KeySize, true)
-
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.
-		header, err := authenc.DecryptHeader(key, pubEH, ciphertext, authenc.TagSize)
+		header, err := kem.Decrypt(pk.d, pk.q, pubS.q, buf, internal.TagSize)
 		if err != nil {
 			continue
 		}
 
-		// If the header wss successfully decrypted, decode the ephemeral message private key and
-		// message offset.
-		privEM := ristretto255.NewScalar()
-		if err := privEM.Decode(header[:internal.ScalarSize]); err != nil {
-			continue
-		}
+		// If the header wss successfully decrypted, decode the message key and message offset.
+		key := header[:internal.KeySize]
+		offset := binary.LittleEndian.Uint32(header[internal.KeySize:])
 
-		offset := binary.LittleEndian.Uint32(header[internal.ScalarSize:])
-
-		// Return the sender's public key, the ephemeral private key, and the offset.
-		return pubS, privEM, int(offset)
+		// Return the sender's public key, the message key, and the offset.
+		return pubS, key, int(offset)
 	}
 
 	return nil, nil, 0
