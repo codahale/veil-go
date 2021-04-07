@@ -108,9 +108,6 @@ func TestSignAndVerify_BadAssociatedData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create a signature.
-	sig := signer.Sign(d, q)
-
 	// Write a message to a verifier.
 	verifier := NewVerifier([]byte("two"))
 	if _, err := io.Copy(verifier, bytes.NewBufferString("this is great")); err != nil {
@@ -118,7 +115,7 @@ func TestSignAndVerify_BadAssociatedData(t *testing.T) {
 	}
 
 	// Verify the signature.
-	if verifier.Verify(q, sig) {
+	if verifier.Verify(q, signer.Sign(d, q)) {
 		t.Error("did verify")
 	}
 }
