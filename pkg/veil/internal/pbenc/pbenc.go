@@ -121,7 +121,7 @@ func initProtocol(passphrase, salt []byte, space, time, n, tagSize int) *strobe.
 	buf := make([]byte, space*n)
 
 	// Step 1: Expand input into buffer.
-	hashCounter(pbenc, &ctr, ctrBuf[:], buf[0:n], nil, nil)
+	hashCounter(pbenc, &ctr, ctrBuf[:], buf[0:n], passphrase, salt)
 
 	for m := 1; m < space-1; m++ {
 		hashCounter(pbenc, &ctr, ctrBuf[:], buf[(m*n):(m*n)+n], buf[(m-1)*n:(m-1)*n+n], nil)
@@ -131,8 +131,8 @@ func initProtocol(passphrase, salt []byte, space, time, n, tagSize int) *strobe.
 	for t := 1; t < time; t++ {
 		for m := 1; m < space; m++ {
 			// Step 2a: Hash last and current blocks.
-			j := (m - 1) % space
-			hashCounter(pbenc, &ctr, ctrBuf[:], buf[m*n:m*n+n], buf[j*n:j*n+n], buf[m*n:m*n+n])
+			prev := (m - 1) % space
+			hashCounter(pbenc, &ctr, ctrBuf[:], buf[m*n:m*n+n], buf[prev*n:prev*n+n], buf[m*n:m*n+n])
 
 			// Step 2b: Hash in pseudo-randomly chosen blocks.
 			for i := 0; i < delta; i++ {
