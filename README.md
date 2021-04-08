@@ -67,6 +67,10 @@ header. When a header is successfully decrypted, the message key is recovered, a
 decrypted. The signature is verified against the encrypted headers and the plaintext, assuring
 authenticity.
 
+Because Veil's KEM is authenticated, a message recipient can only decrypt the message if they have
+the sender's public key. To send an anonymous message, the sender can include the public key with a
+message.
+
 ### Passphrase-Based Encryption
 
 To safely store secret keys, `veil.pbenc` is used with a 32-byte random salt to encrypt the secret
