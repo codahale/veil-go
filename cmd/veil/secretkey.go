@@ -25,7 +25,7 @@ func (cmd *secretKeyCmd) Run(_ *kong.Context) error {
 	}
 
 	// Encrypt the secret key with the passphrase.
-	esk, err := veil.EncryptSecretKey(sk, passphrase, nil)
+	esk, err := sk.Encrypt(passphrase, nil)
 	if err != nil {
 		return err
 	}

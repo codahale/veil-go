@@ -14,12 +14,12 @@ func TestPBE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	esk, err := EncryptSecretKey(sk, []byte("this is magic"), nil)
+	esk, err := sk.Encrypt([]byte("this is magic"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	dsk, err := DecryptSecretKey(esk, []byte("this is magic"))
+	dsk, err := DecryptSecretKey([]byte("this is magic"), esk)
 	if err != nil {
 		t.Fatal(err)
 	}

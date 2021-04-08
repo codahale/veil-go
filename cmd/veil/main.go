@@ -77,7 +77,7 @@ func decryptSecretKey(path string) (*veil.SecretKey, error) {
 		return nil, err
 	}
 
-	return veil.DecryptSecretKey(b, pwd)
+	return veil.DecryptSecretKey(pwd, b)
 }
 
 func askPassphrase(prompt string) ([]byte, error) {

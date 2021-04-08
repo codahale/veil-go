@@ -14,9 +14,9 @@ type PBEParams struct {
 	Time, Space uint32 // The time and space parameters.
 }
 
-// EncryptSecretKey encrypts the given secret key with the given passphrase and optional PBE
-// parameters. Returns the encrypted key.
-func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]byte, error) {
+// Encrypt encrypts the secret key with the given passphrase and optional PBE parameters. Returns
+// the encrypted key.
+func (sk *SecretKey) Encrypt(passphrase []byte, params *PBEParams) ([]byte, error) {
 	var encSK encryptedSecretKey
 
 	// Use default parameters if none are provided.
@@ -52,7 +52,7 @@ func EncryptSecretKey(sk *SecretKey, passphrase []byte, params *PBEParams) ([]by
 
 // DecryptSecretKey decrypts the given secret key with the given passphrase. Returns the decrypted
 // secret key.
-func DecryptSecretKey(ciphertext, passphrase []byte) (*SecretKey, error) {
+func DecryptSecretKey(passphrase, ciphertext []byte) (*SecretKey, error) {
 	var (
 		encSK encryptedSecretKey
 		sk    SecretKey
