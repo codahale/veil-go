@@ -1,10 +1,7 @@
 package main
 
 import (
-	"encoding/base64"
-
 	"github.com/alecthomas/kong"
-	"github.com/emersion/go-textwrapper"
 )
 
 type signCmd struct {
@@ -24,7 +21,7 @@ func (cmd *signCmd) Run(_ *kong.Context) error {
 	}
 
 	// Open the message input.
-	src, err := openInput(cmd.Message)
+	src, err := openInput(cmd.Message, false)
 	if err != nil {
 		return err
 	}
@@ -32,19 +29,12 @@ func (cmd *signCmd) Run(_ *kong.Context) error {
 	defer func() { _ = src.Close() }()
 
 	// Open the signed output.
-	dst, err := openOutput(cmd.SignedMessage)
+	dst, err := openOutput(cmd.SignedMessage, cmd.Armor)
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = dst.Close() }()
-
-	// Encode the output as base64 if requested.
-	if cmd.Armor {
-		dst = base64.NewEncoder(base64.StdEncoding, textwrapper.NewRFC822(dst))
-
-		defer func() { _ = dst.Close() }()
-	}
 
 	// Create the signed message.
 	_, err = sk.PrivateKey(cmd.KeyID).Sign(dst, src)

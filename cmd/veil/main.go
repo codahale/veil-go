@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -88,18 +89,74 @@ func askPassphrase(prompt string) ([]byte, error) {
 	return term.ReadPassword(int(os.Stdin.Fd()))
 }
 
-func openOutput(path string) (io.WriteCloser, error) {
-	if path == "-" {
-		return os.Stdout, nil
+func openOutput(path string, armor bool) (io.WriteCloser, error) {
+	dst := os.Stdout
+
+	if path != "-" {
+		f, err := os.Create(path)
+		if err != nil {
+			return nil, err
+		}
+
+		dst = f
 	}
 
-	return os.Create(path)
-}
-
-func openInput(path string) (io.ReadCloser, error) {
-	if path == "-" {
-		return os.Stdin, nil
+	if armor {
+		return &base64Encoder{dst: dst, enc: base64.NewEncoder(base64.StdEncoding, dst)}, nil
 	}
 
-	return os.Open(path)
+	return dst, nil
 }
+
+func openInput(path string, armor bool) (io.ReadCloser, error) {
+	src := os.Stdin
+
+	if path != "-" {
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+
+		src = f
+	}
+
+	if armor {
+		return &base64Decoder{src: src, dec: base64.NewDecoder(base64.StdEncoding, src)}, nil
+	}
+
+	return src, nil
+}
+
+type base64Encoder struct {
+	dst io.WriteCloser
+	enc io.WriteCloser
+}
+
+func (b *base64Encoder) Write(p []byte) (n int, err error) {
+	return b.enc.Write(p)
+}
+
+func (b *base64Encoder) Close() error {
+	if err := b.enc.Close(); err != nil {
+		return err
+	}
+
+	return b.dst.Close()
+}
+
+var _ io.WriteCloser = &base64Encoder{}
+
+type base64Decoder struct {
+	src io.ReadCloser
+	dec io.Reader
+}
+
+func (b *base64Decoder) Read(p []byte) (n int, err error) {
+	return b.dec.Read(p)
+}
+
+func (b *base64Decoder) Close() error {
+	return b.src.Close()
+}
+
+var _ io.ReadCloser = &base64Decoder{}

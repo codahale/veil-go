@@ -1,9 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
-	"io"
-
 	"github.com/alecthomas/kong"
 )
 
@@ -23,20 +20,15 @@ func (cmd *verifyCmd) Run(_ *kong.Context) error {
 	}
 
 	// Open the signed message input.
-	src, err := openInput(cmd.SignedMessage)
+	src, err := openInput(cmd.SignedMessage, cmd.Armor)
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = src.Close() }()
 
-	// Decode the input as base64 if requested.
-	if cmd.Armor {
-		src = io.NopCloser(base64.NewDecoder(base64.StdEncoding, src))
-	}
-
 	// Open the verified output.
-	dst, err := openOutput(cmd.Message)
+	dst, err := openOutput(cmd.Message, false)
 	if err != nil {
 		return err
 	}

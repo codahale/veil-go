@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/alecthomas/kong"
@@ -33,20 +31,15 @@ func (cmd *decryptCmd) Run(_ *kong.Context) error {
 	}
 
 	// Open the ciphertext input.
-	src, err := openInput(cmd.Ciphertext)
+	src, err := openInput(cmd.Ciphertext, cmd.Armor)
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = src.Close() }()
 
-	// Decode the input as base64 if requested.
-	if cmd.Armor {
-		src = io.NopCloser(base64.NewDecoder(base64.StdEncoding, src))
-	}
-
 	// Open the plaintext output.
-	dst, err := openOutput(cmd.Plaintext)
+	dst, err := openOutput(cmd.Plaintext, false)
 	if err != nil {
 		return err
 	}

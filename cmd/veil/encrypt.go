@@ -1,11 +1,8 @@
 package main
 
 import (
-	"encoding/base64"
-
 	"github.com/alecthomas/kong"
 	"github.com/codahale/veil/pkg/veil"
-	"github.com/emersion/go-textwrapper"
 )
 
 type encryptCmd struct {
@@ -42,7 +39,7 @@ func (cmd *encryptCmd) Run(_ *kong.Context) error {
 	}
 
 	// Open the plaintext input.
-	src, err := openInput(cmd.Plaintext)
+	src, err := openInput(cmd.Plaintext, false)
 	if err != nil {
 		return err
 	}
@@ -50,19 +47,12 @@ func (cmd *encryptCmd) Run(_ *kong.Context) error {
 	defer func() { _ = src.Close() }()
 
 	// Open the ciphertext output.
-	dst, err := openOutput(cmd.Ciphertext)
+	dst, err := openOutput(cmd.Ciphertext, cmd.Armor)
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = dst.Close() }()
-
-	// Encode the output as base64 if requested.
-	if cmd.Armor {
-		dst = base64.NewEncoder(base64.StdEncoding, textwrapper.NewRFC822(dst))
-
-		defer func() { _ = dst.Close() }()
-	}
 
 	// Encrypt the plaintext.
 	_, err = sk.PrivateKey(cmd.KeyID).Encrypt(dst, src, recipients, cmd.Padding)
