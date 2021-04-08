@@ -2,9 +2,10 @@ package main
 
 import (
 	"encoding/base64"
-	"github.com/emersion/go-textwrapper"
+
 
 	"github.com/alecthomas/kong"
+	"github.com/emersion/go-textwrapper"
 )
 
 type signCmd struct {
