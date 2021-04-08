@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/base64"
 
-
 	"github.com/alecthomas/kong"
 	"github.com/emersion/go-textwrapper"
 )
