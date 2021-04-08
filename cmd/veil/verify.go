@@ -2,8 +2,9 @@ package main
 
 import (
 	"encoding/base64"
-	"github.com/alecthomas/kong"
 	"io"
+
+	"github.com/alecthomas/kong"
 )
 
 type verifyCmd struct {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+
 	"github.com/alecthomas/kong"
 	"github.com/codahale/veil/pkg/veil"
 	"github.com/emersion/go-textwrapper"
