@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/alecthomas/kong"
 	"github.com/codahale/veil/pkg/veil"
+	"github.com/codahale/veil/pkg/veil/armor"
 )
 
 type encryptCmd struct {
@@ -12,7 +13,7 @@ type encryptCmd struct {
 	Ciphertext string   `arg:"" type:"path" help:"The path to the ciphertext file."`
 	Recipients []string `arg:"" repeated:"" help:"The public keys of the recipients."`
 
-	Armor   bool `help:"Encode the ciphertext as ascii85."`
+	Armor   bool `help:"Encode the ciphertext as base64."`
 	Fakes   int  `help:"The number of fake recipients to add."`
 	Padding int  `help:"The number of bytes of random padding to add."`
 }
@@ -39,7 +40,7 @@ func (cmd *encryptCmd) Run(_ *kong.Context) error {
 	}
 
 	// Open the plaintext input.
-	src, err := openInput(cmd.Plaintext, false)
+	src, err := openInput(cmd.Plaintext)
 	if err != nil {
 		return err
 	}
@@ -47,12 +48,19 @@ func (cmd *encryptCmd) Run(_ *kong.Context) error {
 	defer func() { _ = src.Close() }()
 
 	// Open the ciphertext output.
-	dst, err := openOutput(cmd.Ciphertext, cmd.Armor)
+	dst, err := openOutput(cmd.Ciphertext)
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = dst.Close() }()
+
+	// Armor the output if requested.
+	if cmd.Armor {
+		dst = armor.NewEncoder(dst)
+
+		defer func() { _ = dst.Close() }()
+	}
 
 	// Encrypt the plaintext.
 	_, err = sk.PrivateKey(cmd.KeyID).Encrypt(dst, src, recipients, cmd.Padding)

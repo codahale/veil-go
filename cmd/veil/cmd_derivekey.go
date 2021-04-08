@@ -20,7 +20,7 @@ func (cmd *deriveKeyCmd) Run(_ *kong.Context) error {
 	}
 
 	// Open the output.
-	dst, err := openOutput(cmd.Output, false)
+	dst, err := openOutput(cmd.Output)
 	if err != nil {
 		return err
 	}

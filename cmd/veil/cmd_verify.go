@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
+	"github.com/codahale/veil/pkg/veil/armor"
 )
 
 type verifyCmd struct {
@@ -9,7 +10,7 @@ type verifyCmd struct {
 	SignedMessage string `arg:"" type:"existingfile" help:"The path to the signed message."`
 	Message       string `arg:"" type:"path" help:"The path to the message."`
 
-	Armor bool `help:"Decode the signed message as ascii85."`
+	Armor bool `help:"Decode the signed message as base64."`
 }
 
 func (cmd *verifyCmd) Run(_ *kong.Context) error {
@@ -20,15 +21,20 @@ func (cmd *verifyCmd) Run(_ *kong.Context) error {
 	}
 
 	// Open the signed message input.
-	src, err := openInput(cmd.SignedMessage, cmd.Armor)
+	src, err := openInput(cmd.SignedMessage)
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = src.Close() }()
 
+	// De-armor the input, if requested.
+	if cmd.Armor {
+		src = armor.NewDecoder(src)
+	}
+
 	// Open the verified output.
-	dst, err := openOutput(cmd.Message, false)
+	dst, err := openOutput(cmd.Message)
 	if err != nil {
 		return err
 	}

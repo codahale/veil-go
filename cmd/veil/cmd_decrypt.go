@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
+	"github.com/codahale/veil/pkg/veil/armor"
 )
 
 type decryptCmd struct {
@@ -14,7 +15,7 @@ type decryptCmd struct {
 	Plaintext  string   `arg:"" type:"path" help:"The path to the plaintext file."`
 	Senders    []string `arg:"" repeated:"" help:"The public keys of the possible senders."`
 
-	Armor bool `help:"Decode the ciphertext as ascii85."`
+	Armor bool `help:"Decode the ciphertext as base64."`
 }
 
 func (cmd *decryptCmd) Run(_ *kong.Context) error {
@@ -31,15 +32,20 @@ func (cmd *decryptCmd) Run(_ *kong.Context) error {
 	}
 
 	// Open the ciphertext input.
-	src, err := openInput(cmd.Ciphertext, cmd.Armor)
+	src, err := openInput(cmd.Ciphertext)
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = src.Close() }()
 
+	// De-armor the input, if requested.
+	if cmd.Armor {
+		src = armor.NewDecoder(src)
+	}
+
 	// Open the plaintext output.
-	dst, err := openOutput(cmd.Plaintext, false)
+	dst, err := openOutput(cmd.Plaintext)
 	if err != nil {
 		return err
 	}

@@ -21,7 +21,7 @@ func (cmd *verifyDetachedCmd) Run(_ *kong.Context) error {
 	}
 
 	// Open the message input.
-	src, err := openInput(cmd.Message, false)
+	src, err := openInput(cmd.Message)
 	if err != nil {
 		return err
 	}

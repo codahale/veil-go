@@ -19,7 +19,7 @@ func (cmd *signDetachedCmd) Run(_ *kong.Context) error {
 	}
 
 	// Open the message input.
-	src, err := openInput(cmd.Message, false)
+	src, err := openInput(cmd.Message)
 	if err != nil {
 		return err
 	}
@@ -27,7 +27,7 @@ func (cmd *signDetachedCmd) Run(_ *kong.Context) error {
 	defer func() { _ = src.Close() }()
 
 	// Open the signature output.
-	dst, err := openOutput(cmd.Signature, false)
+	dst, err := openOutput(cmd.Signature)
 	if err != nil {
 		return err
 	}

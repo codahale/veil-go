@@ -1,14 +1,12 @@
 package main
 
 import (
-	"encoding/ascii85"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/alecthomas/kong"
 	"github.com/codahale/veil/pkg/veil"
-	"github.com/emersion/go-textwrapper"
 	"golang.org/x/term"
 )
 
@@ -88,74 +86,18 @@ func askPassphrase(prompt string) ([]byte, error) {
 	return term.ReadPassword(int(os.Stdin.Fd()))
 }
 
-func openOutput(path string, armor bool) (io.WriteCloser, error) {
-	dst := os.Stdout
-
-	if path != "-" {
-		f, err := os.Create(path)
-		if err != nil {
-			return nil, err
-		}
-
-		dst = f
+func openOutput(path string) (io.WriteCloser, error) {
+	if path == "-" {
+		return os.Stdin, nil
 	}
 
-	if armor {
-		return &asciiEncoder{dst: dst, enc: ascii85.NewEncoder(textwrapper.NewRFC822(dst))}, nil
+	return os.Create(path)
+}
+
+func openInput(path string) (io.ReadCloser, error) {
+	if path == "-" {
+		return os.Stdin, nil
 	}
 
-	return dst, nil
+	return os.Open(path)
 }
-
-func openInput(path string, armor bool) (io.ReadCloser, error) {
-	src := os.Stdin
-
-	if path != "-" {
-		f, err := os.Open(path)
-		if err != nil {
-			return nil, err
-		}
-
-		src = f
-	}
-
-	if armor {
-		return &asciiDecoder{src: src, dec: ascii85.NewDecoder(src)}, nil
-	}
-
-	return src, nil
-}
-
-type asciiEncoder struct {
-	dst io.WriteCloser
-	enc io.WriteCloser
-}
-
-func (b *asciiEncoder) Write(p []byte) (n int, err error) {
-	return b.enc.Write(p)
-}
-
-func (b *asciiEncoder) Close() error {
-	if err := b.enc.Close(); err != nil {
-		return err
-	}
-
-	return b.dst.Close()
-}
-
-var _ io.WriteCloser = &asciiEncoder{}
-
-type asciiDecoder struct {
-	src io.ReadCloser
-	dec io.Reader
-}
-
-func (b *asciiDecoder) Read(p []byte) (n int, err error) {
-	return b.dec.Read(p)
-}
-
-func (b *asciiDecoder) Close() error {
-	return b.src.Close()
-}
-
-var _ io.ReadCloser = &asciiDecoder{}
