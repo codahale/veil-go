@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"syscall"
 
@@ -90,7 +91,7 @@ func askPassphrase(prompt string) ([]byte, error) {
 	return term.ReadPassword(int(syscall.Stdin))
 }
 
-func openOutput(path string) (*os.File, error) {
+func openOutput(path string) (io.WriteCloser, error) {
 	if path == "-" {
 		return os.Stdout, nil
 	}
@@ -98,7 +99,7 @@ func openOutput(path string) (*os.File, error) {
 	return os.Create(path)
 }
 
-func openInput(path string) (*os.File, error) {
+func openInput(path string) (io.ReadCloser, error) {
 	if path == "-" {
 		return os.Stdin, nil
 	}

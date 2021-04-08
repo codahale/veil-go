@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/alecthomas/kong v0.2.16
 	github.com/codahale/gubbins v0.0.1
+	github.com/emersion/go-textwrapper v0.0.0-20200911093747-65d896831594
 	github.com/gtank/ristretto255 v0.1.2
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sammyne/strobe v0.0.0-20201028005755-1a7dc1020420

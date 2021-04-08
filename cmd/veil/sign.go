@@ -1,12 +1,17 @@
 package main
 
-import "github.com/alecthomas/kong"
+import (
+	"encoding/base64"
+	"github.com/alecthomas/kong"
+)
 
 type signCmd struct {
 	SecretKey     string `arg:"" type:"existingfile" help:"The path to the secret key."`
 	KeyID         string `arg:"" help:"The ID of the private key to use."`
 	Message       string `arg:"" type:"existingfile" help:"The path to the message."`
 	SignedMessage string `arg:"" type:"path" help:"The path to the signed message."`
+
+	Armor bool `help:"Encode the signed message as base64."`
 }
 
 func (cmd *signCmd) Run(_ *kong.Context) error {
@@ -31,6 +36,13 @@ func (cmd *signCmd) Run(_ *kong.Context) error {
 	}
 
 	defer func() { _ = dst.Close() }()
+
+	// Encode the output as base64 if requested.
+	if cmd.Armor {
+		dst = base64.NewEncoder(base64.StdEncoding, dst)
+
+		defer func() { _ = dst.Close() }()
+	}
 
 	// Create the signed message.
 	_, err = sk.PrivateKey(cmd.KeyID).Sign(dst, src)

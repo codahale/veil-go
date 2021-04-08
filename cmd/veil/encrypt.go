@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/base64"
 	"github.com/alecthomas/kong"
 	"github.com/codahale/veil/pkg/veil"
+	"github.com/emersion/go-textwrapper"
 )
 
 type encryptCmd struct {
@@ -12,8 +14,9 @@ type encryptCmd struct {
 	Ciphertext string   `arg:"" type:"path" help:"The path to the ciphertext file."`
 	Recipients []string `arg:"" repeated:"" help:"The public keys of the recipients."`
 
-	Fakes   int `help:"The number of fake recipients to add."`
-	Padding int `help:"The number of bytes of random padding to add."`
+	Armor   bool `help:"Encode the ciphertext as base64."`
+	Fakes   int  `help:"The number of fake recipients to add."`
+	Padding int  `help:"The number of bytes of random padding to add."`
 }
 
 func (cmd *encryptCmd) Run(_ *kong.Context) error {
@@ -52,6 +55,13 @@ func (cmd *encryptCmd) Run(_ *kong.Context) error {
 	}
 
 	defer func() { _ = dst.Close() }()
+
+	// Encode the output as base64 if requested.
+	if cmd.Armor {
+		dst = base64.NewEncoder(base64.StdEncoding, textwrapper.NewRFC822(dst))
+
+		defer func() { _ = dst.Close() }()
+	}
 
 	// Encrypt the plaintext.
 	_, err = sk.PrivateKey(cmd.KeyID).Encrypt(dst, src, recipients, cmd.Padding)

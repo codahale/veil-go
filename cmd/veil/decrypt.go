@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/alecthomas/kong"
@@ -13,6 +15,8 @@ type decryptCmd struct {
 	Ciphertext string   `arg:"" type:"existingfile" help:"The path to the ciphertext file."`
 	Plaintext  string   `arg:"" type:"path" help:"The path to the plaintext file."`
 	Senders    []string `arg:"" repeated:"" help:"The public keys of the possible senders."`
+
+	Armor bool `help:"Decode the ciphertext as base64."`
 }
 
 func (cmd *decryptCmd) Run(_ *kong.Context) error {
@@ -35,6 +39,11 @@ func (cmd *decryptCmd) Run(_ *kong.Context) error {
 	}
 
 	defer func() { _ = src.Close() }()
+
+	// Decode the input as base64 if requested.
+	if cmd.Armor {
+		src = io.NopCloser(base64.NewDecoder(base64.StdEncoding, src))
+	}
 
 	// Open the plaintext output.
 	dst, err := openOutput(cmd.Plaintext)
