@@ -1,4 +1,5 @@
-// Package kem provides the underlying STROBE protocol for Veil's key encapsulation mechanism.
+// Package kem provides the underlying STROBE protocol for Veil's authenticated key encapsulation
+// mechanism.
 //
 // Key encapsulation generates an ephemeral key pair, d_e and Q_e, and uses the sender's key pair,
 // d_s and Q_s, and the receiver's public key, Q_r, to calculate two Diffie-Hellman shared secret
@@ -42,15 +43,16 @@
 // If the RECV_MAC call is successful, the plaintext message M is returned.
 //
 // As a One-Pass Unified Model C(1e, 2s, ECC CDH) key agreement scheme (per NIST SP 800-56A), this
-// KEM provides assurance that the message was encrypted by the holder of the sender's private key.
-// XDH mutability issues are mitigated by the inclusion of the ephemeral public key and the
-// recipient's public key in the inputs. Deriving the key from all data sent or received adds
-// key-commitment with all public keys as openers.
+// KEM construction provides authenticity as well as confidentiality. XDH mutability issues are
+// mitigated by the inclusion of the ephemeral public key and the recipient's public key in the
+// inputs, and deriving the key from all data sent or received adds key-commitment with all public
+// keys as openers.
 //
 // Unlike C(0e, 2s) schemes (e.g. NaCl's box construction), this KEM is not deterministic and will
 // not reveal repeated messages. Unlike C(1e, 1s) schemes (e.g. IES), this KEM binds the sender's
-// identity. This latter property is useful, as it allows for readers to discover the sender's
-// identity before beginning to decrypt the message or verify its signature.
+// identity. This latter property is useful, as it allows for readers to confirm the sender's
+// identity before beginning to decrypt the message or verify its signature. This enables the use of
+// an integrated single-pass digital signature algorithm (i.e. veil.schnorr).
 //
 // See https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar3.pdf
 package kem
