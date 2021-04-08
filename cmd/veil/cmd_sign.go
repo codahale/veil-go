@@ -10,7 +10,7 @@ type signCmd struct {
 	Message       string `arg:"" type:"existingfile" help:"The path to the message."`
 	SignedMessage string `arg:"" type:"path" help:"The path to the signed message."`
 
-	Armor bool `help:"Encode the signed message as base64."`
+	Armor bool `help:"Encode the signed message as ascii85."`
 }
 
 func (cmd *signCmd) Run(_ *kong.Context) error {

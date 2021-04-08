@@ -1,13 +1,14 @@
 package main
 
 import (
-	"encoding/base64"
+	"encoding/ascii85"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/alecthomas/kong"
 	"github.com/codahale/veil/pkg/veil"
+	"github.com/emersion/go-textwrapper"
 	"golang.org/x/term"
 )
 
@@ -100,7 +101,7 @@ func openOutput(path string, armor bool) (io.WriteCloser, error) {
 	}
 
 	if armor {
-		return &base64Encoder{dst: dst, enc: base64.NewEncoder(base64.StdEncoding, dst)}, nil
+		return &asciiEncoder{dst: dst, enc: ascii85.NewEncoder(textwrapper.NewRFC822(dst))}, nil
 	}
 
 	return dst, nil
@@ -119,22 +120,22 @@ func openInput(path string, armor bool) (io.ReadCloser, error) {
 	}
 
 	if armor {
-		return &base64Decoder{src: src, dec: base64.NewDecoder(base64.StdEncoding, src)}, nil
+		return &asciiDecoder{src: src, dec: ascii85.NewDecoder(src)}, nil
 	}
 
 	return src, nil
 }
 
-type base64Encoder struct {
+type asciiEncoder struct {
 	dst io.WriteCloser
 	enc io.WriteCloser
 }
 
-func (b *base64Encoder) Write(p []byte) (n int, err error) {
+func (b *asciiEncoder) Write(p []byte) (n int, err error) {
 	return b.enc.Write(p)
 }
 
-func (b *base64Encoder) Close() error {
+func (b *asciiEncoder) Close() error {
 	if err := b.enc.Close(); err != nil {
 		return err
 	}
@@ -142,19 +143,19 @@ func (b *base64Encoder) Close() error {
 	return b.dst.Close()
 }
 
-var _ io.WriteCloser = &base64Encoder{}
+var _ io.WriteCloser = &asciiEncoder{}
 
-type base64Decoder struct {
+type asciiDecoder struct {
 	src io.ReadCloser
 	dec io.Reader
 }
 
-func (b *base64Decoder) Read(p []byte) (n int, err error) {
+func (b *asciiDecoder) Read(p []byte) (n int, err error) {
 	return b.dec.Read(p)
 }
 
-func (b *base64Decoder) Close() error {
+func (b *asciiDecoder) Close() error {
 	return b.src.Close()
 }
 
-var _ io.ReadCloser = &base64Decoder{}
+var _ io.ReadCloser = &asciiDecoder{}

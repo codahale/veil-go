@@ -12,7 +12,7 @@ type encryptCmd struct {
 	Ciphertext string   `arg:"" type:"path" help:"The path to the ciphertext file."`
 	Recipients []string `arg:"" repeated:"" help:"The public keys of the recipients."`
 
-	Armor   bool `help:"Encode the ciphertext as base64."`
+	Armor   bool `help:"Encode the ciphertext as ascii85."`
 	Fakes   int  `help:"The number of fake recipients to add."`
 	Padding int  `help:"The number of bytes of random padding to add."`
 }

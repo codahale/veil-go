@@ -9,7 +9,7 @@ type verifyCmd struct {
 	SignedMessage string `arg:"" type:"existingfile" help:"The path to the signed message."`
 	Message       string `arg:"" type:"path" help:"The path to the message."`
 
-	Armor bool `help:"Decode the signed message as base64."`
+	Armor bool `help:"Decode the signed message as ascii85."`
 }
 
 func (cmd *verifyCmd) Run(_ *kong.Context) error {
