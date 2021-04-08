@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"syscall"
 
 	"github.com/alecthomas/kong"
 	"github.com/codahale/veil/pkg/veil"
@@ -86,9 +85,7 @@ func askPassphrase(prompt string) ([]byte, error) {
 
 	_, _ = fmt.Fprint(os.Stderr, prompt)
 
-	//nolint:unconvert // actually needed
-	//goland:noinspection GoRedundantConversion
-	return term.ReadPassword(int(syscall.Stdin))
+	return term.ReadPassword(int(os.Stdin.Fd()))
 }
 
 func openOutput(path string) (io.WriteCloser, error) {
