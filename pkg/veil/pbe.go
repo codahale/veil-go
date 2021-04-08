@@ -69,7 +69,7 @@ func DecryptSecretKey(ciphertext, passphrase []byte) (*SecretKey, error) {
 		int(encSK.Params.Space), int(encSK.Params.Time), internal.KeySize, internal.TagSize,
 	)
 	if err != nil {
-		return nil, err
+		return nil, ErrInvalidCiphertext
 	}
 
 	// Copy it and return it.
