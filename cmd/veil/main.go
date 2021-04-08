@@ -31,19 +31,17 @@ func main() {
 	ctx.FatalIfErrorf(err)
 }
 
-func decodePublicKeys(pathsOrKeys []string) ([]*veil.PublicKey, error) {
-	keys := make([]*veil.PublicKey, len(pathsOrKeys))
+func decodePublicKeys(pathsOrKeys []string) (keys []*veil.PublicKey, err error) {
+	keys = make([]*veil.PublicKey, len(pathsOrKeys))
 
 	for i, path := range pathsOrKeys {
-		pk, err := decodePublicKey(path)
+		keys[i], err = decodePublicKey(path)
 		if err != nil {
 			return nil, err
 		}
-
-		keys[i] = pk
 	}
 
-	return keys, nil
+	return
 }
 
 func decodePublicKey(pathOrKey string) (*veil.PublicKey, error) {
