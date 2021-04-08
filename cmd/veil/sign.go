@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"github.com/emersion/go-textwrapper"
 
 	"github.com/alecthomas/kong"
 )
@@ -40,7 +41,7 @@ func (cmd *signCmd) Run(_ *kong.Context) error {
 
 	// Encode the output as base64 if requested.
 	if cmd.Armor {
-		dst = base64.NewEncoder(base64.StdEncoding, dst)
+		dst = base64.NewEncoder(base64.StdEncoding, textwrapper.NewRFC822(dst))
 
 		defer func() { _ = dst.Close() }()
 	}
