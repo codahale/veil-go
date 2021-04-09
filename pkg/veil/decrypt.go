@@ -103,8 +103,8 @@ func (pk *PrivateKey) decryptHeader(buf []byte, senders []*PublicKey) (*PublicKe
 		}
 
 		// If the header wss successfully decrypted, decode the message key and message offset.
-		key := header[:internal.KeySize]
-		offset := binary.LittleEndian.Uint32(header[internal.KeySize:])
+		key := header[:internal.MessageKeySize]
+		offset := binary.LittleEndian.Uint32(header[internal.MessageKeySize:])
 
 		// Return the sender's public key, the message key, and the offset.
 		return pubS, key, int(offset)

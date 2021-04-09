@@ -17,7 +17,7 @@ import (
 // error reported while encrypting, if any.
 func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
 	// Generate a random message key.
-	key := make([]byte, internal.KeySize)
+	key := make([]byte, internal.MessageKeySize)
 	if _, err := rand.Read(key); err != nil {
 		return 0, err
 	}
@@ -70,7 +70,7 @@ func (pk *PrivateKey) encodeHeader(key []byte, recipients, padding int) []byte {
 
 	// Calculate the message offset and encode it.
 	offset := encryptedHeaderSize*recipients + padding
-	binary.LittleEndian.PutUint32(header[internal.KeySize:], uint32(offset))
+	binary.LittleEndian.PutUint32(header[internal.MessageKeySize:], uint32(offset))
 
 	return header
 }
@@ -102,6 +102,6 @@ func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, pad
 }
 
 const (
-	headerSize          = internal.KeySize + 4 // 4 bytes for message offset
+	headerSize          = internal.MessageKeySize + 4 // 4 bytes for message offset
 	encryptedHeaderSize = internal.ElementSize + headerSize + internal.TagSize
 )
