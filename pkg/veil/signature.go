@@ -30,7 +30,7 @@ func (s *Signature) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// MarshalText encodes the signature into unpadded base32 text and returns the result.
+// MarshalText encodes the signature into base58 text and returns the result.
 func (s *Signature) MarshalText() (text []byte, err error) {
 	return internal.ASCIIEncode(s.b), nil
 }
@@ -46,7 +46,7 @@ func (s *Signature) UnmarshalText(text []byte) error {
 	return s.UnmarshalBinary(data)
 }
 
-// String returns the signature as unpadded base32 text.
+// String returns the signature as base58 text.
 func (s *Signature) String() string {
 	text, err := s.MarshalText()
 	if err != nil {

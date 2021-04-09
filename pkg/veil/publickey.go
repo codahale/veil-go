@@ -14,7 +14,7 @@ import (
 
 // PublicKey is a key that's used to verify and encrypt messages.
 //
-// It can be marshalled and unmarshalled as a base32 string for human consumption.
+// It can be marshalled and unmarshalled as a base58 string for human consumption.
 type PublicKey struct {
 	q *ristretto255.Element
 }
@@ -68,7 +68,7 @@ func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	return n, nil
 }
 
-// String returns the public key as unpadded base32 text.
+// String returns the public key as base58 text.
 func (pk *PublicKey) String() string {
 	text, err := pk.MarshalText()
 	if err != nil {
@@ -95,7 +95,7 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// MarshalText encodes the public key into unpadded base32 text and returns the result.
+// MarshalText encodes the public key into base58 text and returns the result.
 func (pk *PublicKey) MarshalText() (text []byte, err error) {
 	return internal.ASCIIEncode(pk.q.Encode(nil)), nil
 }

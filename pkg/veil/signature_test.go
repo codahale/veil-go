@@ -20,16 +20,17 @@ func TestSignature_MarshalText(t *testing.T) {
 	}
 
 	assert.Equal(t, "marshalled text",
-		[]byte("MF4WK3DMN53XG5LCNVQXE2LOMVQXSZLMNRXXO43VMJWWC4TJNZSWC6LFNRWG653TOVRG2YLSNFXGKYLZ"+
-			"MVWGY33XON2WE3LBOJUW4ZI"), text)
+		`2x2qUArEZSrxBKb7b5ojwG4hP3mTeKTzmuzrbZ7b9X9M75Zeq7nWzK2dwXXUZQp3KJvQyhX6vhP26M1GZFJgpxDA`,
+		string(text))
 }
 
 func TestSignature_UnmarshalText(t *testing.T) {
 	t.Parallel()
 
 	var s Signature
-	if err := s.UnmarshalText([]byte("MF4WK3DMN53XG5LCNVQXE2LOMVQXSZLMNRXXO43VMJWWC4TJNZSWC6LFNRW" +
-		"G653TOVRG2YLSNFXGKYLZMVWGY33XON2WE3LBOJUW4ZI")); err != nil {
+	if err := s.UnmarshalText(
+		[]byte(`2x2qUArEZSrxBKb7b5ojwG4hP3mTeKTzmuzrbZ7b9X9M75Zeq7nWzK2dwXXUZQp3KJvQyhX6vhP26M1GZFJgpxDA`),
+	); err != nil {
 		t.Fatal(err)
 	}
 
@@ -51,6 +52,6 @@ func TestSignature_String(t *testing.T) {
 	}
 
 	assert.Equal(t, "string representation",
-		"MF4WK3DMN53XG5LCNVQXE2LOMVQXSZLMNRXXO43VMJWWC4TJNZSWC6LFNRWG653TOVRG2YLSNFXGKYLZMVWGY33XON2WE3LBOJUW4ZI",
+		`2x2qUArEZSrxBKb7b5ojwG4hP3mTeKTzmuzrbZ7b9X9M75Zeq7nWzK2dwXXUZQp3KJvQyhX6vhP26M1GZFJgpxDA`,
 		s.String())
 }

@@ -23,20 +23,20 @@ func TestPublicKey_Derive(t *testing.T) {
 func TestPublicKey_UnmarshalText(t *testing.T) {
 	t.Parallel()
 
-	base32 := "ZJ756O23HCIC455GWQU24GJI3JHZGGYYZH3HDBWHGHQH3ZNTJMCQ"
+	text := "164abzy93kqFFgkcMbJvgH2JgYHXKSLuESEQzCwv6wK"
 
 	var in PublicKey
-	if err := in.UnmarshalText([]byte(base32)); err != nil {
+	if err := in.UnmarshalText([]byte(text)); err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "round trip", base32, in.String())
+	assert.Equal(t, "round trip", text, in.String())
 }
 
 func TestPublicKey_MarshalText(t *testing.T) {
 	t.Parallel()
 
-	want := []byte("ZJ756O23HCIC455GWQU24GJI3JHZGGYYZH3HDBWHGHQH3ZNTJMCQ")
+	want := []byte(`164abzy93kqFFgkcMbJvgH2JgYHXKSLuESEQzCwv6wK`)
 
 	var in PublicKey
 	if err := in.UnmarshalText(want); err != nil {

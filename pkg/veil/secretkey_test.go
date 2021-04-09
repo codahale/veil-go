@@ -42,5 +42,5 @@ func TestSecretKey_String(t *testing.T) {
 	copy(sk.r[:], "ayellowsubmarineayellowsubmarineayellowsubmarineayellowsubmarine")
 
 	assert.Equal(t, "string representation",
-		"RCTQ4RP3CZBLVZCA6DBQGEIAKWUPCIZXYE2IP7TXNLZLCQ5PFEHQ", sk.String())
+		"ACSC8Phz7fzhtjHXH8JLG9KHfHZ4SkqEJhUW3Ci6FNAr", sk.String())
 }
