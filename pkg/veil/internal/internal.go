@@ -5,6 +5,7 @@ package internal
 
 import (
 	"crypto/rand"
+	"encoding/base32"
 	"encoding/binary"
 	"math/big"
 
@@ -89,3 +90,27 @@ func IntN(max int) (int, error) {
 
 	return int(n.Int64()), nil
 }
+
+// ASCIIEncode returns the given data, encoded in base32.
+func ASCIIEncode(data []byte) []byte {
+	text := make([]byte, asciiEncoding.EncodedLen(len(data)))
+
+	asciiEncoding.Encode(text, data)
+
+	return text
+}
+
+// ASCIIDecode decodes the given base32 text.
+func ASCIIDecode(text []byte) ([]byte, error) {
+	data := make([]byte, asciiEncoding.DecodedLen(len(text)))
+
+	n, err := asciiEncoding.Decode(data, text)
+	if err != nil {
+		return nil, err
+	}
+
+	return data[:n], nil
+}
+
+//nolint:gochecknoglobals // reusable constant
+var asciiEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)

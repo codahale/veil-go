@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr/sigio"
@@ -96,27 +97,17 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) error {
 
 // MarshalText encodes the public key into unpadded base32 text and returns the result.
 func (pk *PublicKey) MarshalText() (text []byte, err error) {
-	b := pk.q.Encode(nil)
-
-	text = make([]byte, asciiEncoding.EncodedLen(len(b)))
-
-	asciiEncoding.Encode(text, b)
-
-	return
+	return internal.ASCIIEncode(pk.q.Encode(nil)), nil
 }
 
 // UnmarshalText decodes the results of MarshalText and updates the receiver to contain the decoded
 // public key.
 func (pk *PublicKey) UnmarshalText(text []byte) error {
-	data := make([]byte, asciiEncoding.DecodedLen(len(text)))
-
-	// Decode from base32.
-	_, err := asciiEncoding.Decode(data, text)
+	data, err := internal.ASCIIDecode(text)
 	if err != nil {
 		return fmt.Errorf("invalid public key: %w", err)
 	}
 
-	// Decode as a ristretto255 element.
 	return pk.UnmarshalBinary(data)
 }
 

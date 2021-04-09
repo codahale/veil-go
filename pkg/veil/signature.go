@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"fmt"
 
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 )
 
@@ -31,24 +32,13 @@ func (s *Signature) UnmarshalBinary(data []byte) error {
 
 // MarshalText encodes the signature into unpadded base32 text and returns the result.
 func (s *Signature) MarshalText() (text []byte, err error) {
-	data, err := s.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	text = make([]byte, asciiEncoding.EncodedLen(len(data)))
-
-	asciiEncoding.Encode(text, data)
-
-	return
+	return internal.ASCIIEncode(s.b), nil
 }
 
 // UnmarshalText decodes the results of MarshalText and updates the receiver to contain the decoded
 // signature.
 func (s *Signature) UnmarshalText(text []byte) error {
-	data := make([]byte, asciiEncoding.DecodedLen(len(text)))
-
-	_, err := asciiEncoding.Decode(data, text)
+	data, err := internal.ASCIIDecode(text)
 	if err != nil {
 		return fmt.Errorf("invalid signature: %w", err)
 	}

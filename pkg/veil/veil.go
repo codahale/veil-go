@@ -13,7 +13,6 @@ package veil
 
 import (
 	"crypto/rand"
-	"encoding/base32"
 	"errors"
 	"strings"
 
@@ -79,6 +78,3 @@ const idSeparator = "/"
 func splitID(id string) []string {
 	return strings.Split(strings.Trim(id, idSeparator), idSeparator)
 }
-
-//nolint:gochecknoglobals // reusable constant
-var asciiEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
