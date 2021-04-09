@@ -13,7 +13,11 @@ func TestNewEncoder(t *testing.T) {
 	t.Parallel()
 
 	dst := bytes.NewBuffer(nil)
-	enc := NewEncoder(dst)
+
+	enc, err := NewEncoder(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if _, err := enc.Write(bytes.Repeat([]byte("hello world "), 12)); err != nil {
 		t.Fatal()
@@ -25,9 +29,13 @@ func TestNewEncoder(t *testing.T) {
 
 	assert.Equal(t, "armored output",
 		strings.Join([]string{
-			"aGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29y",
-			"bGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8g",
-			"d29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQg",
+			"-----BEGIN VEIL-----",
+			"",
+			"aGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQg",
+			"aGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQg",
+			"aGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQg",
+			"=6Mb8",
+			"-----END VEIL-----",
 		}, "\n"),
 		dst.String())
 }
@@ -37,14 +45,22 @@ func TestNewDecoder(t *testing.T) {
 
 	src := bytes.NewBufferString(
 		strings.Join([]string{
-			"aGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29y",
-			"bGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8g",
-			"d29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQg",
+			"-----BEGIN VEIL-----",
+			"",
+			"aGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQg",
+			"aGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQg",
+			"aGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQgaGVsbG8gd29ybGQg",
+			"=6Mb8",
+			"-----END VEIL-----",
 		}, "\n"),
 	)
-	dec := NewDecoder(src)
-	dst := bytes.NewBuffer(nil)
 
+	dec, err := NewDecoder(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dst := bytes.NewBuffer(nil)
 	if _, err := io.Copy(dst, dec); err != nil {
 		t.Fatal(err)
 	}

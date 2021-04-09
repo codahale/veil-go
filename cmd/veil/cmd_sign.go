@@ -1,6 +1,8 @@
 package main
 
 import (
+	"io"
+
 	"github.com/alecthomas/kong"
 	"github.com/codahale/veil/pkg/veil/armor"
 )
@@ -11,7 +13,7 @@ type signCmd struct {
 	Message       string `arg:"" type:"existingfile" help:"The path to the message."`
 	SignedMessage string `arg:"" type:"path" help:"The path to the signed message."`
 
-	Armor bool `help:"Encode the signed message as base64."`
+	Armor bool `help:"Encode the signed message as ASCII."`
 }
 
 func (cmd *signCmd) Run(_ *kong.Context) error {
@@ -35,13 +37,16 @@ func (cmd *signCmd) Run(_ *kong.Context) error {
 		return err
 	}
 
-	defer func() { _ = dst.Close() }()
+	defer func(c io.Closer) { _ = c.Close() }(dst)
 
 	// Armor the output if requested.
 	if cmd.Armor {
-		dst = armor.NewEncoder(dst)
+		dst, err = armor.NewEncoder(dst)
+		if err != nil {
+			return err
+		}
 
-		defer func() { _ = dst.Close() }()
+		defer func(c io.Closer) { _ = c.Close() }(dst)
 	}
 
 	// Create the signed message.

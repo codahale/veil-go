@@ -1,6 +1,8 @@
 package main
 
 import (
+	"io"
+
 	"github.com/alecthomas/kong"
 	"github.com/codahale/veil/pkg/veil"
 	"github.com/codahale/veil/pkg/veil/armor"
@@ -13,7 +15,7 @@ type encryptCmd struct {
 	Ciphertext string   `arg:"" type:"path" help:"The path to the ciphertext file."`
 	Recipients []string `arg:"" repeated:"" help:"The public keys of the recipients."`
 
-	Armor   bool `help:"Encode the ciphertext as base64."`
+	Armor   bool `help:"Encode the ciphertext as ASCII."`
 	Fakes   int  `help:"The number of fake recipients to add."`
 	Padding int  `help:"The number of bytes of random padding to add."`
 }
@@ -53,13 +55,16 @@ func (cmd *encryptCmd) Run(_ *kong.Context) error {
 		return err
 	}
 
-	defer func() { _ = dst.Close() }()
+	defer func(c io.Closer) { _ = c.Close() }(dst)
 
 	// Armor the output if requested.
 	if cmd.Armor {
-		dst = armor.NewEncoder(dst)
+		dst, err = armor.NewEncoder(dst)
+		if err != nil {
+			return err
+		}
 
-		defer func() { _ = dst.Close() }()
+		defer func(c io.Closer) { _ = c.Close() }(dst)
 	}
 
 	// Encrypt the plaintext.
