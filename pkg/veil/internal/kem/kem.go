@@ -1,44 +1,39 @@
 // Package kem provides the underlying STROBE protocol for Veil's authenticated key encapsulation
 // mechanism.
 //
-// Key encapsulation generates an ephemeral key pair, d_e and Q_e, and uses the sender's key pair,
-// d_s and Q_s, and the receiver's public key, Q_r, to calculate two Diffie-Hellman shared secret
-// elements, ZZ_e and ZZ_s:
+// Key encapsulation is as follows, given the sender's key pair, d_s and Q_s, the receiver's public
+// key, Q_r, a plaintext message M, and tag size N:
 //
-//     ZZ_e = d_eQ_r
+//     INIT('veil.kem', level=256)
+//     AD(LE_U32(N),    meta=true)
+//     AD(Q_r)
+//     AD(Q_s)
 //     ZZ_s = d_sQ_r
+//     KEY(ZZ_s)
+//     d_e = rand()
+//     Q_e = d_eG
+//     SEND_ENC(Q_e) -> E
+//     SEND_MAC(N) -> T1
+//     ZZ_e = d_eQ_r
+//     KEY(ZZ_e)
+//     SEND_ENC(M) -> C
+//     SEND_MAC(N) -> T2
 //
-// Key encapsulation is as follows, given a plaintext message M and tag size N:
+// Key de-encapsulation is then the inverse of encapsulation, given the recipient's key pair, d_r
+// and Q_r, and the sender's public key Q_s:
 //
 //     INIT('veil.kem', level=256)
 //     AD(LE_U32(N),    meta=true)
 //     AD(Q_r)
 //     AD(Q_s)
-//     SEND_CLR(Q_e)
-//     KEY(ZZ_e)
-//     KEY(ZZ_s)
-//     SEND_ENC(M)
-//     SEND_MAC(N)
-//
-// The ephemeral element Q_e is sent in clear text, along ciphertext C and tag T.
-//
-// Key de-encapsulation re-calculates the shared secret elements, given the recipient's private key
-// d_r and sender's public key Q_s:
-//
-//     ZZ_e = d_rQ_e
 //     ZZ_s = d_rQ_s
-//
-// Key de-encapsulation is then the inverse of encapsulation:
-//
-//     INIT('veil.kem', level=256)
-//     AD(LE_U32(N),    meta=true)
-//     AD(Q_r)
-//     AD(Q_s)
-//     RECV_CLR(Q_e)
-//     KEY(ZZ_e)
 //     KEY(ZZ_s)
-//     RECV_ENC(C)
-//     RECV_MAC(T)
+//     RECV_ENC(E) -> Q_e
+//     RECV_MAC(T1)
+//     ZZ_e = d_rQ_e
+//     KEY(ZZ_e)
+//     RECV_ENC(C) -> M
+//     RECV_MAC(T2)
 //
 // If the RECV_MAC call is successful, the plaintext message M is returned.
 //
@@ -54,6 +49,10 @@
 // identity before beginning to decrypt the message or verify its signature. This enables the use of
 // an integrated single-pass digital signature algorithm (i.e. veil.schnorr).
 //
+// In addition, this KEM does not require the transmission of ristretto255 elements in cleartext. A
+// passive adversary scanning for encoded elements would first need the parties' static
+// Diffie-Hellman secret.
+//
 // See https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar3.pdf
 package kem
 
@@ -68,6 +67,25 @@ import (
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
 func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte, tagSize int) ([]byte, error) {
+	// Initialize the protocol.
+	kem := internal.Strobe("veil.kem")
+
+	// Add the tag size to the protocol.
+	internal.Must(kem.AD(internal.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
+
+	// Add the recipient's public key as associated data.
+	internal.Must(kem.AD(qR.Encode(nil), &strobe.Options{}))
+
+	// Add the sender's public key as associated data.
+	internal.Must(kem.AD(qS.Encode(nil), &strobe.Options{}))
+
+	// Calculate the static shared secret between the sender's private key and the recipient's
+	// public key.
+	zzS := ristretto255.NewElement().ScalarMult(dS, qR)
+
+	// Key the protocol with the static shared secret.
+	internal.Must(kem.KEY(zzS.Encode(nil), false))
+
 	// Generate a random value.
 	var buf [internal.UniformBytestringSize]byte
 	if _, err := rand.Read(buf[:]); err != nil {
@@ -78,96 +96,91 @@ func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []
 	dE := ristretto255.NewScalar().FromUniformBytes(buf[:])
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
+	// Copy the ephemeral public key to a buffer.
+	ciphertext := make([]byte, internal.ElementSize+len(plaintext)+tagSize+tagSize)
+	qE.Encode(ciphertext[:0])
+
+	// Encrypt the ephemeral public key in place..
+	internal.MustENC(kem.SendENC(ciphertext[:internal.ElementSize], &strobe.Options{}))
+
+	// Send a MAC.
+	internal.Must(kem.SendMAC(ciphertext[internal.ElementSize:internal.ElementSize+tagSize], &strobe.Options{}))
+
 	// Calculate the ephemeral shared secret between the ephemeral private key and the recipient's
 	// public key.
 	zzE := ristretto255.NewElement().ScalarMult(dE, qR)
 
-	// Calculate the static shared secret between the sender's private key and the recipient's
-	// public key.
-	zzS := ristretto255.NewElement().ScalarMult(dS, qR)
-
-	// Initialize the protocol.
-	kdf := internal.Strobe("veil.kem")
-
-	// Add the tag size to the protocol.
-	internal.Must(kdf.AD(internal.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
-
-	// Add the recipient's public key as associated data.
-	internal.Must(kdf.AD(qR.Encode(nil), &strobe.Options{}))
-
-	// Add the sender's public key as associated data.
-	internal.Must(kdf.AD(qS.Encode(nil), &strobe.Options{}))
-
-	// Send the ephemeral public key.
-	internal.Must(kdf.SendCLR(qE.Encode(nil), &strobe.Options{}))
-
 	// Key the protocol with the ephemeral shared secret.
-	internal.Must(kdf.KEY(zzE.Encode(nil), false))
+	internal.Must(kem.KEY(zzE.Encode(nil), false))
 
-	// Key the protocol with the static shared secret.
-	internal.Must(kdf.KEY(zzS.Encode(nil), false))
+	// Copy the plaintext to the buffer.
+	copy(ciphertext[internal.ElementSize+tagSize:], plaintext)
 
-	// Copy the plaintext to a buffer.
-	ciphertext := make([]byte, len(plaintext)+tagSize)
-	copy(ciphertext, plaintext)
-
-	// Encrypt it in place.
-	internal.MustENC(kdf.SendENC(ciphertext[:len(plaintext)], &strobe.Options{}))
+	// Encrypt the plaintext in place.
+	internal.MustENC(kem.SendENC(ciphertext[internal.ElementSize+tagSize:internal.ElementSize+tagSize+len(plaintext)],
+		&strobe.Options{}))
 
 	// Create a MAC.
-	internal.Must(kdf.SendMAC(ciphertext[len(plaintext):], &strobe.Options{}))
+	internal.Must(kem.SendMAC(ciphertext[internal.ElementSize+tagSize+len(plaintext):], &strobe.Options{}))
 
-	// Return the ephemeral public key, the ciphertext, and the MAC.
-	return append(qE.Encode(nil), ciphertext...), nil
+	// Return the encrypted ephemeral public key, the encrypted message, and the MAC.
+	return ciphertext, nil
 }
 
 // Decrypt decrypts the ciphertext iff it was encrypted by the owner of qS for the owner of qR and
 // no bit of the ciphertext has been modified.
 func Decrypt(dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext []byte, tagSize int) ([]byte, error) {
-	// Decode the ephemeral public key.
-	qE := ristretto255.NewElement()
-	if err := qE.Decode(ciphertext[:internal.ElementSize]); err != nil {
-		return nil, err
-	}
+	// Copy the ciphertext to a buffer.
+	plaintext := make([]byte, len(ciphertext))
+	copy(plaintext, ciphertext)
 
-	// Calculate the ephemeral shared secret between the recipient's private key and the ephemeral
-	// public key.
-	zzE := ristretto255.NewElement().ScalarMult(dR, qE)
+	// Initialize the protocol.
+	kem := internal.Strobe("veil.kem")
+
+	// Add the tag size to the protocol.
+	internal.Must(kem.AD(internal.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
+
+	// Add the recipient's public key as associated data.
+	internal.Must(kem.AD(qR.Encode(nil), &strobe.Options{}))
+
+	// Add the sender's public key as associated data.
+	internal.Must(kem.AD(qS.Encode(nil), &strobe.Options{}))
 
 	// Calculate the static shared secret between the recipient's private key and the sender's
 	// public key.
 	zzS := ristretto255.NewElement().ScalarMult(dR, qS)
 
-	// Initialize the protocol.
-	kdf := internal.Strobe("veil.kem")
+	// Key the protocol with the static shared secret.
+	internal.Must(kem.KEY(zzS.Encode(nil), false))
 
-	// Add the tag size to the protocol.
-	internal.Must(kdf.AD(internal.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
+	// Decrypt the ephemeral public key.
+	internal.MustENC(kem.RecvENC(plaintext[:internal.ElementSize], &strobe.Options{}))
 
-	// Add the recipient's public key as associated data.
-	internal.Must(kdf.AD(qR.Encode(nil), &strobe.Options{}))
+	// Check the MAC.
+	if err := kem.RecvMAC(plaintext[internal.ElementSize:internal.ElementSize+tagSize], &strobe.Options{}); err != nil {
+		return nil, err
+	}
 
-	// Add the sender's public key as associated data.
-	internal.Must(kdf.AD(qS.Encode(nil), &strobe.Options{}))
+	// Decode the ephemeral public key.
+	qE := ristretto255.NewElement()
+	if err := qE.Decode(plaintext[:internal.ElementSize]); err != nil {
+		return nil, err
+	}
 
-	// Receive the ephemeral public key.
-	internal.Must(kdf.RecvCLR(ciphertext[:internal.ElementSize], &strobe.Options{}))
+	plaintext = plaintext[internal.ElementSize+tagSize:]
+
+	// Calculate the ephemeral shared secret between the recipient's private key and the ephemeral
+	// public key.
+	zzE := ristretto255.NewElement().ScalarMult(dR, qE)
 
 	// Key the protocol with the ephemeral shared secret.
-	internal.Must(kdf.KEY(zzE.Encode(nil), false))
-
-	// Key the protocol with the static shared secret.
-	internal.Must(kdf.KEY(zzS.Encode(nil), false))
-
-	// Copy the ciphertext to a buffer.
-	plaintext := make([]byte, len(ciphertext)-internal.ElementSize)
-	copy(plaintext, ciphertext[internal.ElementSize:])
+	internal.Must(kem.KEY(zzE.Encode(nil), false))
 
 	// Decrypt it in place.
-	internal.MustENC(kdf.RecvENC(plaintext[:len(plaintext)-tagSize], &strobe.Options{}))
+	internal.MustENC(kem.RecvENC(plaintext[:len(plaintext)-tagSize], &strobe.Options{}))
 
 	// Verify the MAC.
-	if err := kdf.RecvMAC(plaintext[len(plaintext)-tagSize:], &strobe.Options{}); err != nil {
+	if err := kem.RecvMAC(plaintext[len(plaintext)-tagSize:], &strobe.Options{}); err != nil {
 		return nil, err
 	}
 
