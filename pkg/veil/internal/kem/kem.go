@@ -43,11 +43,18 @@
 // inputs, and deriving the key from all data sent or received adds key-commitment with all public
 // keys as openers.
 //
-// Unlike C(0e, 2s) schemes (e.g. NaCl's box construction), this KEM is not deterministic and will
-// not reveal repeated messages. Unlike C(1e, 1s) schemes (e.g. IES), this KEM binds the sender's
-// identity. This latter property is useful, as it allows for readers to confirm the sender's
-// identity before beginning to decrypt the message or verify its signature. This enables the use of
-// an integrated single-pass digital signature algorithm (i.e. veil.schnorr).
+// The ephemeral private key is derived from the sender's private key and the message, allowing for
+// safe deterministic behavior.
+//
+// Unlike C(0e, 2s) schemes (e.g. NaCl's box construction), this KEM is not symmetric. Once
+// encrypted, the sender cannot decrypt the ciphertext. This provides the property that the shared
+// secret cannot be used to impersonate the sender in any way.
+//
+// Unlike C(1e, 1s) schemes (e.g. IES), this KEM binds the sender's identity. This property is
+// useful, as it allows for readers to confirm the sender's identity before beginning to decrypt the
+// message or verify its signature. This enables the use of an integrated single-pass digital
+// signature algorithm (i.e. veil.schnorr). It also means the ciphertext is not decryptable without
+// knowledge of the sender's public key.
 //
 // In addition, this KEM does not require the transmission of ristretto255 elements in cleartext. A
 // passive adversary scanning for encoded elements would first need the parties' static
