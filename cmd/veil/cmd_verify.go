@@ -10,7 +10,7 @@ type verifyCmd struct {
 	SignedMessage string `arg:"" type:"existingfile" help:"The path to the signed message."`
 	Message       string `arg:"" type:"path" help:"The path to the message."`
 
-	Armor bool `help:"Decode the signed message from ASCII."`
+	Armor bool `help:"Decode the signed message as base64."`
 }
 
 func (cmd *verifyCmd) Run(_ *kong.Context) error {
@@ -30,10 +30,7 @@ func (cmd *verifyCmd) Run(_ *kong.Context) error {
 
 	// De-armor the input, if requested.
 	if cmd.Armor {
-		src, err = armor.NewDecoder(src)
-		if err != nil {
-			return err
-		}
+		src = armor.NewDecoder(src)
 	}
 
 	// Open the verified output.

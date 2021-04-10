@@ -15,7 +15,7 @@ type decryptCmd struct {
 	Plaintext  string   `arg:"" type:"path" help:"The path to the plaintext file."`
 	Senders    []string `arg:"" repeated:"" help:"The public keys of the possible senders."`
 
-	Armor bool `help:"Decode the ciphertext from ASCII."`
+	Armor bool `help:"Decode the ciphertext as base64."`
 }
 
 func (cmd *decryptCmd) Run(_ *kong.Context) error {
@@ -41,10 +41,7 @@ func (cmd *decryptCmd) Run(_ *kong.Context) error {
 
 	// De-armor the input, if requested.
 	if cmd.Armor {
-		src, err = armor.NewDecoder(src)
-		if err != nil {
-			return err
-		}
+		src = armor.NewDecoder(src)
 	}
 
 	// Open the plaintext output.
