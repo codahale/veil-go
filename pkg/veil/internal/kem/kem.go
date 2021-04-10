@@ -10,7 +10,7 @@
 //     AD(Q_s)
 //     ZZ_s = d_sQ_r
 //     KEY(ZZ_s)
-//     d_e = veil.scaldf.kem-key(d_S, M)
+//     d_e = veil.kem.nonce(d_S, M)
 //     Q_e = d_eG
 //     SEND_ENC(Q_e) -> E
 //     SEND_MAC(N) -> T1
@@ -18,6 +18,13 @@
 //     KEY(ZZ_e)
 //     SEND_ENC(M) -> C
 //     SEND_MAC(N) -> T2
+//
+// d_e is derived as follows, given the sender's private key d_s and a message M:
+//
+//     INIT('veil.kem.nonce', level=256)
+//     KEY(d_s)
+//     AD(M)
+//     PRF(64) -> d_e
 //
 // Key de-encapsulation is then the inverse of encapsulation, given the recipient's key pair, d_r
 // and Q_r, and the sender's public key Q_s:
@@ -65,7 +72,6 @@ package kem
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/scaldf"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
@@ -94,7 +100,7 @@ func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []
 
 	// Deterministically derive an ephemeral private key from the sender's private key and the
 	// message.
-	dE := scaldf.KEMKey(dS, plaintext)
+	dE := deriveEphemeral(dS, plaintext)
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
 	// Copy the ephemeral public key to a buffer.
@@ -187,4 +193,24 @@ func Decrypt(dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext [
 
 	// Return the authenticated plaintext.
 	return plaintext[:len(plaintext)-tagSize], nil
+}
+
+// deriveEphemeral derives an ephemeral scalar from a KEM sender's private key and a message.
+func deriveEphemeral(d *ristretto255.Scalar, msg []byte) *ristretto255.Scalar {
+	var buf [internal.UniformBytestringSize]byte
+
+	// Initialize the protocol.
+	kemNonce := internal.Strobe("veil.kem.nonce")
+
+	// Key the protocol with the sender's private key.
+	internal.Must(kemNonce.KEY(d.Encode(nil), false))
+
+	// Include the message as associated data.
+	internal.Must(kemNonce.AD(msg, &strobe.Options{}))
+
+	// Generate 64 bytes of PRF output.
+	internal.Must(kemNonce.PRF(buf[:], false))
+
+	// Map the PRF output to a scalar.
+	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }
