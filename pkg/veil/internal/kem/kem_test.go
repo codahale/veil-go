@@ -62,26 +62,13 @@ func TestWrongSenderKey(t *testing.T) {
 	}
 }
 
-func TestBadEphemeralKey(t *testing.T) {
-	t.Parallel()
-
-	message := []byte("hello this is dog")
-	ciphertext := Encrypt(dS, qS, qR, message, 16)
-
-	ciphertext[0] ^= 1
-
-	if _, err := Decrypt(dR, qR, qS, ciphertext, 16); err == nil {
-		t.Fatal("should not have decrypted")
-	}
-}
-
 func TestBadCiphertext(t *testing.T) {
 	t.Parallel()
 
 	message := []byte("hello this is dog")
 	ciphertext := Encrypt(dS, qS, qR, message, 16)
 
-	ciphertext[internal.ElementSize+5] ^= 1
+	ciphertext[0] ^= 1
 
 	if _, err := Decrypt(dR, qR, qS, ciphertext, 16); err == nil {
 		t.Fatal("should not have decrypted")
