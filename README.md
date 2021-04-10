@@ -26,7 +26,12 @@ Veil uses just two distinct primitives:
 
 Veil includes STROBE protocols for the following capabilities:
 
-* `veil.kem`: a `C(1e, 2s, ECC DH)` key encapsulation mechanism over ristretto255
+#### `veil.kem`
+
+`veil.kem` implements an authenticated `C(1e, 2s, ECC DH)` key encapsulation mechanism over
+ristretto255. 
+
+* `veil.kem`: 
 * `veil.pbenc`: memory-hard authenticated encryption using balloon hashing
 * `veil.scaldf.*`: functions for deriving ristretto255 scalars from non-uniform or secret values
 * `veil.schnorr`: fully deterministic Schnorr signatures over ristretto255
@@ -84,10 +89,10 @@ encryption.
    STROBE is built on the Keccak-f\[1600\] permutation, the core of SHA-3, which has seen
    significant scrutiny over the last decade.
 2. Veil messages are confidential: no one can read the message without being a recipient.
-3. Veil messages can be read by all the intended recipients, but no recipient can modify the
-   message's content or metadata without possessing the sender's secret key.
-4. Veil messages are tamper-proof. If a single bit of the entire message is changed, all the
+3. Veil messages are tamper-proof. If a single bit of the entire message is changed, all the
    recipients will know.
+4. Veil messages can be read by all the intended recipients, but no recipient can modify the
+   message's content or metadata without possessing the sender's secret key.
 5. Veil messages are non-repudiable: if the message is decryptable, it is guaranteed to have come
    from the possessor of the sender's secret key.
 6. Veil messages are indistinguishable from random noise, revealing no metadata about recipients'

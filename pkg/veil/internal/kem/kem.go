@@ -10,7 +10,7 @@
 //     AD(Q_s)
 //     ZZ_s = d_sQ_r
 //     KEY(ZZ_s)
-//     d_e = rand()
+//     d_e = veil.scaldf.kem-key(d_S, M)
 //     Q_e = d_eG
 //     SEND_ENC(Q_e) -> E
 //     SEND_MAC(N) -> T1
@@ -57,16 +57,15 @@
 package kem
 
 import (
-	"crypto/rand"
-
 	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/codahale/veil/pkg/veil/internal/scaldf"
 	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
 
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
-func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte, tagSize int) ([]byte, error) {
+func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte, tagSize int) []byte {
 	// Initialize the protocol.
 	kem := internal.Strobe("veil.kem")
 
@@ -86,14 +85,9 @@ func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []
 	// Key the protocol with the static shared secret.
 	internal.Must(kem.KEY(zzS.Encode(nil), false))
 
-	// Generate a random value.
-	var buf [internal.UniformBytestringSize]byte
-	if _, err := rand.Read(buf[:]); err != nil {
-		return nil, err
-	}
-
-	// Map the random value to an ephemeral key pair.
-	dE := ristretto255.NewScalar().FromUniformBytes(buf[:])
+	// Deterministically derive an ephemeral private key from the sender's private key and the
+	// message.
+	dE := scaldf.KEMKey(dS, plaintext)
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
 	// Copy the ephemeral public key to a buffer.
@@ -124,7 +118,7 @@ func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []
 	internal.Must(kem.SendMAC(ciphertext[internal.ElementSize+tagSize+len(plaintext):], &strobe.Options{}))
 
 	// Return the encrypted ephemeral public key, the encrypted message, and the MAC.
-	return ciphertext, nil
+	return ciphertext
 }
 
 // Decrypt decrypts the ciphertext iff it was encrypted by the owner of qS for the owner of qR and
