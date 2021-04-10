@@ -101,7 +101,7 @@ func TestEncryptAndDecrypt(t *testing.T) {
 
 	assert.Equal(t, "public key", pk.String(), a.PublicKey("b").String())
 	assert.Equal(t, "plaintext", message, dec.Bytes())
-	assert.Equal(t, "encrypted bytes", int64(208+1234), eb)
+	assert.Equal(t, "encrypted bytes", int64(304+1234), eb)
 	assert.Equal(t, "decrypted bytes", int64(40), db)
 }
 

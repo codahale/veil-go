@@ -16,7 +16,28 @@ package scaldf
 import (
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/gtank/ristretto255"
+	"github.com/sammyne/strobe"
 )
+
+// KEMKey derives an ephemeral private key from a KEM sender's private key and a message.
+func KEMKey(d *ristretto255.Scalar, msg []byte) *ristretto255.Scalar {
+	var buf [internal.UniformBytestringSize]byte
+
+	// Initialize the protocol.
+	scaldf := internal.Strobe("veil.scaldf.kem-key")
+
+	// Key the protocol with the sender's private key.
+	internal.Must(scaldf.KEY(d.Encode(nil), false))
+
+	// Include the message as associated data.
+	internal.Must(scaldf.AD(msg, &strobe.Options{}))
+
+	// Generate 64 bytes of PRF output.
+	internal.Must(scaldf.PRF(buf[:], false))
+
+	// Map the PRF output to a scalar.
+	return ristretto255.NewScalar().FromUniformBytes(buf[:])
+}
 
 // RootScalar derives a root scalar from the given bytestring.
 func RootScalar(r *[internal.UniformBytestringSize]byte) *ristretto255.Scalar {

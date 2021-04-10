@@ -98,5 +98,5 @@ func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, pad
 
 const (
 	headerSize          = internal.MessageKeySize + 4 // 4 bytes for message offset
-	encryptedHeaderSize = headerSize + internal.TagSize
+	encryptedHeaderSize = internal.ElementSize + headerSize + internal.TagSize + internal.TagSize
 )
