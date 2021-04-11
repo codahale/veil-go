@@ -14,7 +14,7 @@ func NewReader(src io.Reader, key, associatedData []byte) io.Reader {
 	return &reader{
 		stream:     stream.NewOpener(key, associatedData),
 		r:          src,
-		ciphertext: make([]byte, internal.BlockSize+internal.TagSize+1), // extra byte for determining last block
+		ciphertext: make([]byte, stream.BlockSize+internal.TagSize+1), // extra byte for determining last block
 	}
 }
 

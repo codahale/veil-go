@@ -3,7 +3,6 @@ package streamio
 import (
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/stream"
 )
 
@@ -13,7 +12,7 @@ func NewWriter(dst io.Writer, key, associatedData []byte) io.WriteCloser {
 	return &writer{
 		w:         dst,
 		stream:    stream.NewSealer(key, associatedData),
-		plaintext: make([]byte, internal.BlockSize),
+		plaintext: make([]byte, stream.BlockSize),
 	}
 }
 

@@ -16,15 +16,8 @@ const (
 	// MessageKeySize is the symmetric message key size in bytes.
 	MessageKeySize = 32
 
-	// PBEBlockSize is the size of blocks, in bytes, used in the password-based encryption
-	// algorithm.
-	PBEBlockSize = 32
-
 	// TagSize is the authentication tag size in bytes.
 	TagSize = 16
-
-	// BlockSize is the recommended block size for streams, as selected by it looking pretty.
-	BlockSize = 64 * 1024 // 64KiB
 
 	// RatchetSize determines the amount of state to reset during each ratchet.
 	//

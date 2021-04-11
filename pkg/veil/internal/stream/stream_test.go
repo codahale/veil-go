@@ -5,15 +5,14 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
-	"github.com/codahale/veil/pkg/veil/internal"
 )
 
 func TestStreamRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is some stuff")
-	b1 := bytes.Repeat([]byte{0xff}, internal.BlockSize)
-	b2 := bytes.Repeat([]byte{0xf0}, internal.BlockSize)
+	b1 := bytes.Repeat([]byte{0xff}, BlockSize)
+	b2 := bytes.Repeat([]byte{0xf0}, BlockSize)
 
 	enc := NewSealer(key, nil)
 	c1 := enc.Seal(b1, false)
@@ -39,7 +38,7 @@ func TestStreamFinalizationMismatch(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is some stuff")
-	b1 := bytes.Repeat([]byte{0xff}, internal.BlockSize)
+	b1 := bytes.Repeat([]byte{0xff}, BlockSize)
 
 	enc := NewSealer(key, nil)
 	c1 := enc.Seal(b1, true)
@@ -54,7 +53,7 @@ func TestStreamKeyMismatch(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is some stuff")
-	b1 := bytes.Repeat([]byte{0xff}, internal.BlockSize)
+	b1 := bytes.Repeat([]byte{0xff}, BlockSize)
 
 	enc := NewSealer(key, nil)
 	c1 := enc.Seal(b1, false)
@@ -69,7 +68,7 @@ func TestStreamADMismatch(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is some stuff")
-	b1 := bytes.Repeat([]byte{0xff}, internal.BlockSize)
+	b1 := bytes.Repeat([]byte{0xff}, BlockSize)
 
 	enc := NewSealer(key, []byte("one"))
 	c1 := enc.Seal(b1, false)
@@ -84,7 +83,7 @@ func TestStreamCiphertextModification(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is some stuff")
-	b1 := bytes.Repeat([]byte{0xff}, internal.BlockSize)
+	b1 := bytes.Repeat([]byte{0xff}, BlockSize)
 
 	enc := NewSealer(key, nil)
 	c1 := enc.Seal(b1, false)
@@ -101,7 +100,7 @@ func TestStreamTagModification(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("this is some stuff")
-	b1 := bytes.Repeat([]byte{0xff}, internal.BlockSize)
+	b1 := bytes.Repeat([]byte{0xff}, BlockSize)
 
 	enc := NewSealer(key, nil)
 	c1 := enc.Seal(b1, false)

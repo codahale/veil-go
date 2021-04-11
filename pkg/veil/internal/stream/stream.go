@@ -5,6 +5,9 @@ import (
 	"github.com/sammyne/strobe"
 )
 
+// BlockSize is the recommended block size for streams, as selected by it looking pretty.
+const BlockSize = 64 * 1024 // 64KiB
+
 // Sealer encrypts blocks of a message stream.
 //
 // Encryption of a message stream is as follows, given a key K, associated data D, block size B, and
@@ -41,7 +44,7 @@ type Sealer struct {
 func NewSealer(key, associatedData []byte) *Sealer {
 	return &Sealer{
 		stream: initStream(key, associatedData),
-		b:      make([]byte, internal.BlockSize),
+		b:      make([]byte, BlockSize),
 		tag:    make([]byte, internal.TagSize),
 	}
 }
@@ -106,7 +109,7 @@ type Opener struct {
 func NewOpener(key, associatedData []byte) *Opener {
 	return &Opener{
 		stream: initStream(key, associatedData),
-		b:      make([]byte, internal.BlockSize),
+		b:      make([]byte, BlockSize),
 		tag:    make([]byte, internal.TagSize),
 	}
 }
@@ -149,7 +152,7 @@ func initStream(key, associatedData []byte) *strobe.Strobe {
 	stream := internal.Strobe("veil.stream")
 
 	// Add the block size to the protocol.
-	internal.Must(stream.AD(internal.LittleEndianU32(internal.BlockSize), &strobe.Options{Meta: true}))
+	internal.Must(stream.AD(internal.LittleEndianU32(BlockSize), &strobe.Options{Meta: true}))
 
 	// Add the tag size to the protocol.
 	internal.Must(stream.AD(internal.LittleEndianU32(internal.TagSize), &strobe.Options{Meta: true}))

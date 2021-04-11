@@ -5,10 +5,10 @@
 //
 //     INIT('veil.kdf.balloon',  level=256)
 //     AD(LE_U32(D), meta=true)
-//     AD(LE_U32(X), meta=true)
-//     AD(LE_U32(Y), meta=true)
 //     AD(LE_U32(N), meta=true)
 //     AD(LE_U32(T), meta=true)
+//     AD(LE_U32(X), meta=true)
+//     AD(LE_U32(Y), meta=true)
 //     KEY(P)
 //     AD(S)
 //
@@ -84,25 +84,23 @@ func Decrypt(passphrase, salt, ciphertext []byte, space, time int) ([]byte, erro
 // initProtocol initializes a new STROBE protocol and executes the Balloon Hashing algorithm. The
 // final block is then used to key the protocol.
 func initProtocol(passphrase, salt []byte, space, time int) *strobe.Strobe {
-	const n = internal.PBEBlockSize
-
 	// Initialize a new protocol.
 	pbenc := internal.Strobe("veil.pbenc")
 
 	// Include the delta constant as associated data.
 	internal.Must(pbenc.AD(internal.LittleEndianU32(delta), &strobe.Options{Meta: true}))
 
+	// Include the block size constant as associated data.
+	internal.Must(pbenc.AD(internal.LittleEndianU32(n), &strobe.Options{Meta: true}))
+
+	// Include the tag size constant as associated data.
+	internal.Must(pbenc.AD(internal.LittleEndianU32(internal.TagSize), &strobe.Options{Meta: true}))
+
 	// Include the space parameter as associated data.
 	internal.Must(pbenc.AD(internal.LittleEndianU32(space), &strobe.Options{Meta: true}))
 
 	// Include the time parameter as associated data.
 	internal.Must(pbenc.AD(internal.LittleEndianU32(time), &strobe.Options{Meta: true}))
-
-	// Include the size parameter as associated data.
-	internal.Must(pbenc.AD(internal.LittleEndianU32(n), &strobe.Options{Meta: true}))
-
-	// Include the tag size as associated data.
-	internal.Must(pbenc.AD(internal.LittleEndianU32(internal.TagSize), &strobe.Options{Meta: true}))
 
 	// Key the protocol with the passphrase.
 	internal.Must(pbenc.KEY(internal.Copy(passphrase), false))
@@ -176,5 +174,6 @@ func hashCounter(pbenc *strobe.Strobe, ctr *uint64, ctrBuf, dst, left, right []b
 }
 
 const (
-	delta = 3 // Delta is the number of dependencies per block.
+	n     = 32 // n is the size of a block, in bytes.
+	delta = 3  // delta is the number of dependencies per block.
 )
