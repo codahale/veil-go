@@ -112,3 +112,25 @@ func TestStreamTagModification(t *testing.T) {
 		t.Fatal("should not have decrypted")
 	}
 }
+
+func BenchmarkSealer_Seal(b *testing.B) {
+	sealer := NewSealer([]byte("ok then"), nil)
+	message := []byte("welp welp welp")
+	buf := make([]byte, 100)
+
+	for i := 0; i < b.N; i++ {
+		_ = sealer.Seal(buf[:0], message, false)
+	}
+}
+
+func BenchmarkOpener_Open(b *testing.B) {
+	sealer := NewSealer([]byte("ok then"), nil)
+	ciphertext := sealer.Seal(nil, []byte("welp welp welp"), false)
+	buf := make([]byte, len(ciphertext))
+
+	opener := NewOpener([]byte("ok then"), nil)
+
+	for i := 0; i < b.N; i++ {
+		_, _ = opener.Open(buf[:0], ciphertext, false)
+	}
+}
