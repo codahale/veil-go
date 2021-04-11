@@ -35,11 +35,8 @@ func (sk *SecretKey) Encrypt(passphrase []byte, params *PBEParams) ([]byte, erro
 	}
 
 	// Encrypt the secret key.
-	copy(encSK.Ciphertext[:],
-		pbenc.Encrypt(
-			passphrase, encSK.Salt[:], sk.r[:],
-			int(encSK.Params.Space), int(encSK.Params.Time), internal.PBEBlockSize, internal.TagSize,
-		))
+	copy(encSK.Ciphertext[:], pbenc.Encrypt(
+		passphrase, encSK.Salt[:], sk.r[:], int(encSK.Params.Space), int(encSK.Params.Time)))
 
 	// Encode the balloon hashing params, the salt, and the ciphertext.
 	buf := bytes.NewBuffer(nil)
@@ -65,9 +62,7 @@ func DecryptSecretKey(passphrase, ciphertext []byte) (*SecretKey, error) {
 
 	// Decrypt the encrypted secret key.
 	plaintext, err := pbenc.Decrypt(
-		passphrase, encSK.Salt[:], encSK.Ciphertext[:],
-		int(encSK.Params.Space), int(encSK.Params.Time), internal.PBEBlockSize, internal.TagSize,
-	)
+		passphrase, encSK.Salt[:], encSK.Ciphertext[:], int(encSK.Params.Space), int(encSK.Params.Time))
 	if err != nil {
 		return nil, ErrInvalidCiphertext
 	}

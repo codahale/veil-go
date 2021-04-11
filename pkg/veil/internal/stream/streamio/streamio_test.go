@@ -20,7 +20,7 @@ func TestRoundTrip(t *testing.T) {
 	dst := bytes.NewBuffer(nil)
 
 	// Create a writer.
-	w := NewWriter(dst, key, nil, 9)
+	w := NewWriter(dst, key, nil)
 
 	// Encrypt the input.
 	pn, err := io.Copy(w, src)
@@ -35,14 +35,14 @@ func TestRoundTrip(t *testing.T) {
 
 	// Check to see that we wrote the expected number of bytes.
 	assert.Equal(t, "plaintext bytes written", int64(19), pn)
-	assert.Equal(t, "ciphertext bytes written", (9+16)+(9+16)+(1+16), dst.Len())
+	assert.Equal(t, "ciphertext bytes written", 19+16, dst.Len())
 
 	// Swap inputs and outputs.
 	src = dst
 	dst = bytes.NewBuffer(nil)
 
 	// Create a reader.
-	r := NewReader(src, key, nil, 9)
+	r := NewReader(src, key, nil)
 
 	// Decrypt the input.
 	cn, err := io.Copy(dst, r)
@@ -67,7 +67,7 @@ func BenchmarkWriter(b *testing.B) {
 
 		b.Run(fmt.Sprintf("%d bytes", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				w := NewWriter(io.Discard, key, nil, 64*1024)
+				w := NewWriter(io.Discard, key, nil)
 
 				if _, err := io.CopyN(w, &fakeReader{}, size); err != nil {
 					b.Fatal(err)

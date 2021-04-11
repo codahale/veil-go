@@ -52,10 +52,10 @@ import (
 )
 
 // Encrypt encrypts the plaintext with the passphrase and salt.
-func Encrypt(passphrase, salt, plaintext []byte, space, time, n, tagSize int) []byte {
-	pbenc := initProtocol(passphrase, salt, space, time, n, tagSize)
+func Encrypt(passphrase, salt, plaintext []byte, space, time int) []byte {
+	pbenc := initProtocol(passphrase, salt, space, time)
 
-	ciphertext := make([]byte, len(plaintext)+tagSize)
+	ciphertext := make([]byte, len(plaintext)+internal.TagSize)
 	copy(ciphertext, plaintext)
 
 	internal.MustENC(pbenc.SendENC(ciphertext[:len(plaintext)], &strobe.Options{}))
@@ -66,15 +66,15 @@ func Encrypt(passphrase, salt, plaintext []byte, space, time, n, tagSize int) []
 }
 
 // Decrypt decrypts the ciphertext with the passphrase and salt.
-func Decrypt(passphrase, salt, ciphertext []byte, space, time, n, tagSize int) ([]byte, error) {
-	pbenc := initProtocol(passphrase, salt, space, time, n, tagSize)
+func Decrypt(passphrase, salt, ciphertext []byte, space, time int) ([]byte, error) {
+	pbenc := initProtocol(passphrase, salt, space, time)
 
-	plaintext := make([]byte, len(ciphertext)-tagSize)
-	copy(plaintext, ciphertext[:len(ciphertext)-tagSize])
+	plaintext := make([]byte, len(ciphertext)-internal.TagSize)
+	copy(plaintext, ciphertext[:len(ciphertext)-internal.TagSize])
 
 	internal.MustENC(pbenc.RecvENC(plaintext, &strobe.Options{}))
 
-	if err := pbenc.RecvMAC(ciphertext[len(ciphertext)-tagSize:], &strobe.Options{}); err != nil {
+	if err := pbenc.RecvMAC(ciphertext[len(ciphertext)-internal.TagSize:], &strobe.Options{}); err != nil {
 		return nil, err
 	}
 
@@ -83,8 +83,8 @@ func Decrypt(passphrase, salt, ciphertext []byte, space, time, n, tagSize int) (
 
 // initProtocol initializes a new STROBE protocol and executes the Balloon Hashing algorithm. The
 // final block is then used to key the protocol.
-func initProtocol(passphrase, salt []byte, space, time, n, tagSize int) *strobe.Strobe {
-	n += n % 2 // round up
+func initProtocol(passphrase, salt []byte, space, time int) *strobe.Strobe {
+	const n = internal.PBEBlockSize
 
 	// Initialize a new protocol.
 	pbenc := internal.Strobe("veil.pbenc")
@@ -102,7 +102,7 @@ func initProtocol(passphrase, salt []byte, space, time, n, tagSize int) *strobe.
 	internal.Must(pbenc.AD(internal.LittleEndianU32(n), &strobe.Options{Meta: true}))
 
 	// Include the tag size as associated data.
-	internal.Must(pbenc.AD(internal.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
+	internal.Must(pbenc.AD(internal.LittleEndianU32(internal.TagSize), &strobe.Options{Meta: true}))
 
 	// Key the protocol with the passphrase.
 	internal.Must(pbenc.KEY(internal.Copy(passphrase), false))

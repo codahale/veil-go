@@ -3,6 +3,8 @@ package sigio
 import (
 	"errors"
 	"io"
+
+	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 )
 
 type SignatureReader struct {
@@ -15,11 +17,11 @@ type SignatureReader struct {
 	eof         bool
 }
 
-func NewReader(src io.Reader, sigSize int) *SignatureReader {
+func NewReader(src io.Reader) *SignatureReader {
 	return &SignatureReader{
-		Signature: make([]byte, sigSize),
+		Signature: make([]byte, schnorr.SignatureSize),
 		in:        src,
-		scratch:   make([]byte, sigSize),
+		scratch:   make([]byte, schnorr.SignatureSize),
 	}
 }
 

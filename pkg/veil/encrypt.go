@@ -38,7 +38,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	}
 
 	// Initialize a stream writer with the message key and the encrypted headers as associated data.
-	encryptor := streamio.NewWriter(dst, key, headers, internal.BlockSize)
+	encryptor := streamio.NewWriter(dst, key, headers)
 
 	// Create a signer with the encrypted headers as associated data.
 	signer := schnorr.NewSigner(headers)
@@ -83,7 +83,7 @@ func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, pad
 
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
-		_, _ = buf.Write(kem.Encrypt(pk.d, pk.q, pkR.q, header, internal.TagSize))
+		_, _ = buf.Write(kem.Encrypt(pk.d, pk.q, pkR.q, header))
 	}
 
 	// Add padding if any is required.

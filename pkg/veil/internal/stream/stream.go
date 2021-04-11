@@ -38,11 +38,11 @@ type Sealer struct {
 }
 
 // NewSealer creates a new Sealer with the given key, associated data, block size, and tag size.
-func NewSealer(key, associatedData []byte, blockSize, tagSize int) *Sealer {
+func NewSealer(key, associatedData []byte) *Sealer {
 	return &Sealer{
-		stream: initStream(key, associatedData, blockSize, tagSize),
-		b:      make([]byte, blockSize),
-		tag:    make([]byte, tagSize),
+		stream: initStream(key, associatedData),
+		b:      make([]byte, internal.BlockSize),
+		tag:    make([]byte, internal.TagSize),
 	}
 }
 
@@ -103,11 +103,11 @@ type Opener struct {
 }
 
 // NewOpener creates a new Opener with the given key, associated data, block size, and tag size.
-func NewOpener(key, associatedData []byte, blockSize, tagSize int) *Opener {
+func NewOpener(key, associatedData []byte) *Opener {
 	return &Opener{
-		stream: initStream(key, associatedData, blockSize, tagSize),
-		b:      make([]byte, blockSize),
-		tag:    make([]byte, tagSize),
+		stream: initStream(key, associatedData),
+		b:      make([]byte, internal.BlockSize),
+		tag:    make([]byte, internal.TagSize),
 	}
 }
 
@@ -144,15 +144,15 @@ func (s *Opener) Open(ciphertext []byte, final bool) ([]byte, error) {
 	return plaintext, nil
 }
 
-func initStream(key, associatedData []byte, blockSize, tagSize int) *strobe.Strobe {
+func initStream(key, associatedData []byte) *strobe.Strobe {
 	// Initialize a new stream protocol.
 	stream := internal.Strobe("veil.stream")
 
 	// Add the block size to the protocol.
-	internal.Must(stream.AD(internal.LittleEndianU32(blockSize), &strobe.Options{Meta: true}))
+	internal.Must(stream.AD(internal.LittleEndianU32(internal.BlockSize), &strobe.Options{Meta: true}))
 
 	// Add the tag size to the protocol.
-	internal.Must(stream.AD(internal.LittleEndianU32(tagSize), &strobe.Options{Meta: true}))
+	internal.Must(stream.AD(internal.LittleEndianU32(internal.TagSize), &strobe.Options{Meta: true}))
 
 	// Add the associated data to the protocol.
 	internal.Must(stream.AD(associatedData, &strobe.Options{}))

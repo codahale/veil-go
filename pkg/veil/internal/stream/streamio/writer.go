@@ -9,11 +9,11 @@ import (
 
 // NewWriter returns an io.Writer which groups writes into blocks, encrypts them with the
 // veil.stream STROBE protocol, and writes them to dst.
-func NewWriter(dst io.Writer, key, associatedData []byte, blockSize int) io.WriteCloser {
+func NewWriter(dst io.Writer, key, associatedData []byte) io.WriteCloser {
 	return &writer{
 		w:         dst,
-		stream:    stream.NewSealer(key, associatedData, blockSize, internal.TagSize),
-		plaintext: make([]byte, blockSize),
+		stream:    stream.NewSealer(key, associatedData),
+		plaintext: make([]byte, internal.BlockSize),
 	}
 }
 

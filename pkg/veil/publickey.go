@@ -50,7 +50,7 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 // Verify copies src to dst, removing the appended signature and verifying it.
 func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	// Detach the signature from src.
-	sr := sigio.NewReader(src, schnorr.SignatureSize)
+	sr := sigio.NewReader(src)
 	verifier := schnorr.NewVerifier(nil)
 
 	// Copy all data from src into dst and verifier, skipping the appended signature.

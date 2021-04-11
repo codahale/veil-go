@@ -27,10 +27,10 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	}
 
 	// Initialize a stream reader with the message key and the encrypted headers as associated data.
-	decryptor := streamio.NewReader(src, key, headers, internal.BlockSize)
+	decryptor := streamio.NewReader(src, key, headers)
 
 	// Detach the signature from the plaintext.
-	sr := sigio.NewReader(decryptor, schnorr.SignatureSize)
+	sr := sigio.NewReader(decryptor)
 
 	// Create a verifier with the encrypted headers as associated data.
 	verifier := schnorr.NewVerifier(headers)
@@ -97,7 +97,7 @@ func (pk *PrivateKey) decryptHeader(buf []byte, senders []*PublicKey) (*PublicKe
 	for _, pubS := range senders {
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.
-		header, err := kem.Decrypt(pk.d, pk.q, pubS.q, buf, internal.TagSize)
+		header, err := kem.Decrypt(pk.d, pk.q, pubS.q, buf)
 		if err != nil {
 			continue
 		}

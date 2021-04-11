@@ -10,11 +10,11 @@ import (
 
 // NewReader returns an io.Reader which reads encrypted blocks from src and decrypts them using the
 // veil.stream STROBE protocol.
-func NewReader(src io.Reader, key, associatedData []byte, blockSize int) io.Reader {
+func NewReader(src io.Reader, key, associatedData []byte) io.Reader {
 	return &reader{
-		stream:     stream.NewOpener(key, associatedData, blockSize, internal.TagSize),
+		stream:     stream.NewOpener(key, associatedData),
 		r:          src,
-		ciphertext: make([]byte, blockSize+internal.TagSize+1), // extra byte for determining last block
+		ciphertext: make([]byte, internal.BlockSize+internal.TagSize+1), // extra byte for determining last block
 	}
 }
 
