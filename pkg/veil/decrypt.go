@@ -27,10 +27,10 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	}
 
 	// Initialize a stream reader with the message key and the encrypted headers as associated data.
-	decryptor := streamio.NewReader(src, key, headers)
+	plaintext := streamio.NewReader(src, key, headers)
 
 	// Detach the signature from the plaintext.
-	sr := sigio.NewReader(decryptor)
+	sr := sigio.NewReader(plaintext)
 
 	// Create a verifier with the encrypted headers as associated data.
 	verifier := schnorr.NewVerifier(headers)

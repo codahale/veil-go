@@ -38,13 +38,13 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	}
 
 	// Initialize a stream writer with the message key and the encrypted headers as associated data.
-	encryptor := streamio.NewWriter(dst, key, headers)
+	ciphertext := streamio.NewWriter(dst, key, headers)
 
 	// Create a signer with the encrypted headers as associated data.
 	signer := schnorr.NewSigner(headers)
 
 	// Encrypt the plaintext as a stream, and add the plaintext to the signed data.
-	mn, err := io.Copy(io.MultiWriter(encryptor, signer), src)
+	mn, err := io.Copy(io.MultiWriter(ciphertext, signer), src)
 	if err != nil {
 		return mn + int64(hn), err
 	}
@@ -53,13 +53,13 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	sig := signer.Sign(pk.d, pk.q)
 
 	// Append the signature to the plaintext.
-	sn, err := encryptor.Write(sig)
+	sn, err := ciphertext.Write(sig)
 	if err != nil {
 		return mn + int64(hn+sn), err
 	}
 
 	// Return the bytes written and flush any buffers.
-	return mn + int64(hn+sn), encryptor.Close()
+	return mn + int64(hn+sn), ciphertext.Close()
 }
 
 // encodeHeader encodes the message key and the message offset.
