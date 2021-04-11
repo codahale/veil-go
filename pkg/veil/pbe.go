@@ -82,5 +82,5 @@ type encryptedSecretKey struct {
 
 const (
 	saltSize       = 32
-	ciphertextSize = internal.UniformBytestringSize + internal.TagSize
+	ciphertextSize = internal.UniformBytestringSize + pbenc.Overhead
 )

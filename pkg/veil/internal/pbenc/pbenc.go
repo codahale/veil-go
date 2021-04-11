@@ -51,6 +51,8 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
 )
 
+const Overhead = internal.TagSize
+
 // Encrypt encrypts the plaintext with the passphrase and salt.
 func Encrypt(passphrase, salt, plaintext []byte, space, time int) []byte {
 	pbenc := initProtocol(passphrase, salt, space, time)
