@@ -156,16 +156,13 @@ func TestSignAndVerify_BadSig(t *testing.T) {
 func BenchmarkSigner(b *testing.B) {
 	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 	q := ristretto255.NewElement().ScalarBaseMult(d)
+	message := make([]byte, 1024)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		signer := NewSigner(nil)
-
-		if _, err := io.CopyN(signer, &fakeReader{}, 1024*1024); err != nil {
-			b.Fatal(err)
-		}
-
+		_, _ = signer.Write(message)
 		_ = signer.Sign(d, q)
 	}
 }
@@ -173,22 +170,16 @@ func BenchmarkSigner(b *testing.B) {
 func BenchmarkVerifier(b *testing.B) {
 	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 	q := ristretto255.NewElement().ScalarBaseMult(d)
-
+	message := make([]byte, 1024)
 	signer := NewSigner(nil)
-
-	if _, err := io.CopyN(signer, &fakeReader{}, 1024*1024); err != nil {
-		b.Fatal(err)
-	}
-
+	_, _ = signer.Write(message)
 	sig := signer.Sign(d, q)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		verifier := NewVerifier(nil)
-		if _, err := io.CopyN(verifier, &fakeReader{}, 1024*1024); err != nil {
-			b.Fatal(err)
-		}
+		_, _ = verifier.Write(message)
 
 		if !verifier.Verify(q, sig) {
 			b.Fatal("should have verified")
