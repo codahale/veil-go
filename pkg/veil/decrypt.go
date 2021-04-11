@@ -92,12 +92,14 @@ func (pk *PrivateKey) findHeader(
 
 // decryptHeader attempts to decrypt the given header block if sent from any of the given public
 // keys.
-func (pk *PrivateKey) decryptHeader(buf []byte, senders []*PublicKey) (*PublicKey, []byte, int) {
+func (pk *PrivateKey) decryptHeader(header []byte, senders []*PublicKey) (*PublicKey, []byte, int) {
+	buf := make([]byte, headerSize)
+
 	// Iterate through all possible senders.
 	for _, pubS := range senders {
 		// Try to decrypt the header. If the header cannot be decrypted, it means the header wasn't
 		// encrypted for us by this possible sender. Continue to the next possible sender.
-		header, err := kem.Decrypt(pk.d, pk.q, pubS.q, buf)
+		header, err := kem.Decrypt(buf[:0], pk.d, pk.q, pubS.q, header)
 		if err != nil {
 			continue
 		}

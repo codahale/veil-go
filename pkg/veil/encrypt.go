@@ -78,25 +78,25 @@ func (pk *PrivateKey) encodeHeader(key []byte, recipients, padding int) []byte {
 // encryptHeaders encrypts the header for the given set of public keys with the specified number of
 // fake recipients.
 func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padding int) ([]byte, error) {
-	// Allocate a buffer for the entire header.
-	buf := bytes.NewBuffer(make([]byte, 0, len(publicKeys)*encryptedHeaderSize))
+	buf := make([]byte, encryptedHeaderSize)
+	headers := bytes.NewBuffer(make([]byte, 0, len(publicKeys)*encryptedHeaderSize))
 
 	// Encrypt a copy of the header for each recipient.
 	for _, pkR := range publicKeys {
-		_, _ = buf.Write(kem.Encrypt(pk.d, pk.q, pkR.q, header))
+		_, _ = headers.Write(kem.Encrypt(buf[:0], pk.d, pk.q, pkR.q, header))
 	}
 
 	// Add padding if any is required.
 	if padding > 0 {
-		if _, err := io.CopyN(buf, rand.Reader, int64(padding)); err != nil {
+		if _, err := io.CopyN(headers, rand.Reader, int64(padding)); err != nil {
 			return nil, err
 		}
 	}
 
-	return buf.Bytes(), nil
+	return headers.Bytes(), nil
 }
 
 const (
 	headerSize          = internal.MessageKeySize + 4 // 4 bytes for message offset
-	encryptedHeaderSize = internal.ElementSize + headerSize + internal.TagSize + internal.TagSize
+	encryptedHeaderSize = headerSize + kem.Overhead
 )

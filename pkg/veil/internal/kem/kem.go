@@ -76,9 +76,13 @@ import (
 	"github.com/gtank/ristretto255"
 )
 
+const Overhead = internal.ElementSize + (2 * internal.TagSize)
+
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
-func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte) []byte {
+func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte) []byte {
+	ret, out := internal.SliceForAppend(dst, len(plaintext)+Overhead)
+
 	// Initialize the protocol.
 	kem := protocol.New("veil.kem")
 
@@ -103,14 +107,11 @@ func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []
 	dE := deriveEphemeral(dS, plaintext)
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
-	// Create a buffer.
-	ciphertext := make([]byte, 0, internal.ElementSize+len(plaintext)+(2*internal.TagSize))
-
 	// Encrypt the ephemeral public key.
-	ciphertext = kem.SendENC(ciphertext, qE.Encode(nil))
+	out = kem.SendENC(out[:0], qE.Encode(nil))
 
 	// Send a MAC.
-	ciphertext = kem.SendMAC(ciphertext, internal.TagSize)
+	out = kem.SendMAC(out, internal.TagSize)
 
 	// Calculate the ephemeral shared secret between the ephemeral private key and the recipient's
 	// public key.
@@ -120,18 +121,18 @@ func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []
 	kem.Key(zzE.Encode(nil))
 
 	// Encrypt the plaintext.
-	ciphertext = kem.SendENC(ciphertext, plaintext)
+	out = kem.SendENC(out, plaintext)
 
 	// Create a MAC.
-	ciphertext = kem.SendMAC(ciphertext, internal.TagSize)
+	kem.SendMAC(out, internal.TagSize)
 
 	// Return the encrypted ephemeral public key, the encrypted message, and the MAC.
-	return ciphertext
+	return ret
 }
 
 // Decrypt decrypts the ciphertext iff it was encrypted by the owner of qS for the owner of qR and
 // no bit of the ciphertext has been modified.
-func Decrypt(dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext []byte) ([]byte, error) {
+func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext []byte) ([]byte, error) {
 	// Initialize the protocol.
 	kem := protocol.New("veil.kem")
 
@@ -175,7 +176,7 @@ func Decrypt(dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext [
 	kem.Key(zzE.Encode(nil))
 
 	// Decrypt the plaintext
-	plaintext := kem.RecvENC(nil, ciphertext[:len(ciphertext)-internal.TagSize])
+	plaintext := kem.RecvENC(dst, ciphertext[:len(ciphertext)-internal.TagSize])
 
 	// Verify the MAC.
 	if err := kem.RecvMAC(ciphertext[len(ciphertext)-internal.TagSize:]); err != nil {
