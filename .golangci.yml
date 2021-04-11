@@ -15,7 +15,6 @@ linters:
     - exportloopref
     - forcetypeassert
     - funlen
-    - gci
     - gochecknoglobals
     - gochecknoinits
     - gocognit
@@ -66,6 +65,7 @@ linters:
     - wsl
 #    - exhaustivestruct
 #    - forbidigo
+#    - gci
 #    - goheader
 #    - gomnd
 #    - interfacer
