@@ -15,17 +15,17 @@ func TestStreamRoundTrip(t *testing.T) {
 	b2 := bytes.Repeat([]byte{0xf0}, BlockSize)
 
 	enc := NewSealer(key, nil)
-	c1 := enc.Seal(b1, false)
-	c2 := enc.Seal(b2, true)
+	c1 := enc.Seal(nil, b1, false)
+	c2 := enc.Seal(nil, b2, true)
 
 	dec := NewOpener(key, nil)
 
-	p1, err := dec.Open(c1, false)
+	p1, err := dec.Open(nil, c1, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	p2, err := dec.Open(c2, true)
+	p2, err := dec.Open(nil, c2, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,10 +41,10 @@ func TestStreamFinalizationMismatch(t *testing.T) {
 	b1 := bytes.Repeat([]byte{0xff}, BlockSize)
 
 	enc := NewSealer(key, nil)
-	c1 := enc.Seal(b1, true)
+	c1 := enc.Seal(nil, b1, true)
 
 	dec := NewOpener(key, nil)
-	if _, err := dec.Open(c1, false); err == nil {
+	if _, err := dec.Open(nil, c1, false); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -56,10 +56,10 @@ func TestStreamKeyMismatch(t *testing.T) {
 	b1 := bytes.Repeat([]byte{0xff}, BlockSize)
 
 	enc := NewSealer(key, nil)
-	c1 := enc.Seal(b1, false)
+	c1 := enc.Seal(nil, b1, false)
 
 	dec := NewOpener([]byte("not it, chief"), nil)
-	if _, err := dec.Open(c1, false); err == nil {
+	if _, err := dec.Open(nil, c1, false); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -71,10 +71,10 @@ func TestStreamADMismatch(t *testing.T) {
 	b1 := bytes.Repeat([]byte{0xff}, BlockSize)
 
 	enc := NewSealer(key, []byte("one"))
-	c1 := enc.Seal(b1, false)
+	c1 := enc.Seal(nil, b1, false)
 
 	dec := NewOpener(key, []byte("two"))
-	if _, err := dec.Open(c1, false); err == nil {
+	if _, err := dec.Open(nil, c1, false); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -86,12 +86,12 @@ func TestStreamCiphertextModification(t *testing.T) {
 	b1 := bytes.Repeat([]byte{0xff}, BlockSize)
 
 	enc := NewSealer(key, nil)
-	c1 := enc.Seal(b1, false)
+	c1 := enc.Seal(nil, b1, false)
 
 	c1[0] ^= 1
 
 	dec := NewOpener(key, nil)
-	if _, err := dec.Open(c1, false); err == nil {
+	if _, err := dec.Open(nil, c1, false); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -103,12 +103,12 @@ func TestStreamTagModification(t *testing.T) {
 	b1 := bytes.Repeat([]byte{0xff}, BlockSize)
 
 	enc := NewSealer(key, nil)
-	c1 := enc.Seal(b1, false)
+	c1 := enc.Seal(nil, b1, false)
 
 	c1[len(c1)-1] ^= 1
 
 	dec := NewOpener(key, nil)
-	if _, err := dec.Open(c1, false); err == nil {
+	if _, err := dec.Open(nil, c1, false); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }

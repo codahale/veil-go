@@ -61,7 +61,7 @@ func (r *reader) Read(p []byte) (n int, err error) {
 	}
 
 	// Decrypt the block we just read.
-	r.plaintext, err = r.stream.Open(r.ciphertext[:segment], lastSegment)
+	r.plaintext, err = r.stream.Open(r.plaintext[:0], r.ciphertext[:segment], lastSegment)
 	if err != nil {
 		return 0, err
 	}

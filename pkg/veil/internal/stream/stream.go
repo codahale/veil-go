@@ -48,25 +48,25 @@ func NewSealer(key, associatedData []byte) *Sealer {
 
 // Seal encrypts the plaintext, appends an authentication tag, ratchets the protocol's state,
 // and returns the result. If this is is the last block in the stream, final must be true.
-func (s *Sealer) Seal(plaintext []byte, final bool) []byte {
+func (s *Sealer) Seal(dst, plaintext []byte, final bool) []byte {
 	// If this is the final block, mark that in the stream metadata.
 	if final {
 		finalizeStream(s.stream)
 	}
 
-	ciphertext := make([]byte, 0, len(plaintext)+internal.TagSize)
+	ret, out := internal.SliceForAppend(dst, len(plaintext)+internal.TagSize)
 
 	// Encrypt the plaintext.
-	ciphertext = s.stream.SendENC(ciphertext, plaintext)
+	out = s.stream.SendENC(out[:0], plaintext)
 
 	// Create a MAC.
-	ciphertext = s.stream.SendMAC(ciphertext, internal.TagSize)
+	s.stream.SendMAC(out, internal.TagSize)
 
 	// Ratchet the stream.
 	s.stream.Ratchet()
 
 	// Return the ciphertext and tag.
-	return ciphertext
+	return ret
 }
 
 // Opener decrypts blocks of a message stream.
@@ -111,14 +111,14 @@ func NewOpener(key, associatedData []byte) *Opener {
 // protocol's state, and returns the plaintext. If this is is the last block in the stream, final
 // must be true. If the inputs are not exactly the same as the outputs of Seal, an error will be
 // returned.
-func (s *Opener) Open(ciphertext []byte, final bool) ([]byte, error) {
+func (s *Opener) Open(dst, ciphertext []byte, final bool) ([]byte, error) {
 	// If this is the final block, mark that in the stream metadata.
 	if final {
 		finalizeStream(s.stream)
 	}
 
 	// Decrypt the block.
-	plaintext := s.stream.RecvENC(nil, ciphertext[:len(ciphertext)-internal.TagSize])
+	plaintext := s.stream.RecvENC(dst, ciphertext[:len(ciphertext)-internal.TagSize])
 
 	// Check the MAC.
 	if err := s.stream.RecvMAC(ciphertext[len(ciphertext)-internal.TagSize:]); err != nil {
