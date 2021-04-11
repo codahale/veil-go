@@ -52,9 +52,10 @@ package schnorr
 import (
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal/protocol"
+
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/gtank/ristretto255"
-	"github.com/sammyne/strobe"
 )
 
 const (
@@ -64,26 +65,26 @@ const (
 
 // Signer is an io.Writer which adds written data to a STROBE protocol for signing.
 type Signer struct {
-	schnorr *strobe.Strobe
+	schnorr *protocol.Protocol
 }
 
 // NewSigner returns a Signer instance with the given associated dat..
 func NewSigner(associatedData []byte) *Signer {
 	// Initialize a new protocol.
-	schnorr := internal.Strobe("veil.schnorr")
+	schnorr := protocol.New("veil.schnorr")
 
 	// Add the associated data to the protocol.
-	internal.Must(schnorr.AD(associatedData, &strobe.Options{}))
+	schnorr.AD(associatedData)
 
 	// Prep it for streaming cleartext.
-	internal.Must(schnorr.SendCLR(nil, &strobe.Options{}))
+	schnorr.SendCLR(nil)
 
 	return &Signer{schnorr: schnorr}
 }
 
 func (sn *Signer) Write(p []byte) (n int, err error) {
 	// Update the protocol with the written data.
-	internal.Must(sn.schnorr.SendCLR(p, &strobe.Options{Streaming: true}))
+	sn.schnorr.SendCLR(p, protocol.Streaming)
 
 	return len(p), nil
 }
@@ -91,26 +92,23 @@ func (sn *Signer) Write(p []byte) (n int, err error) {
 // Sign uses the given key pair to construct a deterministic Schnorr signature of the previously
 // written data.
 func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
-	var (
-		buf [internal.UniformBytestringSize]byte
-		sig [SignatureSize]byte
-	)
+	var buf [internal.UniformBytestringSize]byte
 
 	// Deterministically derive a nonce in a cloned context.
 	r := sn.deriveNonce(d)
 
 	// Calculate the signature ephemeral.
 	R := ristretto255.NewElement().ScalarBaseMult(r)
-	sigA := R.Encode(sig[:0])
+	sigA := R.Encode(nil)
 
 	// Send the signer's public key.
-	internal.Must(sn.schnorr.SendCLR(q.Encode(nil), &strobe.Options{}))
+	sn.schnorr.SendCLR(q.Encode(nil))
 
 	// Send the signature ephemeral.
-	internal.Must(sn.schnorr.SendCLR(sigA, &strobe.Options{}))
+	sn.schnorr.SendCLR(sigA)
 
 	// Derive a challenge value.
-	internal.Must(sn.schnorr.PRF(buf[:], false))
+	sn.schnorr.PRF(buf[:])
 
 	// Map the challenge value to a scalar.
 	k := ristretto255.NewScalar().FromUniformBytes(buf[:])
@@ -120,11 +118,10 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 	s = ristretto255.NewScalar().Add(s, r)
 
 	// Encrypt the signature scalar.
-	sigB := s.Encode(sig[internal.ElementSize:internal.ElementSize])
-	internal.MustENC(sn.schnorr.SendENC(sigB, &strobe.Options{}))
+	sigB := sn.schnorr.SendENC(nil, s.Encode(nil))
 
 	// Return the encoding of R and the ciphertext of s as the signature.
-	return sig[:]
+	return append(sigA, sigB...)
 }
 
 func (sn *Signer) deriveNonce(d *ristretto255.Scalar) *ristretto255.Scalar {
@@ -135,13 +132,13 @@ func (sn *Signer) deriveNonce(d *ristretto255.Scalar) *ristretto255.Scalar {
 	clone := sn.schnorr.Clone()
 
 	// Key the clone with the signer's private key.
-	internal.Must(clone.KEY(d.Encode(nil), false))
+	clone.Key(d.Encode(nil))
 
 	// Derive a nonce.
-	internal.Must(clone.PRF(buf[:], false))
+	clone.PRF(buf[:])
 
 	// Ratchet the protocol.
-	internal.Must(clone.RATCHET(internal.RatchetSize))
+	clone.Ratchet()
 
 	// Map the nonce to a scalar.
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])
@@ -149,26 +146,26 @@ func (sn *Signer) deriveNonce(d *ristretto255.Scalar) *ristretto255.Scalar {
 
 // Verifier is an io.Writer which adds written data to a STROBE protocol for verification.
 type Verifier struct {
-	schnorr *strobe.Strobe
+	schnorr *protocol.Protocol
 }
 
 // NewVerifier returns a Verifier instance with the given associated data.
 func NewVerifier(associatedData []byte) *Verifier {
 	// Initialize a new protocol.
-	schnorr := internal.Strobe("veil.schnorr")
+	schnorr := protocol.New("veil.schnorr")
 
 	// Add the associated data to the protocol.
-	internal.Must(schnorr.AD(associatedData, &strobe.Options{}))
+	schnorr.AD(associatedData)
 
 	// Prep it for streaming cleartext.
-	internal.Must(schnorr.RecvCLR(nil, &strobe.Options{}))
+	schnorr.RecvCLR(nil)
 
 	return &Verifier{schnorr: schnorr}
 }
 
 func (vr *Verifier) Write(p []byte) (n int, err error) {
 	// Update the protocol with the written data.
-	internal.Must(vr.schnorr.RecvCLR(p, &strobe.Options{Streaming: true}))
+	vr.schnorr.RecvCLR(p, protocol.Streaming)
 
 	return len(p), nil
 }
@@ -192,23 +189,19 @@ func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
 	}
 
 	// Receive the signer's public key.
-	internal.Must(vr.schnorr.RecvCLR(q.Encode(nil), &strobe.Options{}))
+	vr.schnorr.RecvCLR(q.Encode(nil))
 
 	// Receive the signature ephemeral.
-	internal.Must(vr.schnorr.RecvCLR(sigA, &strobe.Options{}))
+	vr.schnorr.RecvCLR(sigA)
 
 	// Derive a challenge value.
-	internal.Must(vr.schnorr.PRF(buf[:], false))
+	vr.schnorr.PRF(buf[:])
 
 	// Map the challenge value to a scalar.
 	k := ristretto255.NewScalar().FromUniformBytes(buf[:])
 
-	// Copy the encrypted signature scalar.
-	sb := make([]byte, len(sigB))
-	copy(sb, sigB)
-
 	// Decrypt the signature scalar.
-	internal.MustENC(vr.schnorr.RecvENC(sb, &strobe.Options{}))
+	sb := vr.schnorr.RecvENC(nil, sigB)
 
 	// Decode the signature scalar.
 	s := ristretto255.NewScalar()

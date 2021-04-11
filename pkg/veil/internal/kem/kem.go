@@ -72,68 +72,58 @@ package kem
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/codahale/veil/pkg/veil/internal/protocol"
 	"github.com/gtank/ristretto255"
-	"github.com/sammyne/strobe"
 )
 
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
 func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte) []byte {
-	const (
-		macStart = internal.ElementSize
-		macEnd   = macStart + internal.TagSize
-	)
-
 	// Initialize the protocol.
-	kem := internal.Strobe("veil.kem")
+	kem := protocol.New("veil.kem")
 
 	// Add the tag size to the protocol.
-	internal.Must(kem.AD(internal.LittleEndianU32(internal.TagSize), &strobe.Options{Meta: true}))
+	kem.AD(protocol.LittleEndianU32(internal.TagSize), protocol.Meta)
 
 	// Add the recipient's public key as associated data.
-	internal.Must(kem.AD(qR.Encode(nil), &strobe.Options{}))
+	kem.AD(qR.Encode(nil))
 
 	// Add the sender's public key as associated data.
-	internal.Must(kem.AD(qS.Encode(nil), &strobe.Options{}))
+	kem.AD(qS.Encode(nil))
 
 	// Calculate the static shared secret between the sender's private key and the recipient's
 	// public key.
 	zzS := ristretto255.NewElement().ScalarMult(dS, qR)
 
 	// Key the protocol with the static shared secret.
-	internal.Must(kem.KEY(zzS.Encode(nil), false))
+	kem.Key(zzS.Encode(nil))
 
 	// Deterministically derive an ephemeral private key from the sender's private key and the
 	// message.
 	dE := deriveEphemeral(dS, plaintext)
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
-	// Copy the ephemeral public key to a buffer.
-	ciphertext := make([]byte, macStart+len(plaintext)+(2*internal.TagSize))
-	qE.Encode(ciphertext[:0])
+	// Create a buffer.
+	ciphertext := make([]byte, 0, internal.ElementSize+len(plaintext)+(2*internal.TagSize))
 
-	// Encrypt the ephemeral public key in place..
-	internal.MustENC(kem.SendENC(ciphertext[:macStart], &strobe.Options{}))
+	// Encrypt the ephemeral public key.
+	ciphertext = kem.SendENC(ciphertext, qE.Encode(nil))
 
 	// Send a MAC.
-	internal.Must(kem.SendMAC(ciphertext[macStart:macEnd], &strobe.Options{}))
+	ciphertext = kem.SendMAC(ciphertext, internal.TagSize)
 
 	// Calculate the ephemeral shared secret between the ephemeral private key and the recipient's
 	// public key.
 	zzE := ristretto255.NewElement().ScalarMult(dE, qR)
 
 	// Key the protocol with the ephemeral shared secret.
-	internal.Must(kem.KEY(zzE.Encode(nil), false))
+	kem.Key(zzE.Encode(nil))
 
-	// Copy the plaintext to the buffer.
-	copy(ciphertext[macEnd:], plaintext)
-
-	// Encrypt the plaintext in place.
-	internal.MustENC(kem.SendENC(ciphertext[macEnd:macEnd+len(plaintext)],
-		&strobe.Options{}))
+	// Encrypt the plaintext.
+	ciphertext = kem.SendENC(ciphertext, plaintext)
 
 	// Create a MAC.
-	internal.Must(kem.SendMAC(ciphertext[macEnd+len(plaintext):], &strobe.Options{}))
+	ciphertext = kem.SendMAC(ciphertext, internal.TagSize)
 
 	// Return the encrypted ephemeral public key, the encrypted message, and the MAC.
 	return ciphertext
@@ -142,65 +132,58 @@ func Encrypt(dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []
 // Decrypt decrypts the ciphertext iff it was encrypted by the owner of qS for the owner of qR and
 // no bit of the ciphertext has been modified.
 func Decrypt(dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext []byte) ([]byte, error) {
-	// Copy the ciphertext to a buffer.
-	plaintext := make([]byte, len(ciphertext))
-	copy(plaintext, ciphertext)
-
 	// Initialize the protocol.
-	kem := internal.Strobe("veil.kem")
+	kem := protocol.New("veil.kem")
 
 	// Add the tag size to the protocol.
-	internal.Must(kem.AD(internal.LittleEndianU32(internal.TagSize), &strobe.Options{Meta: true}))
+	kem.AD(protocol.LittleEndianU32(internal.TagSize), protocol.Meta)
 
 	// Add the recipient's public key as associated data.
-	internal.Must(kem.AD(qR.Encode(nil), &strobe.Options{}))
+	kem.AD(qR.Encode(nil))
 
 	// Add the sender's public key as associated data.
-	internal.Must(kem.AD(qS.Encode(nil), &strobe.Options{}))
+	kem.AD(qS.Encode(nil))
 
 	// Calculate the static shared secret between the recipient's private key and the sender's
 	// public key.
 	zzS := ristretto255.NewElement().ScalarMult(dR, qS)
 
 	// Key the protocol with the static shared secret.
-	internal.Must(kem.KEY(zzS.Encode(nil), false))
+	kem.Key(zzS.Encode(nil))
 
 	// Decrypt the ephemeral public key.
-	internal.MustENC(kem.RecvENC(plaintext[:internal.ElementSize], &strobe.Options{}))
+	qEb := kem.RecvENC(nil, ciphertext[:internal.ElementSize])
 
 	// Check the MAC.
-	if err := kem.RecvMAC(
-		plaintext[internal.ElementSize:internal.ElementSize+internal.TagSize],
-		&strobe.Options{},
-	); err != nil {
+	if err := kem.RecvMAC(ciphertext[internal.ElementSize : internal.ElementSize+internal.TagSize]); err != nil {
 		return nil, err
 	}
+
+	ciphertext = ciphertext[internal.ElementSize+internal.TagSize:]
 
 	// Decode the ephemeral public key.
 	qE := ristretto255.NewElement()
-	if err := qE.Decode(plaintext[:internal.ElementSize]); err != nil {
+	if err := qE.Decode(qEb); err != nil {
 		return nil, err
 	}
-
-	plaintext = plaintext[internal.ElementSize+internal.TagSize:]
 
 	// Calculate the ephemeral shared secret between the recipient's private key and the ephemeral
 	// public key.
 	zzE := ristretto255.NewElement().ScalarMult(dR, qE)
 
 	// Key the protocol with the ephemeral shared secret.
-	internal.Must(kem.KEY(zzE.Encode(nil), false))
+	kem.Key(zzE.Encode(nil))
 
-	// Decrypt it in place.
-	internal.MustENC(kem.RecvENC(plaintext[:len(plaintext)-internal.TagSize], &strobe.Options{}))
+	// Decrypt the plaintext
+	plaintext := kem.RecvENC(nil, ciphertext[:len(ciphertext)-internal.TagSize])
 
 	// Verify the MAC.
-	if err := kem.RecvMAC(plaintext[len(plaintext)-internal.TagSize:], &strobe.Options{}); err != nil {
+	if err := kem.RecvMAC(ciphertext[len(ciphertext)-internal.TagSize:]); err != nil {
 		return nil, err
 	}
 
 	// Return the authenticated plaintext.
-	return plaintext[:len(plaintext)-internal.TagSize], nil
+	return plaintext, nil
 }
 
 // deriveEphemeral derives an ephemeral scalar from a KEM sender's private key and a message.
@@ -208,16 +191,16 @@ func deriveEphemeral(d *ristretto255.Scalar, msg []byte) *ristretto255.Scalar {
 	var buf [internal.UniformBytestringSize]byte
 
 	// Initialize the protocol.
-	kemNonce := internal.Strobe("veil.kem.nonce")
+	kemNonce := protocol.New("veil.kem.nonce")
 
 	// Key the protocol with the sender's private key.
-	internal.Must(kemNonce.KEY(d.Encode(nil), false))
+	kemNonce.Key(d.Encode(nil))
 
 	// Include the message as associated data.
-	internal.Must(kemNonce.AD(msg, &strobe.Options{}))
+	kemNonce.AD(msg)
 
 	// Generate 64 bytes of PRF output.
-	internal.Must(kemNonce.PRF(buf[:], false))
+	kemNonce.PRF(buf[:])
 
 	// Map the PRF output to a scalar.
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])

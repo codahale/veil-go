@@ -2,7 +2,7 @@ package stream
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/sammyne/strobe"
+	"github.com/codahale/veil/pkg/veil/internal/protocol"
 )
 
 // BlockSize is the recommended block size for streams, as selected by it looking pretty.
@@ -36,16 +36,13 @@ const BlockSize = 64 * 1024 // 64KiB
 //
 // The ciphertext and N-byte tag are returned.
 type Sealer struct {
-	stream *strobe.Strobe
-	b, tag []byte
+	stream *protocol.Protocol
 }
 
 // NewSealer creates a new Sealer with the given key, associated data, block size, and tag size.
 func NewSealer(key, associatedData []byte) *Sealer {
 	return &Sealer{
 		stream: initStream(key, associatedData),
-		b:      make([]byte, BlockSize),
-		tag:    make([]byte, internal.TagSize),
 	}
 }
 
@@ -57,20 +54,19 @@ func (s *Sealer) Seal(plaintext []byte, final bool) []byte {
 		finalizeStream(s.stream)
 	}
 
-	// Copy the input to the stream's buffer.
-	copy(s.b, plaintext)
+	ciphertext := make([]byte, 0, len(plaintext)+internal.TagSize)
 
-	// Encrypt it in place.
-	internal.MustENC(s.stream.SendENC(s.b[:len(plaintext)], &strobe.Options{}))
+	// Encrypt the plaintext.
+	ciphertext = s.stream.SendENC(ciphertext, plaintext)
 
 	// Create a MAC.
-	internal.Must(s.stream.SendMAC(s.tag, &strobe.Options{}))
+	ciphertext = s.stream.SendMAC(ciphertext, internal.TagSize)
 
 	// Ratchet the stream.
-	internal.Must(s.stream.RATCHET(internal.RatchetSize))
+	s.stream.Ratchet()
 
 	// Return the ciphertext and tag.
-	return append(s.b[:len(plaintext)], s.tag...)
+	return ciphertext
 }
 
 // Opener decrypts blocks of a message stream.
@@ -101,16 +97,13 @@ func (s *Sealer) Seal(plaintext []byte, final bool) []byte {
 //
 // If the RECV_MAC operation is successful, the plaintext block is returned.
 type Opener struct {
-	stream *strobe.Strobe
-	b, tag []byte
+	stream *protocol.Protocol
 }
 
 // NewOpener creates a new Opener with the given key, associated data, block size, and tag size.
 func NewOpener(key, associatedData []byte) *Opener {
 	return &Opener{
 		stream: initStream(key, associatedData),
-		b:      make([]byte, BlockSize),
-		tag:    make([]byte, internal.TagSize),
 	}
 }
 
@@ -124,48 +117,39 @@ func (s *Opener) Open(ciphertext []byte, final bool) ([]byte, error) {
 		finalizeStream(s.stream)
 	}
 
-	// Copy the input to the stream's buffer.
-	n := len(ciphertext) - len(s.tag)
-	copy(s.tag, ciphertext[n:])
-	copy(s.b, ciphertext[:n])
-
-	// Decrypt it in place.
-	internal.MustENC(s.stream.RecvENC(s.b[:n], &strobe.Options{}))
+	// Decrypt the block.
+	plaintext := s.stream.RecvENC(nil, ciphertext[:len(ciphertext)-internal.TagSize])
 
 	// Check the MAC.
-	if err := s.stream.RecvMAC(s.tag, &strobe.Options{}); err != nil {
+	if err := s.stream.RecvMAC(ciphertext[len(ciphertext)-internal.TagSize:]); err != nil {
 		return nil, err
 	}
 
 	// Ratchet the stream.
-	internal.Must(s.stream.RATCHET(internal.RatchetSize))
-
-	// Make a copy of the plaintext and return it.
-	plaintext := make([]byte, n)
-	copy(plaintext, s.b[:n])
+	s.stream.Ratchet()
 
 	return plaintext, nil
 }
 
-func initStream(key, associatedData []byte) *strobe.Strobe {
+func initStream(key, associatedData []byte) *protocol.Protocol {
 	// Initialize a new stream protocol.
-	stream := internal.Strobe("veil.stream")
+	stream := protocol.New("veil.stream")
 
 	// Add the block size to the protocol.
-	internal.Must(stream.AD(internal.LittleEndianU32(BlockSize), &strobe.Options{Meta: true}))
+	stream.AD(protocol.LittleEndianU32(BlockSize), protocol.Meta)
 
 	// Add the tag size to the protocol.
-	internal.Must(stream.AD(internal.LittleEndianU32(internal.TagSize), &strobe.Options{Meta: true}))
+	stream.AD(protocol.LittleEndianU32(internal.TagSize), protocol.Meta)
 
 	// Add the associated data to the protocol.
-	internal.Must(stream.AD(associatedData, &strobe.Options{}))
+	stream.AD(associatedData)
 
 	// Initialize the protocol with the given key.
-	internal.Must(stream.KEY(internal.Copy(key), false))
+	stream.Key(key)
 
 	return stream
 }
 
-func finalizeStream(stream *strobe.Strobe) {
-	internal.Must(stream.AD([]byte(("final")), &strobe.Options{Meta: true}))
+func finalizeStream(stream *protocol.Protocol) {
+	stream.AD([]byte("final"), protocol.Meta)
 }

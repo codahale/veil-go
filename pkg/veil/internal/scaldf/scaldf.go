@@ -15,6 +15,7 @@ package scaldf
 
 import (
 	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/codahale/veil/pkg/veil/internal/protocol"
 	"github.com/gtank/ristretto255"
 )
 
@@ -48,13 +49,13 @@ func scalarDF(proto string, data []byte) *ristretto255.Scalar {
 	var buf [internal.UniformBytestringSize]byte
 
 	// Initialize the protocol.
-	scaldf := internal.Strobe(proto)
+	scaldf := protocol.New(proto)
 
 	// Key the protocol with a copy of the given data.
-	internal.Must(scaldf.KEY(internal.Copy(data), false))
+	scaldf.Key(data)
 
 	// Generate 64 bytes of PRF output.
-	internal.Must(scaldf.PRF(buf[:], false))
+	scaldf.PRF(buf[:])
 
 	// Map the PRF output to a scalar.
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])

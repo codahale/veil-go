@@ -48,19 +48,15 @@ import (
 	"encoding/binary"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/sammyne/strobe"
+	"github.com/codahale/veil/pkg/veil/internal/protocol"
 )
 
 // Encrypt encrypts the plaintext with the passphrase and salt.
 func Encrypt(passphrase, salt, plaintext []byte, space, time int) []byte {
 	pbenc := initProtocol(passphrase, salt, space, time)
-
-	ciphertext := make([]byte, len(plaintext)+internal.TagSize)
-	copy(ciphertext, plaintext)
-
-	internal.MustENC(pbenc.SendENC(ciphertext[:len(plaintext)], &strobe.Options{}))
-
-	internal.Must(pbenc.SendMAC(ciphertext[len(plaintext):], &strobe.Options{}))
+	ciphertext := make([]byte, 0, len(plaintext)+internal.TagSize)
+	ciphertext = pbenc.SendENC(ciphertext, plaintext)
+	ciphertext = pbenc.SendMAC(ciphertext, internal.TagSize)
 
 	return ciphertext
 }
@@ -69,12 +65,9 @@ func Encrypt(passphrase, salt, plaintext []byte, space, time int) []byte {
 func Decrypt(passphrase, salt, ciphertext []byte, space, time int) ([]byte, error) {
 	pbenc := initProtocol(passphrase, salt, space, time)
 
-	plaintext := make([]byte, len(ciphertext)-internal.TagSize)
-	copy(plaintext, ciphertext[:len(ciphertext)-internal.TagSize])
+	plaintext := pbenc.RecvENC(nil, ciphertext[:len(ciphertext)-internal.TagSize])
 
-	internal.MustENC(pbenc.RecvENC(plaintext, &strobe.Options{}))
-
-	if err := pbenc.RecvMAC(ciphertext[len(ciphertext)-internal.TagSize:], &strobe.Options{}); err != nil {
+	if err := pbenc.RecvMAC(ciphertext[len(ciphertext)-internal.TagSize:]); err != nil {
 		return nil, err
 	}
 
@@ -83,30 +76,30 @@ func Decrypt(passphrase, salt, ciphertext []byte, space, time int) ([]byte, erro
 
 // initProtocol initializes a new STROBE protocol and executes the Balloon Hashing algorithm. The
 // final block is then used to key the protocol.
-func initProtocol(passphrase, salt []byte, space, time int) *strobe.Strobe {
+func initProtocol(passphrase, salt []byte, space, time int) *protocol.Protocol {
 	// Initialize a new protocol.
-	pbenc := internal.Strobe("veil.pbenc")
+	pbenc := protocol.New("veil.pbenc")
 
 	// Include the delta constant as associated data.
-	internal.Must(pbenc.AD(internal.LittleEndianU32(delta), &strobe.Options{Meta: true}))
+	pbenc.AD(protocol.LittleEndianU32(delta), protocol.Meta)
 
 	// Include the block size constant as associated data.
-	internal.Must(pbenc.AD(internal.LittleEndianU32(n), &strobe.Options{Meta: true}))
+	pbenc.AD(protocol.LittleEndianU32(n), protocol.Meta)
 
 	// Include the tag size constant as associated data.
-	internal.Must(pbenc.AD(internal.LittleEndianU32(internal.TagSize), &strobe.Options{Meta: true}))
+	pbenc.AD(protocol.LittleEndianU32(internal.TagSize), protocol.Meta)
 
 	// Include the space parameter as associated data.
-	internal.Must(pbenc.AD(internal.LittleEndianU32(space), &strobe.Options{Meta: true}))
+	pbenc.AD(protocol.LittleEndianU32(space), protocol.Meta)
 
 	// Include the time parameter as associated data.
-	internal.Must(pbenc.AD(internal.LittleEndianU32(time), &strobe.Options{Meta: true}))
+	pbenc.AD(protocol.LittleEndianU32(time), protocol.Meta)
 
 	// Key the protocol with the passphrase.
-	internal.Must(pbenc.KEY(internal.Copy(passphrase), false))
+	pbenc.Key(passphrase)
 
 	// Include the salt as associated data.
-	internal.Must(pbenc.AD(salt, &strobe.Options{}))
+	pbenc.AD(salt)
 
 	// Allocate a 64-bit counter and a buffer for its encoding.
 	var (
@@ -148,12 +141,12 @@ func initProtocol(passphrase, salt []byte, space, time int) *strobe.Strobe {
 	}
 
 	// Step 3: Extract output from buffer.
-	internal.Must(pbenc.KEY(buf[(space-1)*n:], false))
+	pbenc.Key(buf[(space-1)*n:])
 
 	return pbenc
 }
 
-func hashCounter(pbenc *strobe.Strobe, ctr *uint64, ctrBuf, dst, left, right []byte) {
+func hashCounter(pbenc *protocol.Protocol, ctr *uint64, ctrBuf, dst, left, right []byte) {
 	// Increment the counter.
 	*ctr++
 
@@ -161,16 +154,16 @@ func hashCounter(pbenc *strobe.Strobe, ctr *uint64, ctrBuf, dst, left, right []b
 	binary.LittleEndian.PutUint64(ctrBuf, *ctr)
 
 	// Hash the counter.
-	internal.Must(pbenc.AD(ctrBuf, &strobe.Options{}))
+	pbenc.AD(ctrBuf)
 
 	// Hash the left block.
-	internal.Must(pbenc.AD(left, &strobe.Options{}))
+	pbenc.AD(left)
 
 	// Hash the right block.
-	internal.Must(pbenc.AD(right, &strobe.Options{}))
+	pbenc.AD(right)
 
 	// Extract a new block.
-	internal.Must(pbenc.PRF(dst, false))
+	pbenc.PRF(dst)
 }
 
 const (
