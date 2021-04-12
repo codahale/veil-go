@@ -136,20 +136,20 @@ func initStream(key, associatedData []byte) *protocol.Protocol {
 	stream := protocol.New("veil.stream")
 
 	// Add the block size to the protocol.
-	stream.AD(protocol.LittleEndianU32(BlockSize), protocol.Meta)
+	stream.MetaAD(protocol.LittleEndianU32(BlockSize))
 
 	// Add the tag size to the protocol.
-	stream.AD(protocol.LittleEndianU32(internal.TagSize), protocol.Meta)
+	stream.MetaAD(protocol.LittleEndianU32(internal.TagSize))
 
 	// Add the associated data to the protocol.
 	stream.AD(associatedData)
 
 	// Initialize the protocol with the given key.
-	stream.Key(key)
+	stream.KEY(key)
 
 	return stream
 }
 
 func finalizeStream(stream *protocol.Protocol) {
-	stream.AD([]byte("final"), protocol.Meta)
+	stream.MetaAD([]byte("final"))
 }

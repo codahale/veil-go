@@ -83,22 +83,22 @@ func initProtocol(passphrase, salt []byte, space, time int) *protocol.Protocol {
 	pbenc := protocol.New("veil.pbenc")
 
 	// Include the delta constant as associated data.
-	pbenc.AD(protocol.LittleEndianU32(delta), protocol.Meta)
+	pbenc.MetaAD(protocol.LittleEndianU32(delta))
 
 	// Include the block size constant as associated data.
-	pbenc.AD(protocol.LittleEndianU32(n), protocol.Meta)
+	pbenc.MetaAD(protocol.LittleEndianU32(n))
 
 	// Include the tag size constant as associated data.
-	pbenc.AD(protocol.LittleEndianU32(internal.TagSize), protocol.Meta)
+	pbenc.MetaAD(protocol.LittleEndianU32(internal.TagSize))
 
 	// Include the space parameter as associated data.
-	pbenc.AD(protocol.LittleEndianU32(space), protocol.Meta)
+	pbenc.MetaAD(protocol.LittleEndianU32(space))
 
 	// Include the time parameter as associated data.
-	pbenc.AD(protocol.LittleEndianU32(time), protocol.Meta)
+	pbenc.MetaAD(protocol.LittleEndianU32(time))
 
 	// Key the protocol with the passphrase.
-	pbenc.Key(passphrase)
+	pbenc.KEY(passphrase)
 
 	// Include the salt as associated data.
 	pbenc.AD(salt)
@@ -143,7 +143,7 @@ func initProtocol(passphrase, salt []byte, space, time int) *protocol.Protocol {
 	}
 
 	// Step 3: Extract output from buffer.
-	pbenc.Key(buf[(space-1)*n:])
+	pbenc.KEY(buf[(space-1)*n:])
 
 	return pbenc
 }

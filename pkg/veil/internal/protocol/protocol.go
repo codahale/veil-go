@@ -11,13 +11,6 @@ type Protocol struct {
 	s *strobe.Strobe
 }
 
-type Option uint
-
-const (
-	Meta Option = iota + 1
-	Streaming
-)
-
 func New(name string) *Protocol {
 	s, err := strobe.New(name, strobe.Bit256)
 	if err != nil {
@@ -27,82 +20,100 @@ func New(name string) *Protocol {
 	return &Protocol{s: s}
 }
 
-func (p *Protocol) AD(data []byte, opts ...Option) {
-	if err := p.s.AD(data, toOpts(opts)); err != nil {
+func (p *Protocol) MetaAD(data []byte) {
+	if err := p.s.AD(data, metaOpts); err != nil {
 		panic(err)
 	}
 }
 
-func (p *Protocol) Key(key []byte, opts ...Option) {
+func (p *Protocol) AD(data []byte) {
+	if err := p.s.AD(data, defaultOpts); err != nil {
+		panic(err)
+	}
+}
+
+func (p *Protocol) KEY(key []byte) {
 	k := make([]byte, len(key))
 	copy(k, key)
 
-	if err := p.s.KEY(k, toOpts(opts).Streaming); err != nil {
+	if err := p.s.KEY(k, false); err != nil {
 		panic(err)
 	}
-}
-
-func (p *Protocol) PRF(b []byte, opts ...Option) {
-	if err := p.s.PRF(b, toOpts(opts).Streaming); err != nil {
-		panic(err)
-	}
-}
-
-func (p *Protocol) SendENC(dst, plaintext []byte, opts ...Option) []byte {
-	ret, out := internal.SliceForAppend(dst, len(plaintext))
-	copy(out, plaintext)
-
-	if _, err := p.s.SendENC(out, toOpts(opts)); err != nil {
-		panic(err)
-	}
-
-	return ret
-}
-
-func (p *Protocol) RecvENC(dst, ciphertext []byte, opts ...Option) []byte {
-	ret, out := internal.SliceForAppend(dst, len(ciphertext))
-	copy(out, ciphertext)
-
-	if _, err := p.s.RecvENC(out, toOpts(opts)); err != nil {
-		panic(err)
-	}
-
-	return ret
-}
-
-func (p *Protocol) SendMAC(dst []byte, n int, opts ...Option) []byte {
-	ret, out := internal.SliceForAppend(dst, n)
-
-	if err := p.s.SendMAC(out, toOpts(opts)); err != nil {
-		panic(err)
-	}
-
-	return ret
-}
-
-func (p *Protocol) RecvMAC(mac []byte, opts ...Option) error {
-	m := make([]byte, len(mac))
-	copy(m, mac)
-
-	return p.s.RecvMAC(m, toOpts(opts))
 }
 
 func (p *Protocol) Ratchet() {
-	//     Setting L = sec/8 bytes is sufficient when R ≥ sec/8. That is, set L to 16 bytes or 32
-	//     bytes for Strobe-128/b and Strobe-256/b, respectively.
+	// Setting L = sec/8 bytes is sufficient when R ≥ sec/8. That is, set L to 16 bytes or 32 bytes
+	// for Strobe-128/b and Strobe-256/b, respectively.
 	if err := p.s.RATCHET(int(strobe.Bit256) / 8); err != nil {
 		panic(err)
 	}
 }
 
-func (p *Protocol) SendCLR(data []byte, opts ...Option) {
-	if err := p.s.SendCLR(data, toOpts(opts)); err != nil {
+func (p *Protocol) PRF(b []byte) {
+	if err := p.s.PRF(b, false); err != nil {
 		panic(err)
 	}
 }
 
-func (p *Protocol) RecvCLR(data []byte, opts ...Option) {
-	if err := p.s.RecvCLR(data, toOpts(opts)); err != nil {
+func (p *Protocol) SendENC(dst, plaintext []byte) []byte {
+	ret, out := internal.SliceForAppend(dst, len(plaintext))
+	copy(out, plaintext)
+
+	if _, err := p.s.SendENC(out, defaultOpts); err != nil {
+		panic(err)
+	}
+
+	return ret
+}
+
+func (p *Protocol) RecvENC(dst, ciphertext []byte) []byte {
+	ret, out := internal.SliceForAppend(dst, len(ciphertext))
+	copy(out, ciphertext)
+
+	if _, err := p.s.RecvENC(out, defaultOpts); err != nil {
+		panic(err)
+	}
+
+	return ret
+}
+
+func (p *Protocol) SendMAC(dst []byte, n int) []byte {
+	ret, out := internal.SliceForAppend(dst, n)
+
+	if err := p.s.SendMAC(out, defaultOpts); err != nil {
+		panic(err)
+	}
+
+	return ret
+}
+
+func (p *Protocol) RecvMAC(mac []byte) error {
+	m := make([]byte, len(mac))
+	copy(m, mac)
+
+	return p.s.RecvMAC(m, defaultOpts)
+}
+
+func (p *Protocol) SendCLR(data []byte) {
+	if err := p.s.SendCLR(data, defaultOpts); err != nil {
+		panic(err)
+	}
+}
+
+func (p *Protocol) RecvCLR(data []byte) {
+	if err := p.s.RecvCLR(data, defaultOpts); err != nil {
+		panic(err)
+	}
+}
+
+func (p *Protocol) MoreSendCLR(data []byte) {
+	if err := p.s.SendCLR(data, streamingOpts); err != nil {
+		panic(err)
+	}
+}
+
+func (p *Protocol) MoreRecvCLR(data []byte) {
+	if err := p.s.RecvCLR(data, streamingOpts); err != nil {
 		panic(err)
 	}
 }
@@ -113,21 +124,6 @@ func (p *Protocol) Clone() *Protocol {
 	}
 }
 
-func toOpts(opts []Option) *strobe.Options {
-	var o strobe.Options
-
-	for _, opt := range opts {
-		switch opt {
-		case Streaming:
-			o.Streaming = true
-		case Meta:
-			o.Meta = true
-		}
-	}
-
-	return &o
-}
-
 // LittleEndianU32 returns n as a 32-bit little endian bit string.
 func LittleEndianU32(n int) []byte {
 	var b [4]byte
@@ -136,3 +132,10 @@ func LittleEndianU32(n int) []byte {
 
 	return b[:]
 }
+
+//nolint:gochecknoglobals // constants
+var (
+	defaultOpts   = &strobe.Options{}
+	metaOpts      = &strobe.Options{Meta: true}
+	streamingOpts = &strobe.Options{Streaming: true}
+)

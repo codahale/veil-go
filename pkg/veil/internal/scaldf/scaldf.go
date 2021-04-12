@@ -52,7 +52,7 @@ func scalarDF(proto string, data []byte) *ristretto255.Scalar {
 	scaldf := protocol.New(proto)
 
 	// Key the protocol with a copy of the given data.
-	scaldf.Key(data)
+	scaldf.KEY(data)
 
 	// Generate 64 bytes of PRF output.
 	scaldf.PRF(buf[:])

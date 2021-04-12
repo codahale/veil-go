@@ -87,7 +87,7 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	kem := protocol.New("veil.kem")
 
 	// Add the tag size to the protocol.
-	kem.AD(protocol.LittleEndianU32(internal.TagSize), protocol.Meta)
+	kem.MetaAD(protocol.LittleEndianU32(internal.TagSize))
 
 	// Add the recipient's public key as associated data.
 	kem.AD(qR.Encode(nil))
@@ -100,7 +100,7 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	zzS := ristretto255.NewElement().ScalarMult(dS, qR)
 
 	// Key the protocol with the static shared secret.
-	kem.Key(zzS.Encode(nil))
+	kem.KEY(zzS.Encode(nil))
 
 	// Deterministically derive an ephemeral private key from the sender's private key and the
 	// message.
@@ -118,7 +118,7 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	zzE := ristretto255.NewElement().ScalarMult(dE, qR)
 
 	// Key the protocol with the ephemeral shared secret.
-	kem.Key(zzE.Encode(nil))
+	kem.KEY(zzE.Encode(nil))
 
 	// Encrypt the plaintext.
 	out = kem.SendENC(out, plaintext)
@@ -137,7 +137,7 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 	kem := protocol.New("veil.kem")
 
 	// Add the tag size to the protocol.
-	kem.AD(protocol.LittleEndianU32(internal.TagSize), protocol.Meta)
+	kem.MetaAD(protocol.LittleEndianU32(internal.TagSize))
 
 	// Add the recipient's public key as associated data.
 	kem.AD(qR.Encode(nil))
@@ -150,7 +150,7 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 	zzS := ristretto255.NewElement().ScalarMult(dR, qS)
 
 	// Key the protocol with the static shared secret.
-	kem.Key(zzS.Encode(nil))
+	kem.KEY(zzS.Encode(nil))
 
 	// Decrypt the ephemeral public key.
 	qEb := kem.RecvENC(nil, ciphertext[:internal.ElementSize])
@@ -173,7 +173,7 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 	zzE := ristretto255.NewElement().ScalarMult(dR, qE)
 
 	// Key the protocol with the ephemeral shared secret.
-	kem.Key(zzE.Encode(nil))
+	kem.KEY(zzE.Encode(nil))
 
 	// Decrypt the plaintext
 	plaintext := kem.RecvENC(dst, ciphertext[:len(ciphertext)-internal.TagSize])
@@ -195,7 +195,7 @@ func deriveEphemeral(d *ristretto255.Scalar, msg []byte) *ristretto255.Scalar {
 	kemNonce := protocol.New("veil.kem.nonce")
 
 	// Key the protocol with the sender's private key.
-	kemNonce.Key(d.Encode(nil))
+	kemNonce.KEY(d.Encode(nil))
 
 	// Include the message as associated data.
 	kemNonce.AD(msg)

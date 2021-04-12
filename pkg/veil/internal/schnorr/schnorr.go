@@ -84,7 +84,7 @@ func NewSigner(associatedData []byte) *Signer {
 
 func (sn *Signer) Write(p []byte) (n int, err error) {
 	// Update the protocol with the written data.
-	sn.schnorr.SendCLR(p, protocol.Streaming)
+	sn.schnorr.MoreSendCLR(p)
 
 	return len(p), nil
 }
@@ -132,7 +132,7 @@ func (sn *Signer) deriveNonce(d *ristretto255.Scalar) *ristretto255.Scalar {
 	clone := sn.schnorr.Clone()
 
 	// Key the clone with the signer's private key.
-	clone.Key(d.Encode(nil))
+	clone.KEY(d.Encode(nil))
 
 	// Derive a nonce.
 	clone.PRF(buf[:])
@@ -165,7 +165,7 @@ func NewVerifier(associatedData []byte) *Verifier {
 
 func (vr *Verifier) Write(p []byte) (n int, err error) {
 	// Update the protocol with the written data.
-	vr.schnorr.RecvCLR(p, protocol.Streaming)
+	vr.schnorr.MoreRecvCLR(p)
 
 	return len(p), nil
 }
