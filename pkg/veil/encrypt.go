@@ -13,7 +13,7 @@ import (
 )
 
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
-// authenticate it and writes the results to dst. Returns the number of bytes written and the first
+// authenticate it and writes the results to dst. Returns the number of bytes copied and the first
 // error reported while encrypting, if any.
 func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
 	// Generate a random message key.
@@ -32,9 +32,9 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	}
 
 	// Write the encrypted headers.
-	hn, err := dst.Write(headers)
+	_, err = dst.Write(headers)
 	if err != nil {
-		return int64(hn), err
+		return 0, err
 	}
 
 	// Initialize a stream writer with the message key and the encrypted headers as associated data.
@@ -44,22 +44,22 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	signer := schnorr.NewSigner(headers)
 
 	// Encrypt the plaintext as a stream, and add the plaintext to the signed data.
-	mn, err := io.Copy(io.MultiWriter(ciphertext, signer), src)
+	n, err := io.Copy(io.MultiWriter(ciphertext, signer), src)
 	if err != nil {
-		return mn + int64(hn), err
+		return n, err
 	}
 
 	// Create a signature of the plaintext.
 	sig := signer.Sign(pk.d, pk.q)
 
 	// Append the signature to the plaintext.
-	sn, err := ciphertext.Write(sig)
+	_, err = ciphertext.Write(sig)
 	if err != nil {
-		return mn + int64(hn+sn), err
+		return n, err
 	}
 
-	// Return the bytes written and flush any buffers.
-	return mn + int64(hn+sn), ciphertext.Close()
+	// Return the bytes copied and flush any buffers.
+	return n, ciphertext.Close()
 }
 
 // encodeHeader encodes the message key and the message offset.

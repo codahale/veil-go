@@ -63,8 +63,8 @@ func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	sig := signer.Sign(pk.d, pk.q)
 
 	// Append the signature.
-	sn, err := dst.Write(sig)
+	_, err = dst.Write(sig)
 
-	// Return the bytes written and any errors.
-	return n + int64(sn), err
+	// Return the bytes copied and any errors.
+	return n, err
 }
