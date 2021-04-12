@@ -168,6 +168,8 @@ func (vr *Verifier) Write(p []byte) (n int, err error) {
 
 // Verify uses the given public key to verify the signature of the previously read data.
 func (vr *Verifier) Verify(sig []byte) bool {
+	var buf [internal.ElementSize]byte
+
 	// Check signature length.
 	if len(sig) != SignatureSize {
 		return false
@@ -177,7 +179,7 @@ func (vr *Verifier) Verify(sig []byte) bool {
 	sigA, sigB := sig[:internal.ElementSize], sig[internal.ElementSize:]
 
 	// Receive the signature ephemeral.
-	sigA = vr.schnorr.RecvENC(nil, sigA)
+	sigA = vr.schnorr.RecvENC(buf[:0], sigA)
 
 	// Decode the signature ephemeral.
 	R := ristretto255.NewElement()
@@ -189,18 +191,18 @@ func (vr *Verifier) Verify(sig []byte) bool {
 	k := vr.schnorr.PRFScalar()
 
 	// Decrypt the signature scalar.
-	sb := vr.schnorr.RecvENC(nil, sigB)
+	sigB = vr.schnorr.RecvENC(buf[:0], sigB)
 
 	// Decode the signature scalar.
 	s := ristretto255.NewScalar()
-	if err := s.Decode(sb); err != nil {
+	if err := s.Decode(sigB); err != nil {
 		return false
 	}
 
 	// R' = -kQ + sG
-	ky := ristretto255.NewElement().ScalarMult(k, vr.q)
-	Rp := ristretto255.NewElement().ScalarBaseMult(s)
-	Rp = ristretto255.NewElement().Subtract(Rp, ky)
+	kQ := ristretto255.NewElement().ScalarMult(k, vr.q)
+	sG := ristretto255.NewElement().ScalarBaseMult(s)
+	Rp := ristretto255.NewElement().Subtract(sG, kQ)
 
 	return Rp.Equal(R) == 1
 }
