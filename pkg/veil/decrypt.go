@@ -33,7 +33,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	sr := sigio.NewReader(plaintext)
 
 	// Create a verifier with the encrypted headers as associated data.
-	verifier := schnorr.NewVerifier(headers)
+	verifier := schnorr.NewVerifier(pkS.q, headers)
 
 	// Decrypt the plaintext as a stream, adding it to the verified data.
 	n, err := io.Copy(dst, io.TeeReader(sr, verifier))
@@ -42,7 +42,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 	}
 
 	// Verify the signature of the encrypted headers and the plaintext.
-	if !verifier.Verify(pkS.q, sr.Signature) {
+	if !verifier.Verify(sr.Signature) {
 		return nil, n, ErrInvalidCiphertext
 	}
 

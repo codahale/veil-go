@@ -37,13 +37,13 @@ func (pk *PrivateKey) Derive(subKeyID string) *PrivateKey {
 // SignDetached returns a detached signature of the contents of src.
 func (pk *PrivateKey) SignDetached(src io.Reader) (*Signature, error) {
 	// Write the message contents to the schnorr STROBE protocol.
-	signer := schnorr.NewSigner(nil)
+	signer := schnorr.NewSigner(pk.d, pk.q, nil)
 	if _, err := io.Copy(signer, src); err != nil {
 		return nil, err
 	}
 
 	// Create a signature of the message.
-	sig := signer.Sign(pk.d, pk.q)
+	sig := signer.Sign()
 
 	return &Signature{b: sig}, nil
 }
@@ -51,7 +51,7 @@ func (pk *PrivateKey) SignDetached(src io.Reader) (*Signature, error) {
 // Sign copies src to dst, creates a signature of the contents of src, and appends it to dst.
 func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	// Write the message contents to the schnorr STROBE protocol.
-	signer := schnorr.NewSigner(nil)
+	signer := schnorr.NewSigner(pk.d, pk.q, nil)
 
 	// Copy all data from src into dst and signer.
 	n, err := io.Copy(io.MultiWriter(dst, signer), src)
@@ -60,7 +60,7 @@ func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
 	}
 
 	// Create a signature of the message.
-	sig := signer.Sign(pk.d, pk.q)
+	sig := signer.Sign()
 
 	// Append the signature.
 	_, err = dst.Write(sig)
