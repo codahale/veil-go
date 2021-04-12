@@ -124,7 +124,7 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	out = kem.SendENC(out, plaintext)
 
 	// Create a MAC.
-	kem.SendMAC(out, internal.TagSize)
+	_ = kem.SendMAC(out, internal.TagSize)
 
 	// Return the encrypted ephemeral public key, the encrypted message, and the MAC.
 	return ret
@@ -155,12 +155,14 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 	// Decrypt the ephemeral public key.
 	qEb := kem.RecvENC(nil, ciphertext[:internal.ElementSize])
 
+	ciphertext = ciphertext[internal.ElementSize:]
+
 	// Check the MAC.
-	if err := kem.RecvMAC(ciphertext[internal.ElementSize : internal.ElementSize+internal.TagSize]); err != nil {
+	if err := kem.RecvMAC(ciphertext[:internal.TagSize]); err != nil {
 		return nil, err
 	}
 
-	ciphertext = ciphertext[internal.ElementSize+internal.TagSize:]
+	ciphertext = ciphertext[internal.TagSize:]
 
 	// Decode the ephemeral public key.
 	qE := ristretto255.NewElement()
