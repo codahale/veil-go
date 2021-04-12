@@ -13,11 +13,10 @@
 //     d_e = veil.kem.nonce(d_S, M)
 //     Q_e = d_eG
 //     SEND_ENC(Q_e) -> E
-//     SEND_MAC(N) -> T1
 //     ZZ_e = d_eQ_r
 //     KEY(ZZ_e)
 //     SEND_ENC(M) -> C
-//     SEND_MAC(N) -> T2
+//     SEND_MAC(N) -> T
 //
 // d_e is derived as follows, given the sender's private key d_s and a message M:
 //
@@ -36,11 +35,10 @@
 //     ZZ_s = d_rQ_s
 //     KEY(ZZ_s)
 //     RECV_ENC(E) -> Q_e
-//     RECV_MAC(T1)
 //     ZZ_e = d_rQ_e
 //     KEY(ZZ_e)
 //     RECV_ENC(C) -> M
-//     RECV_MAC(T2)
+//     RECV_MAC(T)
 //
 // If the RECV_MAC call is successful, the plaintext message M is returned.
 //
@@ -53,9 +51,9 @@
 // The ephemeral private key is derived from the sender's private key and the message, allowing for
 // safe deterministic behavior.
 //
-// Unlike C(0e, 2s) schemes (e.g. NaCl's box construction), this KEM is not symmetric. Once
-// encrypted, the sender cannot decrypt the ciphertext. This provides the property that the shared
-// secret cannot be used to impersonate the sender in any way.
+// Unlike C(0e, 2s) schemes (e.g. NaCl's box construction), this KEM provides forward security for
+// the sender. If the sender's private key is compromised, the most an attacker can discover about
+// previously sent messages is the ephemeral public key, not the message itself.
 //
 // Unlike C(1e, 1s) schemes (e.g. IES), this KEM binds the sender's identity. This property is
 // useful, as it allows for readers to confirm the sender's identity before beginning to decrypt the
@@ -76,7 +74,7 @@ import (
 	"github.com/gtank/ristretto255"
 )
 
-const Overhead = internal.ElementSize + (2 * internal.TagSize)
+const Overhead = internal.ElementSize + internal.TagSize
 
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
@@ -109,9 +107,6 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 
 	// Encrypt the ephemeral public key.
 	out = kem.SendENC(out[:0], qE.Encode(nil))
-
-	// Send a MAC.
-	out = kem.SendMAC(out, internal.TagSize)
 
 	// Calculate the ephemeral shared secret between the ephemeral private key and the recipient's
 	// public key.
@@ -157,30 +152,26 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 
 	ciphertext = ciphertext[internal.ElementSize:]
 
-	// Check the MAC.
-	if err := kem.RecvMAC(ciphertext[:internal.TagSize]); err != nil {
-		return nil, err
-	}
-
-	ciphertext = ciphertext[internal.TagSize:]
-
-	// Decode the ephemeral public key.
+	// Decode the ephemeral public key. N.B.: this value has only been decrypted and not
+	// authenticated.
 	qE := ristretto255.NewElement()
 	if err := qE.Decode(qEb); err != nil {
 		return nil, err
 	}
 
 	// Calculate the ephemeral shared secret between the recipient's private key and the ephemeral
-	// public key.
+	// public key. N.B.: this value is derived from the unauthenticated ephemeral public key.
 	zzE := ristretto255.NewElement().ScalarMult(dR, qE)
 
 	// Key the protocol with the ephemeral shared secret.
 	kem.KEY(zzE.Encode(nil))
 
-	// Decrypt the plaintext
+	// Decrypt the plaintext. N.B.: This has not been authenticated yet.
 	plaintext := kem.RecvENC(dst, ciphertext[:len(ciphertext)-internal.TagSize])
 
-	// Verify the MAC.
+	// Verify the MAC. This establishes authentication for the previous operations in their
+	// entirety, since the sender and receiver's protocol states must be identical in order for the
+	// MACs to agree.
 	if err := kem.RecvMAC(ciphertext[len(ciphertext)-internal.TagSize:]); err != nil {
 		return nil, err
 	}
