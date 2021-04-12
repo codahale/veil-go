@@ -191,8 +191,6 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 
 // deriveEphemeral derives an ephemeral scalar from a KEM sender's private key and a message.
 func deriveEphemeral(d *ristretto255.Scalar, msg []byte) *ristretto255.Scalar {
-	var buf [internal.UniformBytestringSize]byte
-
 	// Initialize the protocol.
 	kemNonce := protocol.New("veil.kem.nonce")
 
@@ -202,9 +200,6 @@ func deriveEphemeral(d *ristretto255.Scalar, msg []byte) *ristretto255.Scalar {
 	// Include the message as associated data.
 	kemNonce.AD(msg)
 
-	// Generate 64 bytes of PRF output.
-	kemNonce.PRF(buf[:])
-
-	// Map the PRF output to a scalar.
-	return ristretto255.NewScalar().FromUniformBytes(buf[:])
+	// Generate 64 bytes of PRF output and map it to a scalar.
+	return kemNonce.PRFScalar()
 }

@@ -3,6 +3,8 @@ package protocol
 import (
 	"encoding/binary"
 
+	"github.com/gtank/ristretto255"
+
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/sammyne/strobe"
 )
@@ -53,6 +55,14 @@ func (p *Protocol) PRF(b []byte) {
 	if err := p.s.PRF(b, false); err != nil {
 		panic(err)
 	}
+}
+
+func (p *Protocol) PRFScalar() *ristretto255.Scalar {
+	var buf [internal.UniformBytestringSize]byte
+
+	p.PRF(buf[:])
+
+	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }
 
 func (p *Protocol) SendENC(dst, plaintext []byte) []byte {

@@ -46,17 +46,12 @@ func DeriveScalar(d *ristretto255.Scalar, label string) *ristretto255.Scalar {
 }
 
 func scalarDF(proto string, data []byte) *ristretto255.Scalar {
-	var buf [internal.UniformBytestringSize]byte
-
 	// Initialize the protocol.
 	scaldf := protocol.New(proto)
 
 	// Key the protocol with a copy of the given data.
 	scaldf.KEY(data)
 
-	// Generate 64 bytes of PRF output.
-	scaldf.PRF(buf[:])
-
-	// Map the PRF output to a scalar.
-	return ristretto255.NewScalar().FromUniformBytes(buf[:])
+	// Generate 64 bytes of PRF output and map it to a scalar.
+	return scaldf.PRFScalar()
 }

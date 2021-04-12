@@ -92,8 +92,6 @@ func (sn *Signer) Write(p []byte) (n int, err error) {
 // Sign uses the given key pair to construct a deterministic Schnorr signature of the previously
 // written data.
 func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
-	var buf [internal.UniformBytestringSize]byte
-
 	// Deterministically derive a nonce in a cloned context.
 	r := sn.deriveNonce(d)
 
@@ -107,11 +105,8 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 	// Send the signature ephemeral.
 	sn.schnorr.SendCLR(sigA)
 
-	// Derive a challenge value.
-	sn.schnorr.PRF(buf[:])
-
-	// Map the challenge value to a scalar.
-	k := ristretto255.NewScalar().FromUniformBytes(buf[:])
+	// Derive a challenge value scalar.
+	k := sn.schnorr.PRFScalar()
 
 	// Calculate the signature scalar (kd + r).
 	s := ristretto255.NewScalar().Multiply(k, d)
@@ -125,8 +120,6 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) []byte {
 }
 
 func (sn *Signer) deriveNonce(d *ristretto255.Scalar) *ristretto255.Scalar {
-	var buf [internal.UniformBytestringSize]byte
-
 	// Clone the protocol context. This step requires knowledge of the signer's private key, so it
 	// can't be part of the verification process.
 	clone := sn.schnorr.Clone()
@@ -134,14 +127,13 @@ func (sn *Signer) deriveNonce(d *ristretto255.Scalar) *ristretto255.Scalar {
 	// Key the clone with the signer's private key.
 	clone.KEY(d.Encode(nil))
 
-	// Derive a nonce.
-	clone.PRF(buf[:])
+	// Derive a nonce scalar.
+	k := clone.PRFScalar()
 
 	// Ratchet the protocol.
 	clone.Ratchet()
 
-	// Map the nonce to a scalar.
-	return ristretto255.NewScalar().FromUniformBytes(buf[:])
+	return k
 }
 
 // Verifier is an io.Writer which adds written data to a STROBE protocol for verification.
@@ -172,8 +164,6 @@ func (vr *Verifier) Write(p []byte) (n int, err error) {
 
 // Verify uses the given public key to verify the signature of the previously read data.
 func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
-	var buf [internal.UniformBytestringSize]byte
-
 	// Check signature length.
 	if len(sig) != SignatureSize {
 		return false
@@ -194,11 +184,8 @@ func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
 	// Receive the signature ephemeral.
 	vr.schnorr.RecvCLR(sigA)
 
-	// Derive a challenge value.
-	vr.schnorr.PRF(buf[:])
-
-	// Map the challenge value to a scalar.
-	k := ristretto255.NewScalar().FromUniformBytes(buf[:])
+	// Derive a challenge scalar.
+	k := vr.schnorr.PRFScalar()
 
 	// Decrypt the signature scalar.
 	sb := vr.schnorr.RecvENC(nil, sigB)
