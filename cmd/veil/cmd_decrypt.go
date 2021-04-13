@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
+	"os"
 )
 
 type decryptCmd struct {
@@ -26,7 +27,7 @@ func (cmd *decryptCmd) Run(_ *kong.Context) error {
 	}
 
 	// Open the ciphertext input.
-	src, err := openInput(cmd.Ciphertext)
+	src, err := os.Open(cmd.Ciphertext)
 	if err != nil {
 		return err
 	}
