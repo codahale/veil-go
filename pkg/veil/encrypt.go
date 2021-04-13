@@ -16,14 +16,14 @@ import (
 // authenticate it and writes the results to dst. Returns the number of bytes copied and the first
 // error reported while encrypting, if any.
 func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
-	// Generate a random message key.
-	key := make([]byte, internal.MessageKeySize)
-	if _, err := rand.Read(key); err != nil {
+	// Generate a random DEK.
+	dek := make([]byte, internal.DEKSize)
+	if _, err := rand.Read(dek); err != nil {
 		return 0, err
 	}
 
-	// Encode the message key and offset into a header.
-	header := pk.encodeHeader(key, len(recipients), padding)
+	// Encode the DEK and offset into a header.
+	header := pk.encodeHeader(dek, len(recipients), padding)
 
 	// Encrypt copies of the header for each recipient and add random padding.
 	headers, err := pk.encryptHeaders(header, recipients, padding)
@@ -37,8 +37,8 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 		return 0, err
 	}
 
-	// Initialize a stream writer with the message key and the encrypted headers as associated data.
-	ciphertext := streamio.NewWriter(dst, key, headers)
+	// Initialize a stream writer with the DEK and the encrypted headers as associated data.
+	ciphertext := streamio.NewWriter(dst, dek, headers)
 
 	// Create a signer with the encrypted headers as associated data.
 	signer := schnorr.NewSigner(pk.d, pk.q, headers)
@@ -62,21 +62,20 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 	return n, ciphertext.Close()
 }
 
-// encodeHeader encodes the message key and the message offset.
-func (pk *PrivateKey) encodeHeader(key []byte, recipients, padding int) []byte {
-	// Copy the message key.
+// encodeHeader encodes the DEK and the message offset.
+func (pk *PrivateKey) encodeHeader(dek []byte, recipients, padding int) []byte {
 	header := make([]byte, headerSize)
-	copy(header, key)
+	copy(header, dek)
 
 	// Calculate the message offset and encode it.
 	offset := encryptedHeaderSize*recipients + padding
-	binary.LittleEndian.PutUint32(header[internal.MessageKeySize:], uint32(offset))
+	binary.LittleEndian.PutUint32(header[internal.DEKSize:], uint32(offset))
 
 	return header
 }
 
-// encryptHeaders encrypts the header for the given set of public keys with the specified number of
-// fake recipients.
+// encryptHeaders encrypts the header for the given set of public keys and adds the given amount of
+// random padding.
 func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, padding int) ([]byte, error) {
 	buf := make([]byte, encryptedHeaderSize)
 	headers := bytes.NewBuffer(make([]byte, 0, len(publicKeys)*encryptedHeaderSize))
@@ -97,6 +96,6 @@ func (pk *PrivateKey) encryptHeaders(header []byte, publicKeys []*PublicKey, pad
 }
 
 const (
-	headerSize          = internal.MessageKeySize + 4 // 4 bytes for message offset
+	headerSize          = internal.DEKSize + 4 // 4 bytes for message offset
 	encryptedHeaderSize = headerSize + kem.Overhead
 )

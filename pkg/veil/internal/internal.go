@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	// MessageKeySize is the symmetric message key size in bytes.
-	MessageKeySize = 32
+	// DEKSize is the symmetric Data Encryption Key size in bytes.
+	DEKSize = 32
 
 	// TagSize is the authentication tag size in bytes.
 	TagSize = 16

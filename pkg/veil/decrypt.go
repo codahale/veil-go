@@ -20,14 +20,14 @@ import (
 // to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
 // output written to dst should be discarded, as it cannot be ascertained to be authentic.
 func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey) (*PublicKey, int64, error) {
-	// Find a decryptable header and recover the message key.
-	headers, pkS, key, err := pk.findHeader(src, senders)
+	// Find a decryptable header and recover the DEK.
+	headers, pkS, dek, err := pk.findHeader(src, senders)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Initialize a stream reader with the message key and the encrypted headers as associated data.
-	plaintext := streamio.NewReader(src, key, headers)
+	// Initialize a stream reader with the DEK and the encrypted headers as associated data.
+	plaintext := streamio.NewReader(src, dek, headers)
 
 	// Detach the signature from the plaintext.
 	sr := sigio.NewReader(plaintext)
@@ -51,7 +51,7 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 }
 
 // findHeader scans src for header blocks encrypted by any of the given possible senders. Returns
-// the full slice of encrypted headers, the sender's public key, and the message key.
+// the full slice of encrypted headers, the sender's public key, and the DEK if successful.
 func (pk *PrivateKey) findHeader(
 	src io.Reader, senders []*PublicKey,
 ) ([]byte, *PublicKey, []byte, error) {
@@ -73,7 +73,7 @@ func (pk *PrivateKey) findHeader(
 		headers = append(headers, buf...)
 
 		// Attempt to decrypt the header.
-		pkS, key, offset := pk.decryptHeader(buf, senders)
+		pkS, dek, offset := pk.decryptHeader(buf, senders)
 
 		// If we successfully decrypt the header, use the message offset to read the remaining
 		// encrypted headers.
@@ -83,15 +83,14 @@ func (pk *PrivateKey) findHeader(
 				return nil, nil, nil, err
 			}
 
-			// Return the full set of encrypted headers, the sender's public key, and the ephemeral
-			// secret key.
-			return append(headers, remaining...), pkS, key, nil
+			// Return the full set of encrypted headers, the sender's public key, and the DEK.
+			return append(headers, remaining...), pkS, dek, nil
 		}
 	}
 }
 
 // decryptHeader attempts to decrypt the given header block if sent from any of the given public
-// keys.
+// keys. Returns the sender's public key, the DEK, and the message offset if successful.
 func (pk *PrivateKey) decryptHeader(header []byte, senders []*PublicKey) (*PublicKey, []byte, int) {
 	buf := make([]byte, headerSize)
 
@@ -104,12 +103,12 @@ func (pk *PrivateKey) decryptHeader(header []byte, senders []*PublicKey) (*Publi
 			continue
 		}
 
-		// If the header wss successfully decrypted, decode the message key and message offset.
-		key := header[:internal.MessageKeySize]
-		offset := binary.LittleEndian.Uint32(header[internal.MessageKeySize:])
+		// If the header wss successfully decrypted, decode the DEK and message offset.
+		dek := header[:internal.DEKSize]
+		offset := binary.LittleEndian.Uint32(header[internal.DEKSize:])
 
-		// Return the sender's public key, the message key, and the offset.
-		return pubS, key, int(offset)
+		// Return the sender's public key, the DEK, and the offset.
+		return pubS, dek, int(offset)
 	}
 
 	return nil, nil, 0
