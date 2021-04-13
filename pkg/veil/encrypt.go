@@ -22,6 +22,9 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 		return 0, err
 	}
 
+	// Create a signer with the DEK as associated data.
+	signer := schnorr.NewSigner(pk.d, pk.q, dek)
+
 	// Encode the DEK and offset into a header.
 	header := pk.encodeHeader(dek, len(recipients), padding)
 
@@ -31,35 +34,40 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 		return 0, err
 	}
 
+	// Write all output to the signer as well as dst.
+	out := io.MultiWriter(dst, signer)
+
 	// Write the encrypted headers.
-	_, err = dst.Write(headers)
+	_, err = out.Write(headers)
 	if err != nil {
 		return 0, err
 	}
 
 	// Initialize a stream writer with the DEK and the encrypted headers as associated data.
-	ciphertext := streamio.NewWriter(dst, dek, headers)
-
-	// Create a signer with the encrypted headers as associated data.
-	signer := schnorr.NewSigner(pk.d, pk.q, headers)
+	ciphertext := streamio.NewWriter(out, dek, headers)
 
 	// Encrypt the plaintext as a stream, and add the plaintext to the signed data.
-	n, err := io.Copy(io.MultiWriter(ciphertext, signer), src)
+	n, err := io.Copy(ciphertext, src)
 	if err != nil {
 		return n, err
 	}
 
-	// Create a signature of the plaintext.
+	// Flush all block buffers.
+	if err := ciphertext.Close(); err != nil {
+		return n, err
+	}
+
+	// Create a signature of the ciphertext.
 	sig := signer.Sign()
 
-	// Append the signature to the plaintext.
-	_, err = ciphertext.Write(sig)
+	// Append the signature to the ciphertext.
+	_, err = dst.Write(sig)
 	if err != nil {
 		return n, err
 	}
 
-	// Return the bytes copied and flush any buffers.
-	return n, ciphertext.Close()
+	// Return the bytes copied.
+	return n, nil
 }
 
 // encodeHeader encodes the DEK and the message offset.

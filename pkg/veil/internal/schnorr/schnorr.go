@@ -1,11 +1,11 @@
 // Package schnorr provides the underlying STROBE protocol for Veil's Schnorr signatures.
 //
-// Signing is as follows, given associated data D, a message in blocks M_0...M_n, a private scalar
-// d, and a public element Q:
+// Signing is as follows, given a secret key K, a message in blocks M_0...M_n, a private scalar d,
+// and a public element Q:
 //
 //     INIT('veil.schnorr', level=256)
+//     KEY(K)
 //     AD(Q)
-//     AD(D)
 //     SEND_CLR('',  streaming=false)
 //     SEND_CLR(M_0, streaming=true)
 //     SEND_CLR(M_1, streaming=true)
@@ -33,8 +33,8 @@
 // element Q, an encrypted ephemeral element S1, and an encrypted signature scalar S2:
 //
 //     INIT('veil.schnorr', level=256)
+//     KEY(K)
 //     AD(Q)
-//     AD(D)
 //     RECV_CLR('',  streaming=false)
 //     RECV_CLR(M_0, streaming=true)
 //     RECV_CLR(M_1, streaming=true)
@@ -74,16 +74,16 @@ type Signer struct {
 	d       *ristretto255.Scalar
 }
 
-// NewSigner returns a Signer instance with the signer's key pair and any associated data.
-func NewSigner(d *ristretto255.Scalar, q *ristretto255.Element, associatedData []byte) *Signer {
+// NewSigner returns a Signer instance with the signer's key pair and a symmetric key.
+func NewSigner(d *ristretto255.Scalar, q *ristretto255.Element, key []byte) *Signer {
 	// Initialize a new protocol.
 	schnorr := protocol.New("veil.schnorr")
 
+	// Key the protocol.
+	schnorr.KEY(key)
+
 	// Add the signer's public key to the protocol.
 	schnorr.AD(q.Encode(nil))
-
-	// Add the associated data to the protocol.
-	schnorr.AD(associatedData)
 
 	// Prep it for streaming cleartext.
 	schnorr.SendCLR(nil)
@@ -142,16 +142,16 @@ type Verifier struct {
 	q       *ristretto255.Element
 }
 
-// NewVerifier returns a Verifier instance with a signer's public key and any associated data.
-func NewVerifier(q *ristretto255.Element, associatedData []byte) *Verifier {
+// NewVerifier returns a Verifier instance with a signer's public key and a symmetric key.
+func NewVerifier(q *ristretto255.Element, key []byte) *Verifier {
 	// Initialize a new protocol.
 	schnorr := protocol.New("veil.schnorr")
 
+	// Key the protocol.
+	schnorr.KEY(key)
+
 	// Add the signer's public key to the protocol.
 	schnorr.AD(q.Encode(nil))
-
-	// Add the associated data to the protocol.
-	schnorr.AD(associatedData)
 
 	// Prep it for streaming cleartext.
 	schnorr.RecvCLR(nil)

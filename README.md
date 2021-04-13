@@ -128,15 +128,18 @@ total length of all encrypted headers plus padding. For each recipient, the send
 of the header using `veil.kem`. Finally, the sender adds optional random padding to the end of the
 encrypted headers.
 
-Second, the sender uses `veil.schnorr` to create a signature of the plaintext with the encrypted
-headers (including any padding) as associated data.
+Second, the sender initializes a `veil.schnorr` protocol to create a signature of the encrypted
+headers and message ciphertext, using the DEK as a symmetric key.
 
-Finally, the sender uses `veil.stream` to encrypt the message and the signature using the message
-key, again with the encrypted headers as associated data.
+Third, the sender uses `veil.stream` to encrypt the message with the DEK, using the encrypted
+headers as associated data.
+
+Finally, the sender creates an encrypted signature of the entire ciphertext and appends it.
 
 To decrypt a message, the recipient iterates through the message, searching for a decryptable
 header. When a header is successfully decrypted, the DEK is recovered, and the message is decrypted.
-The signature is verified against the encrypted headers and the plaintext, assuring authenticity.
+The signature is verified against the entire ciphertext, assuring authenticity of the entire
+message.
 
 Because Veil's KEM is authenticated, a message recipient can only decrypt the message if they have
 the sender's public key. To send an anonymous message, the sender can include the public key with a

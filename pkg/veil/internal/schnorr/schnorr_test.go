@@ -36,7 +36,7 @@ func TestSignAndVerify(t *testing.T) {
 	}
 }
 
-func TestSignAndVerify_BadKey(t *testing.T) {
+func TestSignAndVerify_BadPublicKey(t *testing.T) {
 	t.Parallel()
 
 	// Create a fake private key.
@@ -93,7 +93,7 @@ func TestSignAndVerify_BadMessage(t *testing.T) {
 	}
 }
 
-func TestSignAndVerify_BadAssociatedData(t *testing.T) {
+func TestSignAndVerify_BadSymmetricKey(t *testing.T) {
 	t.Parallel()
 
 	// Create a fake private key.

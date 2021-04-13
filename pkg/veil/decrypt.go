@@ -26,17 +26,21 @@ func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, senders []*PublicKey
 		return nil, 0, err
 	}
 
+	// Create a verifier with the DEK as associated data and pass it the encrypted headers.
+	verifier := schnorr.NewVerifier(pkS.q, dek)
+	_, _ = verifier.Write(headers)
+
+	// Detach the signature from the ciphertext.
+	sr := sigio.NewReader(src)
+
+	// Verify the signature of the rest of the ciphertext as it's read.
+	tr := io.TeeReader(sr, verifier)
+
 	// Initialize a stream reader with the DEK and the encrypted headers as associated data.
-	plaintext := streamio.NewReader(src, dek, headers)
-
-	// Detach the signature from the plaintext.
-	sr := sigio.NewReader(plaintext)
-
-	// Create a verifier with the encrypted headers as associated data.
-	verifier := schnorr.NewVerifier(pkS.q, headers)
+	plaintext := streamio.NewReader(tr, dek, headers)
 
 	// Decrypt the plaintext as a stream, adding it to the verified data.
-	n, err := io.Copy(dst, io.TeeReader(sr, verifier))
+	n, err := io.Copy(dst, plaintext)
 	if err != nil {
 		return nil, n, err
 	}
