@@ -8,7 +8,6 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
-	"github.com/codahale/veil/pkg/veil/internal/schnorr/sigio"
 	"github.com/gtank/ristretto255"
 )
 
@@ -30,10 +29,10 @@ func (pk *PublicKey) Derive(subKeyID string) *PublicKey {
 	return &PublicKey{q: q}
 }
 
-// VerifyDetached returns nil if the given signature was created by the owner of the given public
+// Verify returns nil if the given signature was created by the owner of the given public
 // key for the contents of src, otherwise ErrInvalidSignature.
-func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
-	// Write the message contents to the schnorr STROBE protocol.
+func (pk *PublicKey) Verify(src io.Reader, sig *Signature) error {
+	// Write the message contents to the veil.schnorr STROBE protocol.
 	verifier := schnorr.NewVerifier(pk.q)
 	if _, err := io.Copy(verifier, src); err != nil {
 		return err
@@ -45,27 +44,6 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 	}
 
 	return nil
-}
-
-// Verify copies src to dst, removing the appended signature and verifying it.
-func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
-	// Detach the signature from src.
-	sr := sigio.NewReader(src)
-	verifier := schnorr.NewVerifier(pk.q)
-
-	// Copy all data from src into dst and verifier, skipping the appended signature.
-	n, err := io.Copy(io.MultiWriter(dst, verifier), sr)
-	if err != nil {
-		return n, err
-	}
-
-	// Verify the signature against the message.
-	sig := sr.Signature
-	if !verifier.Verify(sig) {
-		return n, ErrInvalidSignature
-	}
-
-	return n, nil
 }
 
 // String returns the public key as base58 text.

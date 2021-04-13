@@ -5,10 +5,10 @@ import (
 )
 
 type signCmd struct {
-	SecretKey     string `arg:"" type:"existingfile" help:"The path to the secret key."`
-	KeyID         string `arg:"" help:"The ID of the private key to use."`
-	Message       string `arg:"" type:"existingfile" help:"The path to the message."`
-	SignedMessage string `arg:"" type:"path" help:"The path to the signed message."`
+	SecretKey string `arg:"" type:"existingfile" help:"The path to the secret key."`
+	KeyID     string `arg:"" help:"The ID of the private key to use."`
+	Message   string `arg:"" type:"existingfile" help:"The path to the message."`
+	Signature string `arg:"" type:"path" help:"The path to the signature file."`
 }
 
 func (cmd *signCmd) Run(_ *kong.Context) error {
@@ -26,16 +26,28 @@ func (cmd *signCmd) Run(_ *kong.Context) error {
 
 	defer func() { _ = src.Close() }()
 
-	// Open the signed output.
-	dst, err := openOutput(cmd.SignedMessage)
+	// Open the signature output.
+	dst, err := openOutput(cmd.Signature)
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = dst.Close() }()
 
-	// Create the signed message.
-	_, err = sk.PrivateKey(cmd.KeyID).Sign(dst, src)
+	// Sign the message.
+	sig, err := sk.PrivateKey(cmd.KeyID).Sign(src)
+	if err != nil {
+		return err
+	}
+
+	// Encode the signature.
+	sigText, err := sig.MarshalText()
+	if err != nil {
+		return err
+	}
+
+	// Write out the signature.
+	_, err = dst.Write(sigText)
 
 	return err
 }

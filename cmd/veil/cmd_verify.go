@@ -1,13 +1,16 @@
 package main
 
 import (
+	"os"
+
 	"github.com/alecthomas/kong"
+	"github.com/codahale/veil/pkg/veil"
 )
 
 type verifyCmd struct {
-	PublicKey     string `arg:"" help:"The signer's public key."`
-	SignedMessage string `arg:"" type:"existingfile" help:"The path to the signed message."`
-	Message       string `arg:"" type:"path" help:"The path to the message."`
+	PublicKey string `arg:"" help:"The signer's public key."`
+	Message   string `arg:"" type:"existingfile" help:"The path to the message."`
+	Signature string `arg:"" type:"existingfile" help:"The path to the signature file."`
 }
 
 func (cmd *verifyCmd) Run(_ *kong.Context) error {
@@ -17,24 +20,26 @@ func (cmd *verifyCmd) Run(_ *kong.Context) error {
 		return err
 	}
 
-	// Open the signed message input.
-	src, err := openInput(cmd.SignedMessage)
+	// Open the message input.
+	src, err := openInput(cmd.Message)
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = src.Close() }()
 
-	// Open the verified output.
-	dst, err := openOutput(cmd.Message)
+	// Read the signature.
+	text, err := os.ReadFile(cmd.Signature)
 	if err != nil {
 		return err
 	}
 
-	defer func() { _ = dst.Close() }()
+	// Decode the signature.
+	var sig veil.Signature
+	if err := sig.UnmarshalText(text); err != nil {
+		return err
+	}
 
-	// Verify the message.
-	_, err = pk.Verify(dst, src)
-
-	return err
+	// Verify the signature.
+	return pk.Verify(src, &sig)
 }

@@ -23,26 +23,6 @@ func TestPrivateKey_Derive(t *testing.T) {
 	assert.Equal(t, "derived key", abcd.PublicKey().String(), abcdP.PublicKey().String())
 }
 
-func TestSignAndVerifyDetached(t *testing.T) {
-	t.Parallel()
-
-	sk, err := NewSecretKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	message := []byte("ok there bud")
-
-	sig, err := sk.PrivateKey("example").SignDetached(bytes.NewReader(message))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := sk.PublicKey("example").VerifyDetached(bytes.NewReader(message), sig); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestSignAndVerify(t *testing.T) {
 	t.Parallel()
 
@@ -52,23 +32,15 @@ func TestSignAndVerify(t *testing.T) {
 	}
 
 	message := []byte("ok there bud")
-	signed := bytes.NewBuffer(nil)
-	verified := bytes.NewBuffer(nil)
 
-	sn, err := sk.PrivateKey("example").Sign(signed, bytes.NewReader(message))
+	sig, err := sk.PrivateKey("example").Sign(bytes.NewReader(message))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "bytes written", int64(12), sn)
-
-	vn, err := sk.PublicKey("example").Verify(verified, signed)
-	if err != nil {
+	if err := sk.PublicKey("example").Verify(bytes.NewReader(message), sig); err != nil {
 		t.Fatal(err)
 	}
-
-	assert.Equal(t, "bytes read", int64(12), vn)
-	assert.Equal(t, "message", "ok there bud", verified.String())
 }
 
 func TestEncryptAndDecrypt(t *testing.T) {

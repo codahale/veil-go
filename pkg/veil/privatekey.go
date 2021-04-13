@@ -58,9 +58,9 @@ func (pk *PrivateKey) Derive(subKeyID string) *PrivateKey {
 	return &PrivateKey{d: d, q: q}
 }
 
-// SignDetached returns a detached signature of the contents of src.
-func (pk *PrivateKey) SignDetached(src io.Reader) (*Signature, error) {
-	// Write the message contents to the schnorr STROBE protocol.
+// Sign returns a signature of the contents of src.
+func (pk *PrivateKey) Sign(src io.Reader) (*Signature, error) {
+	// Write the message contents to the veil.schnorr STROBE protocol.
 	signer := schnorr.NewSigner(pk.d, pk.q)
 	if _, err := io.Copy(signer, src); err != nil {
 		return nil, err
@@ -70,25 +70,4 @@ func (pk *PrivateKey) SignDetached(src io.Reader) (*Signature, error) {
 	sig := signer.Sign()
 
 	return &Signature{b: sig}, nil
-}
-
-// Sign copies src to dst, creates a signature of the contents of src, and appends it to dst.
-func (pk *PrivateKey) Sign(dst io.Writer, src io.Reader) (int64, error) {
-	// Write the message contents to the schnorr STROBE protocol.
-	signer := schnorr.NewSigner(pk.d, pk.q)
-
-	// Copy all data from src into dst and signer.
-	n, err := io.Copy(io.MultiWriter(dst, signer), src)
-	if err != nil {
-		return n, err
-	}
-
-	// Create a signature of the message.
-	sig := signer.Sign()
-
-	// Append the signature.
-	_, err = dst.Write(sig)
-
-	// Return the bytes copied and any errors.
-	return n, err
 }
