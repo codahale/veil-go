@@ -16,10 +16,8 @@ import (
 	"errors"
 	"strings"
 
-
-	"github.com/codahale/veil/pkg/veil/internal/hpke"
-
 	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/codahale/veil/pkg/veil/internal/hpke"
 	"github.com/gtank/ristretto255"
 )
 

@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/alecthomas/kong"
 	"os"
+
+	"github.com/alecthomas/kong"
 )
 
 type decryptCmd struct {
