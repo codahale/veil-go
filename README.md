@@ -64,7 +64,7 @@ Where challenge values are required -- an ephemeral scalar for Diffie-Hellman or
 derived from both the unique message and the sender's private key, to preserve unforgability
 guarantees.
 
-#### Indistinguishable From Random Noise
+### Indistinguishable From Random Noise
 
 Veil messages are entirely indistinguishable from random noise. They contain no plaintext metadata,
 no plaintext ristretto255 elements, no plaintext framing or padding, and have entirely arbitrary
