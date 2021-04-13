@@ -11,9 +11,6 @@ import (
 )
 
 const (
-	// DEKSize is the symmetric Data Encryption Key size in bytes.
-	DEKSize = 32
-
 	// TagSize is the authentication tag size in bytes.
 	TagSize = 16
 

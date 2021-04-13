@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"encoding/binary"
+	"io"
 
 	"github.com/gtank/ristretto255"
 
@@ -65,6 +66,17 @@ func (p *Protocol) PRFScalar() *ristretto255.Scalar {
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }
 
+func (p *Protocol) SendENCStream(dst io.Writer) io.Writer {
+	// Prep the protocol for streaming encryption.
+	p.SendENC(nil, nil)
+
+	// Return a writer.
+	return &sendENCWriter{
+		p:   p,
+		dst: dst,
+	}
+}
+
 func (p *Protocol) SendENC(dst, plaintext []byte) []byte {
 	ret, out := internal.SliceForAppend(dst, len(plaintext))
 	copy(out, plaintext)
@@ -76,11 +88,44 @@ func (p *Protocol) SendENC(dst, plaintext []byte) []byte {
 	return ret
 }
 
+func (p *Protocol) RecvENCStream(dst io.Writer) io.Writer {
+	// Prep the protocol for streaming encryption.
+	p.RecvENC(nil, nil)
+
+	// Return a writer.
+	return &recvENCWriter{
+		p:   p,
+		dst: dst,
+	}
+}
+
 func (p *Protocol) RecvENC(dst, ciphertext []byte) []byte {
 	ret, out := internal.SliceForAppend(dst, len(ciphertext))
 	copy(out, ciphertext)
 
 	if _, err := p.s.RecvENC(out, defaultOpts); err != nil {
+		panic(err)
+	}
+
+	return ret
+}
+
+func (p *Protocol) MoreSendENC(dst, plaintext []byte) []byte {
+	ret, out := internal.SliceForAppend(dst, len(plaintext))
+	copy(out, plaintext)
+
+	if _, err := p.s.SendENC(out, streamingOpts); err != nil {
+		panic(err)
+	}
+
+	return ret
+}
+
+func (p *Protocol) MoreRecvENC(dst, ciphertext []byte) []byte {
+	ret, out := internal.SliceForAppend(dst, len(ciphertext))
+	copy(out, ciphertext)
+
+	if _, err := p.s.RecvENC(out, streamingOpts); err != nil {
 		panic(err)
 	}
 
@@ -141,6 +186,28 @@ func LittleEndianU32(n int) []byte {
 	binary.LittleEndian.PutUint32(b[:], uint32(n))
 
 	return b[:]
+}
+
+type sendENCWriter struct {
+	p   *Protocol
+	dst io.Writer
+}
+
+func (w *sendENCWriter) Write(p []byte) (n int, err error) {
+	p = w.p.MoreSendENC(nil, p)
+
+	return w.dst.Write(p)
+}
+
+type recvENCWriter struct {
+	p   *Protocol
+	dst io.Writer
+}
+
+func (w *recvENCWriter) Write(p []byte) (n int, err error) {
+	p = w.p.MoreRecvENC(p[:0], p)
+
+	return w.dst.Write(p)
 }
 
 //nolint:gochecknoglobals // constants

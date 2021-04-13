@@ -34,7 +34,7 @@ func (pk *PublicKey) Derive(subKeyID string) *PublicKey {
 // key for the contents of src, otherwise ErrInvalidSignature.
 func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 	// Write the message contents to the schnorr STROBE protocol.
-	verifier := schnorr.NewVerifier(pk.q, nil)
+	verifier := schnorr.NewVerifier(pk.q)
 	if _, err := io.Copy(verifier, src); err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (pk *PublicKey) VerifyDetached(src io.Reader, sig *Signature) error {
 func (pk *PublicKey) Verify(dst io.Writer, src io.Reader) (int64, error) {
 	// Detach the signature from src.
 	sr := sigio.NewReader(src)
-	verifier := schnorr.NewVerifier(pk.q, nil)
+	verifier := schnorr.NewVerifier(pk.q)
 
 	// Copy all data from src into dst and verifier, skipping the appended signature.
 	n, err := io.Copy(io.MultiWriter(dst, verifier), sr)

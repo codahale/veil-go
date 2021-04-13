@@ -56,22 +56,14 @@ func Example() {
 
 	// Bea decrypts the message. She uses the "/friends/alice" private key because it corresponds
 	// with the public key she sent Alice.
-	pk, _, err := beaAlicePriv.Decrypt(decrypted, received, []*PublicKey{beaAlicePub, aliceBeaPub})
+	_, err = beaAlicePriv.Decrypt(decrypted, received, aliceBeaPub)
 	if err != nil {
 		panic(err)
-	}
-
-	// Bea checks that the sender of the message was indeed Alice.
-	if pk.String() == aliceBeaPub.String() {
-		fmt.Println("sent by A")
-	} else {
-		fmt.Println("sent by B")
 	}
 
 	// Bea views the decrypted message.
 	fmt.Println(decrypted.String())
 	// Output:
-	// sent by A
 	// one two three four I declare a thumb war
 }
 

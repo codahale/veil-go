@@ -94,7 +94,7 @@ func openOutput(path string) (io.WriteCloser, error) {
 	return os.Create(path)
 }
 
-func openInput(path string) (io.ReadCloser, error) {
+func openInput(path string) (io.ReadSeekCloser, error) {
 	if path == "-" {
 		return os.Stdin, nil
 	}

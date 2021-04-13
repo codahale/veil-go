@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
-	"github.com/codahale/veil/pkg/veil/armor"
 )
 
 type signCmd struct {
@@ -10,8 +9,6 @@ type signCmd struct {
 	KeyID         string `arg:"" help:"The ID of the private key to use."`
 	Message       string `arg:"" type:"existingfile" help:"The path to the message."`
 	SignedMessage string `arg:"" type:"path" help:"The path to the signed message."`
-
-	Armor bool `help:"Encode the signed message as base64."`
 }
 
 func (cmd *signCmd) Run(_ *kong.Context) error {
@@ -36,13 +33,6 @@ func (cmd *signCmd) Run(_ *kong.Context) error {
 	}
 
 	defer func() { _ = dst.Close() }()
-
-	// Armor the output if requested.
-	if cmd.Armor {
-		dst = armor.NewEncoder(dst)
-
-		defer func() { _ = dst.Close() }()
-	}
 
 	// Create the signed message.
 	_, err = sk.PrivateKey(cmd.KeyID).Sign(dst, src)

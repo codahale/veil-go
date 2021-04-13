@@ -55,9 +55,10 @@ deterministically mapped from plaintexts, an adversary trivially wins the guessi
 the challenger encrypt the same value twice, then offering to choose between the static ciphertext
 and any other ciphertext -- but both accidental and adversarial nonce-misuse is a concern.
 
-Instead, Veil composes deterministic components -- a KEM, a streaming AEAD, a digital signature --
-around a single, probabilistic value: a symmetric data encryption key (DEK). As long as a sender can
-manage 256 bits of unpredictability per message, Veil is `IND-CCA2` as a system.
+Instead, Veil composes deterministic components -- a KEM and a streaming AEAD -- around a single,
+probabilistic value: a symmetric data encryption key (DEK). As long as a sender can manage 256 bits
+of unpredictability per message, Veil is `IND-CCA2` as a system, with keys long enough to provide
+adequate security even in the multi-user model.
 
 Where challenge values are required -- an ephemeral scalar for Diffie-Hellman or Schorr -- they are
 derived from both the unique message and the sender's private key, to preserve unforgability
@@ -76,6 +77,22 @@ traffic analysis.
 
 Full details and documentation for all the Veil protocols can be found in the
 [`pkg/veil/internal`](https://github.com/codahale/veil/tree/main/pkg/veil/internal) directory.
+
+#### `veil.hpke`
+
+`veil.hpke` implements multi-recipient hybrid public key encryption using `veil.kem`. Messages are
+encrypted with a random DEK, and the DEK and a MAC of the ciphertext are encapsulated in headers
+with `veil.kem`. Random padding can be prepended to the headers to obscure the actual message
+length, and a final MAC of the ciphertext and the encrypted headers is appended to the end.
+
+To decrypt, reader seek backwards in the ciphertext, looking for a decryptable header. Having found
+one, they then seek to the beginning of the ciphertext, decrypt it, verify the encapsulated MAC,
+hash the encrypted headers and any padding, and verify the final MAC.
+
+This provides strong confidentiality and authenticity guarantees while still providing repudiability
+(no recipient can prove a message's contents and origin without revealing their private key) and
+forward security for senders (compromise of a sender's private key will not compromise past messages
+they sent).
 
 #### `veil.kem`
 
@@ -101,12 +118,6 @@ ristretto255, as described in
 the [STROBE paper](https://strobe.sourceforge.io/papers/strobe-20170130.pdf). Instead of hashing the
 message and signing the digest, it includes the message as sent/received cleartext.
 
-#### `veil.stream`
-
-`veil.stream` provides a streaming AEAD construction, with a streaming plaintext being encrypted in
-a blockwise fashion, with key ratcheting after each block. Finalization metadata is used to prevent
-truncation/appending attacks.
-
 ### Child Key Derivation
 
 Each participant in Veil has a secret key, which is a 64-byte random string. To derive a private key
@@ -118,32 +129,6 @@ delta scalar is first multiplied by the curve's base element, then added to the 
 This is used iterative to provide hierarchical key derivation. Public keys are created using
 hierarchical IDs like `/friends/alice`, in which the private key `/` is used to derive the private
 key `friends`, which is in turn used to derive the private key `alice`.
-
-### Multi-Recipient Messages
-
-A Veil message combines all of these primitives to provide multi-recipient messages.
-
-First, the sender generates a random DEK and creates a header block consisting of the DEK and the
-total length of all encrypted headers plus padding. For each recipient, the sender encrypts a copy
-of the header using `veil.kem`. Finally, the sender adds optional random padding to the end of the
-encrypted headers.
-
-Second, the sender initializes a `veil.schnorr` protocol to create a signature of the encrypted
-headers and message ciphertext, using the DEK as a symmetric key.
-
-Third, the sender uses `veil.stream` to encrypt the message with the DEK, using the encrypted
-headers as associated data.
-
-Finally, the sender creates an encrypted signature of the entire ciphertext and appends it.
-
-To decrypt a message, the recipient iterates through the message, searching for a decryptable
-header. When a header is successfully decrypted, the DEK is recovered, and the message is decrypted.
-The signature is verified against the entire ciphertext, assuring authenticity of the entire
-message.
-
-Because Veil's KEM is authenticated, a message recipient can only decrypt the message if they have
-the sender's public key. To send an anonymous message, the sender can include the public key with a
-message.
 
 ## License
 

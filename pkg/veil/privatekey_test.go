@@ -94,15 +94,14 @@ func TestEncryptAndDecrypt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pk, db, err := b.PrivateKey("a").Decrypt(dec, enc, publicKeys)
+	db, err := b.PrivateKey("a").Decrypt(dec, bytes.NewReader(enc.Bytes()), a.PublicKey("b"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "public key", pk.String(), a.PublicKey("b").String())
 	assert.Equal(t, "plaintext", message, dec.Bytes())
-	assert.Equal(t, "encrypted bytes", int64(40), eb)
-	assert.Equal(t, "decrypted bytes", int64(40), db)
+	assert.Equal(t, "encrypted bytes", int64(enc.Len()), eb)
+	assert.Equal(t, "decrypted bytes", int64(dec.Len()), db)
 }
 
 func TestFuzzEncryptAndDecrypt(t *testing.T) {
@@ -113,10 +112,12 @@ func TestFuzzEncryptAndDecrypt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	enc := io.LimitReader(rand.Reader, 64*1024)
-	dec := bytes.NewBuffer(nil)
+	b := make([]byte, 1024*1024)
+	if _, err := rand.Read(b); err != nil {
+		t.Fatal(err)
+	}
 
-	_, _, err = a.PrivateKey("two").Decrypt(dec, enc, []*PublicKey{a.PublicKey("two")})
+	_, err = a.PrivateKey("two").Decrypt(io.Discard, bytes.NewReader(b), a.PublicKey("two"))
 	if err == nil {
 		t.Fatal("shouldn't have decrypted")
 	}
