@@ -8,7 +8,7 @@ type signCmd struct {
 	SecretKey string `arg:"" type:"existingfile" help:"The path to the secret key."`
 	KeyID     string `arg:"" help:"The ID of the private key to use."`
 	Message   string `arg:"" type:"existingfile" help:"The path to the message."`
-	Signature string `arg:"" type:"path" help:"The path to the signature file."`
+	Output    string `arg:"" type:"path" help:"The path to the signature file."`
 }
 
 func (cmd *signCmd) Run(_ *kong.Context) error {
@@ -27,7 +27,7 @@ func (cmd *signCmd) Run(_ *kong.Context) error {
 	defer func() { _ = src.Close() }()
 
 	// Open the signature output.
-	dst, err := openOutput(cmd.Signature)
+	dst, err := openOutput(cmd.Output)
 	if err != nil {
 		return err
 	}
