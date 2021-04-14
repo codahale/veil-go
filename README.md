@@ -29,8 +29,8 @@ concerns](https://ristretto.group/why_ristretto.html). STROBE is built on the Ke
 permutation, the core of SHA-3, which has seen [significant scrutiny over the last
 decade](https://keccak.team/third_party.html).
 
-The underlying philosophy is that expressed
-by [Adam Langley](https://www.imperialviolet.org/2016/05/16/agility.html):
+The underlying philosophy is that expressed by [Adam
+Langley](https://www.imperialviolet.org/2016/05/16/agility.html):
 
 > There's a lesson in all this: have one joint and keep it well oiled. … \[O\]ne needs to minimise
 > complexity, concentrate all extensibility in a single place and _actively defend it_.
