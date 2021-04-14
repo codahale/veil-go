@@ -2,6 +2,7 @@ package hpke
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -164,6 +165,18 @@ func TestBadCiphertext(t *testing.T) {
 	_, err = Decrypt(dst, src, dR, qR, qS)
 
 	assert.Equal(t, "error", ErrInvalidCiphertext, err, cmpopts.EquateErrors())
+}
+
+func BenchmarkEncrypt(b *testing.B) {
+	plaintext := make([]byte, 1024*1024)
+	recipients := []*ristretto255.Element{qR, qS, qR, qS, qR, qS}
+
+	for i := 0; i < b.N; i++ {
+		_, err := Encrypt(io.Discard, bytes.NewReader(plaintext), dS, qS, recipients, 0)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }
 
 //nolint:gochecknoglobals // constants

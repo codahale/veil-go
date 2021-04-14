@@ -122,7 +122,7 @@ func Encrypt(
 
 	// Encrypt copies of the header.
 	for _, qR := range qRs {
-		encHeader := kem.Encrypt(nil, dS, qS, qR, header)
+		encHeader := kem.Encrypt(headers[:0], dS, qS, qR, header)
 		headers = append(headers, encHeader...)
 	}
 
@@ -139,7 +139,7 @@ func Encrypt(
 	}
 
 	// Create and send a MAC.
-	n, err = dst.Write(hpke.SendMAC(nil, internal.TagSize))
+	n, err = dst.Write(hpke.SendMAC(ctMac[:0], internal.TagSize))
 	written += int64(n)
 
 	return written, err
