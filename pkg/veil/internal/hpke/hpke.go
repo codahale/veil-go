@@ -65,6 +65,17 @@
 // * Forward secrecy for the sender.
 // * Repudiability for the sender unless the recipient reveals their private key.
 // * Encryption of arbitrarily-sized messages, provided ciphertexts can be seeked.
+//
+// The signature of the encrypted headers assures their authenticity and the authenticity of the
+// DEK, but cannot be verified without the DEK, or even distinguished from random noise.
+//
+// Further, if the DEK is revealed, third parties will be able to decrypt the message and verify the
+// signature, but cannot confirm that the encrypted headers contain the DEK, only that the sender
+// sent something to someone using that DEK.
+//
+// Any recipient attempting to splice headers and messages together to create a forgery would need
+// to either create a second message which matches the MAC in the encrypted headers or to create a
+// valid set of encrypted headers. Neither of those should be possible.
 package hpke
 
 import (
