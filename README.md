@@ -98,9 +98,10 @@ they sent).
 #### `veil.kem`
 
 `veil.kem` implements an authenticated `C(1e, 2s, ECC DH)` key encapsulation mechanism over
-ristretto255. It provides sender forward security (i.e. if the sender's private key is compromised,
-the messages they sent remain confidential) as well as the novel property of sending no values in
-cleartext. The ephemeral public key is encrypted with the static shared secret before sending.
+ristretto255. It provides authentication, sender forward security (i.e. if the sender's private key
+is compromised, the messages they sent remain confidential), as well as the novel property of
+sending no values in cleartext: the ephemeral public key is encrypted with the static shared secret
+before sending.
 
 #### `veil.pbenc`
 
