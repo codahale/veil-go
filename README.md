@@ -96,11 +96,11 @@ Full details and documentation for all the Veil protocols can be found in the
 `veil.hpke` implements multi-recipient hybrid public key encryption using `veil.kem`. Messages are
 encrypted with a random DEK, and the DEK and a MAC of the ciphertext are encapsulated in headers
 with `veil.kem`. Random padding can be prepended to the headers to obscure the actual message
-length, and a final MAC of the ciphertext and the encrypted headers is appended to the end.
+length, and a Schnorr signatured keyed with the DEK of the encrypted headers is appended to the end.
 
 To decrypt, reader seek backwards in the ciphertext, looking for a decryptable header. Having found
 one, they then seek to the beginning of the ciphertext, decrypt it, verify the encapsulated MAC,
-hash the encrypted headers and any padding, and verify the final MAC.
+hash the encrypted headers and any padding, and verify the Schnorr signature.
 
 This provides strong confidentiality and authenticity guarantees while still providing repudiability
 (no recipient can prove a message's contents and origin without revealing their private key) and
