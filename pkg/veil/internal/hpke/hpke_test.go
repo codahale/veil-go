@@ -89,7 +89,7 @@ func TestBadRecipient(t *testing.T) {
 	assert.Equal(t, "error", ErrInvalidCiphertext, err, cmpopts.EquateErrors())
 }
 
-func TestBadHeader(t *testing.T) {
+func TestBadFooter(t *testing.T) {
 	t.Parallel()
 
 	plaintext := []byte("this is a welcome change from previous events")
@@ -103,7 +103,7 @@ func TestBadHeader(t *testing.T) {
 
 	assert.Equal(t, "written bytes", int64(dst.Len()), n)
 
-	// Poison the header.
+	// Poison the footer.
 	ct := dst.Bytes()
 	ct[len(ct)-internal.TagSize-3] ^= 1
 
@@ -129,7 +129,7 @@ func TestBadTag(t *testing.T) {
 
 	assert.Equal(t, "written bytes", int64(dst.Len()), n)
 
-	// Poison the header.
+	// Poison the footer.
 	ct := dst.Bytes()
 	ct[len(ct)-3] ^= 1
 

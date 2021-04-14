@@ -18,13 +18,13 @@
 //
 //     SEND_MAC(N) -> T
 //
-// Next, a header consisting of K, T, and LE_64(len(M)) is encapsulated for all recipient public
-// keys using veil.kem. Random padding is prepended to the concatenated encrypted headers, and the
-// block H is sent as cleartext:
+// Next, a footer consisting of K, T, and LE_64(len(M)) is encapsulated for all recipient public
+// keys using veil.kem. Random padding is prepended to the concatenated encrypted footers, and the
+// block F is sent as cleartext:
 //
-//     SEND_CLR(H)
+//     SEND_CLR(F)
 //
-// Finally, a veil.schnorr signature S of the encrypted headers H, keyed with K, is created and
+// Finally, a veil.schnorr signature S of the encrypted footers F, keyed with K, is created and
 // sent:
 //
 //     SEND_CLR(S)
@@ -32,14 +32,14 @@
 // The resulting ciphertext then contains, in order:
 //
 // 1. The unauthenticated ciphertext of the message.
-// 2. A block of encrypted headers (each containing a copy of the DEK, the message ciphertext tag,
+// 2. A block of encrypted footers (each containing a copy of the DEK, the message ciphertext tag,
 //    and the message length) with random padding prepended.
-// 3. A signature of the encrypted headers, keyed with the DEK.
+// 3. A signature of the encrypted footers, keyed with the DEK.
 //
 // Decryption is as follows, given the recipient's key pair, d_r and Q_r, the sender's public key,
 // Q_s, and a ciphertext in blocks C_0..C_n. First, the recipient seeks to the end of the ciphertext
 // and then backwards by N bytes. Second, they seek backwards and read each possible encrypted
-// header, attempting to decrypt it via veil.kem. Once they find a header which can be decrypted,
+// footer, attempting to decrypt it via veil.kem. Once they find a footer which can be decrypted,
 // they recover the DEK, the ciphertext MAC T, and the message offset. They they run the inverse of
 // the encryption protocol:
 //
@@ -53,10 +53,10 @@
 //     ...
 //     RECV_ENC(C_n,     more=true)
 //     RECV_MAC(T)
-//     RECV_CLR(H)
+//     RECV_CLR(F)
 //     RECV_CLR(S)
 //
-// Finally, the signature S is verified against the received headers H.
+// Finally, the signature S is verified against the received footers F.
 //
 // This construction provides streaming, authenticated public key encryption with the following
 // benefits:
@@ -66,16 +66,16 @@
 // * Repudiability for the sender unless the recipient reveals their private key.
 // * Encryption of arbitrarily-sized messages, provided ciphertexts can be seeked.
 //
-// The signature of the encrypted headers assures their authenticity and the authenticity of the
+// The signature of the encrypted footers assures their authenticity and the authenticity of the
 // DEK, but cannot be verified without the DEK, or even distinguished from random noise.
 //
 // Further, if the DEK is revealed, third parties will be able to decrypt the message and verify the
-// signature, but cannot confirm that the encrypted headers contain the DEK, only that the sender
+// signature, but cannot confirm that the encrypted footers contain the DEK, only that the sender
 // sent something to someone using that DEK.
 //
-// Any recipient attempting to splice headers and messages together to create a forgery would need
-// to either create a second message which matches the MAC in the encrypted headers or to create a
-// valid set of encrypted headers. Neither of those should be possible.
+// Any recipient attempting to splice footers and messages together to create a forgery would need
+// to either create a second message which matches the MAC in the encrypted footers or to create a
+// valid set of encrypted footers. Neither of those should be possible.
 package hpke
 
 import (
@@ -101,11 +101,11 @@ func Encrypt(
 	dst io.Writer, src io.Reader, dS *ristretto255.Scalar, qS *ristretto255.Element,
 	qRs []*ristretto255.Element, padding int,
 ) (int64, error) {
-	// Create a buffer for the header.
-	header := make([]byte, headerSize)
+	// Create a buffer for the footer.
+	footer := make([]byte, footerSize)
 
-	// Generate a DEK.
-	dek := header[:dekSize]
+	// Generate a DEK at the start of the footer.
+	dek := footer[:dekSize]
 	if _, err := rand.Read(dek); err != nil {
 		return 0, fmt.Errorf("error generating DEK: %w", err)
 	}
@@ -119,40 +119,40 @@ func Encrypt(
 		return written, err
 	}
 
-	// Send a MAC of the ciphertext.
+	// Send a MAC of the ciphertext and add it to the middle of the footer.
 	hpke.SendMAC(dek, internal.TagSize)
 
-	// Encode a header of the DEK, ciphertext MAC, and message length.
-	binary.LittleEndian.PutUint64(header[dekSize+internal.TagSize:], uint64(written))
+	// Add the message length to the end of the footer.
+	binary.LittleEndian.PutUint64(footer[dekSize+internal.TagSize:], uint64(written))
 
-	// Create a buffer for the encrypted headers.
-	headers := make([]byte, padding, padding+len(qRs)*encryptedHeaderSize)
+	// Create a buffer for the encrypted footers.
+	footers := make([]byte, padding, padding+len(qRs)*encryptedFooterSize)
 
-	// Add random padding to the beginning of the headers.
-	if _, err := rand.Read(headers); err != nil {
+	// Add random padding to the beginning of the encrypted footers.
+	if _, err := rand.Read(footers); err != nil {
 		return written, fmt.Errorf("error generating padding: %w", err)
 	}
 
-	// Encrypt copies of the header.
+	// Encrypt copies of the footer.
 	for _, qR := range qRs {
-		headers = kem.Encrypt(headers, dS, qS, qR, header)
+		footers = kem.Encrypt(footers, dS, qS, qR, footer)
 	}
 
-	// Send the encrypted headers. These will be mostly opaque to recipients, so we mark them as
+	// Send the encrypted footers. These will be mostly opaque to recipients, so we mark them as
 	// cleartext in the protocol.
-	hpke.SendCLR(headers)
+	hpke.SendCLR(footers)
 
-	// Write the encrypted headers.
-	n, err := dst.Write(headers)
+	// Write the encrypted footers.
+	n, err := dst.Write(footers)
 	written += int64(n)
 
 	if err != nil {
 		return written, err
 	}
 
-	// Create a signature of the headers using the DEK.
+	// Create a signature of the footers using the DEK.
 	signer := schnorr.NewSigner(dS, qS, dek)
-	_, _ = signer.Write(headers)
+	_, _ = signer.Write(footers)
 	sig := signer.Sign()
 
 	// Send the signature.
@@ -176,32 +176,32 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 	}
 
 	var (
-		headerEnd  = offset
+		footerEnd  = offset
 		dek, ctMac []byte
 		messageEnd int64
-		header     = make([]byte, encryptedHeaderSize)
+		footer     = make([]byte, encryptedFooterSize)
 	)
 
 	for {
 		// Back up a spot.
-		offset -= encryptedHeaderSize
+		offset -= encryptedFooterSize
 		if offset < 0 {
 			// If we're at the beginning of the file, we're done looking.
 			return 0, ErrInvalidCiphertext
 		}
 
-		// Seek to where the header might be.
+		// Seek to where the footer might be.
 		if _, err := src.Seek(offset, io.SeekStart); err != nil {
 			return 0, fmt.Errorf("error seeking in src: %w", err)
 		}
 
-		// Read the possible header.
-		if _, err := io.ReadFull(src, header); err != nil {
-			return 0, fmt.Errorf("error reading header: %w", err)
+		// Read the possible footer.
+		if _, err := io.ReadFull(src, footer); err != nil {
+			return 0, fmt.Errorf("error reading footer: %w", err)
 		}
 
-		// Try to decrypt the header.
-		plaintext, err := kem.Decrypt(header[:0], dR, qR, qS, header)
+		// Try to decrypt the footer.
+		plaintext, err := kem.Decrypt(footer[:0], dR, qR, qS, footer)
 		if err != nil {
 			// If we can't, try the next possibility.
 			continue
@@ -234,16 +234,16 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		return written, ErrInvalidCiphertext
 	}
 
-	// Read the encrypted headers.
-	headers := make([]byte, headerEnd-messageEnd)
-	if _, err = io.ReadFull(src, headers); err != nil {
+	// Read the encrypted footers.
+	footers := make([]byte, footerEnd-messageEnd)
+	if _, err = io.ReadFull(src, footers); err != nil {
 		return written, err
 	}
 
-	// Receive the encrypted headers.
-	hpke.RecvCLR(headers)
+	// Receive the encrypted footers.
+	hpke.RecvCLR(footers)
 
-	// Read the signature of the encrypted headers.
+	// Read the signature of the encrypted footers.
 	sig := make([]byte, schnorr.SignatureSize)
 	if _, err = io.ReadFull(src, sig); err != nil {
 		return written, err
@@ -251,7 +251,7 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 
 	// Verify the signature.
 	verifier := schnorr.NewVerifier(qS, dek)
-	_, _ = verifier.Write(headers)
+	_, _ = verifier.Write(footers)
 
 	if !verifier.Verify(sig) {
 		return written, ErrInvalidCiphertext
@@ -278,6 +278,6 @@ func initProtocol(qS *ristretto255.Element, dek []byte) *protocol.Protocol {
 
 const (
 	dekSize             = 64 // 512 bits for a hilarious margin of security in the multi-user model
-	headerSize          = dekSize + internal.TagSize + 8
-	encryptedHeaderSize = headerSize + kem.Overhead
+	footerSize          = dekSize + internal.TagSize + 8
+	encryptedFooterSize = footerSize + kem.Overhead
 )
