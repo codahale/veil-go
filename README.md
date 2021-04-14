@@ -25,8 +25,8 @@ Veil uses just two distinct primitives:
 * [ristretto255](https://ristretto.group) for key agreement and signing.
 
 ristretto255 uses a safe curve, has non-malleable encodings, and has no co-factor concerns. STROBE
-is built on the Keccak 𝑓-\[1600\] permutation, the core of SHA-3, which has seen significant
-scrutiny over the last decade.
+is built on the Keccak 𝑓-\[1600\] permutation, the core of SHA-3, which has seen [significant
+scrutiny over the last decade](https://keccak.team/third_party.html).
 
 The underlying philosophy is that expressed
 by [Adam Langley](https://www.imperialviolet.org/2016/05/16/agility.html):
