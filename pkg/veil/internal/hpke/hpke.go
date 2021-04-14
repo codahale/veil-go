@@ -24,16 +24,17 @@
 //
 //     SEND_CLR(H)
 //
-// Finally, an authentication tag is generated and written:
+// Finally, a veil.schnorr signature S of the encrypted headers H, keyed with K, is created and
+// sent:
 //
-//     SEND_MAC(N)
+//     SEND_CLR(S)
 //
 // The resulting ciphertext then contains, in order:
 //
 // 1. The unauthenticated ciphertext of the message.
 // 2. A block of encrypted headers (each containing a copy of the DEK, the message ciphertext tag,
 //    and the message length) with random padding prepended.
-// 3. An N-byte authentication tag.
+// 3. A signature of the encrypted headers, keyed with the DEK.
 //
 // Decryption is as follows, given the recipient's key pair, d_r and Q_r, the sender's public key,
 // Q_s, and a ciphertext in blocks C_0..C_n. First, the recipient seeks to the end of the ciphertext
@@ -53,7 +54,9 @@
 //     RECV_ENC(C_n,     more=true)
 //     RECV_MAC(T)
 //     RECV_CLR(H)
-//     RECV_MAC(N)
+//     RECV_CLR(S)
+//
+// Finally, the signature S is verified against the received headers H.
 //
 // This construction provides streaming, authenticated public key encryption with the following
 // benefits:
@@ -74,6 +77,7 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/kem"
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
+	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/gtank/ristretto255"
 )
 
@@ -105,7 +109,7 @@ func Encrypt(
 	}
 
 	// Send a MAC of the ciphertext.
-	mac := hpke.SendMAC(dek, internal.TagSize)
+	hpke.SendMAC(dek, internal.TagSize)
 
 	// Encode a header of the DEK, ciphertext MAC, and message length.
 	binary.LittleEndian.PutUint64(header[dekSize+internal.TagSize:], uint64(written))
@@ -135,8 +139,16 @@ func Encrypt(
 		return written, err
 	}
 
-	// Create and send a MAC.
-	n, err = dst.Write(hpke.SendMAC(mac[:0], internal.TagSize))
+	// Create a signature of the headers using the DEK.
+	signer := schnorr.NewSigner(dS, qS, dek)
+	_, _ = signer.Write(headers)
+	sig := signer.Sign()
+
+	// Send the signature.
+	hpke.SendCLR(sig)
+
+	// Write the signature.
+	n, err = dst.Write(sig)
 	written += int64(n)
 
 	return written, err
@@ -147,7 +159,7 @@ func Encrypt(
 //nolint:gocognit,gocyclo,cyclop // This gets worse if split up into functions.
 func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *ristretto255.Element) (int64, error) {
 	// Go to the very end of the ciphertext.
-	offset, err := src.Seek(-internal.TagSize, io.SeekEnd)
+	offset, err := src.Seek(-schnorr.SignatureSize, io.SeekEnd)
 	if err != nil {
 		return 0, fmt.Errorf("error seeking in src: %w", err)
 	}
@@ -220,14 +232,17 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 	// Receive the encrypted headers.
 	hpke.RecvCLR(headers)
 
-	// Read the MAC of the ciphertext plus the headers.
-	mac := make([]byte, internal.TagSize)
-	if _, err = io.ReadFull(src, mac); err != nil {
+	// Read the signature of the encrypted headers.
+	sig := make([]byte, schnorr.SignatureSize)
+	if _, err = io.ReadFull(src, sig); err != nil {
 		return written, err
 	}
 
-	// Validate the MAC.
-	if err := hpke.RecvMAC(mac); err != nil {
+	// Verify the signature.
+	verifier := schnorr.NewVerifier(qS, dek)
+	_, _ = verifier.Write(headers)
+
+	if !verifier.Verify(sig) {
 		return written, ErrInvalidCiphertext
 	}
 
