@@ -116,9 +116,9 @@ non-uniform values. Veil uses them to derive private keys and label scalars.
 #### `veil.schnorr`
 
 `veil.schnorr` implements a fully integrated and deterministic Schnorr signature algorithm over
-ristretto255, as described in
-the [STROBE paper](https://strobe.sourceforge.io/papers/strobe-20170130.pdf). Instead of hashing the
-message and signing the digest, it includes the message as sent/received cleartext.
+ristretto255, as described in the [STROBE
+paper](https://strobe.sourceforge.io/papers/strobe-20170130.pdf). Instead of hashing the message and
+signing the digest, it includes the message as sent/received cleartext.
 
 ### Child Key Derivation
 
