@@ -5,11 +5,11 @@
 //
 //     INIT('veil.schnorr', level=256)
 //     AD(Q)
-//     SEND_CLR('',  streaming=false)
-//     SEND_CLR(M_0, streaming=true)
-//     SEND_CLR(M_1, streaming=true)
+//     SEND_CLR('',  more=false)
+//     SEND_CLR(M_0, more=true)
+//     SEND_CLR(M_1, more=true)
 //     ...
-//     SEND_CLR(M_0, streaming=true)
+//     SEND_CLR(M_0, more=true)
 //
 // This protocol's context is cloned and the clone is used to derive a deterministic nonce r from
 // the previously-sent message contents and the signer's private scalar d:
@@ -33,11 +33,11 @@
 //
 //     INIT('veil.schnorr', level=256)
 //     AD(Q)
-//     RECV_CLR('',  streaming=false)
-//     RECV_CLR(M_0, streaming=true)
-//     RECV_CLR(M_1, streaming=true)
+//     RECV_CLR('',  more=false)
+//     RECV_CLR(M_0, more=true)
+//     RECV_CLR(M_1, more=true)
 //     ...
-//     RECV_CLR(M_0, streaming=true)
+//     RECV_CLR(M_n, more=true)
 //     RECV_ENC(S1) -> R
 //     PRF(64) -> k
 //     RECV_ENC(S2) -> s
