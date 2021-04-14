@@ -86,8 +86,11 @@ func Encrypt(
 	dst io.Writer, src io.Reader, dS *ristretto255.Scalar, qS *ristretto255.Element,
 	qRs []*ristretto255.Element, padding int,
 ) (int64, error) {
+	// Create a buffer for the header.
+	header := make([]byte, headerSize)
+
 	// Generate a DEK.
-	dek := make([]byte, dekSize)
+	dek := header[:dekSize]
 	if _, err := rand.Read(dek); err != nil {
 		return 0, fmt.Errorf("error generating DEK: %w", err)
 	}
@@ -102,14 +105,9 @@ func Encrypt(
 	}
 
 	// Send a MAC of the ciphertext.
-	ctMac := hpke.SendMAC(nil, internal.TagSize)
-
-	// Create a buffer for the header.
-	header := make([]byte, headerSize)
+	mac := hpke.SendMAC(dek, internal.TagSize)
 
 	// Encode a header of the DEK, ciphertext MAC, and message length.
-	copy(header, dek)
-	copy(header[dekSize:], ctMac)
 	binary.LittleEndian.PutUint64(header[dekSize+internal.TagSize:], uint64(written))
 
 	// Create a buffer for the encrypted headers.
@@ -122,8 +120,7 @@ func Encrypt(
 
 	// Encrypt copies of the header.
 	for _, qR := range qRs {
-		encHeader := kem.Encrypt(headers[:0], dS, qS, qR, header)
-		headers = append(headers, encHeader...)
+		headers = kem.Encrypt(headers, dS, qS, qR, header)
 	}
 
 	// Send the encrypted headers. These will be mostly opaque to recipients, so we mark them as
@@ -139,7 +136,7 @@ func Encrypt(
 	}
 
 	// Create and send a MAC.
-	n, err = dst.Write(hpke.SendMAC(ctMac[:0], internal.TagSize))
+	n, err = dst.Write(hpke.SendMAC(mac[:0], internal.TagSize))
 	written += int64(n)
 
 	return written, err
