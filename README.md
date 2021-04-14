@@ -98,7 +98,7 @@ encrypted with a random DEK, and the DEK and a MAC of the ciphertext are encapsu
 with `veil.kem`. Random padding can be prepended to the headers to obscure the actual message
 length, and a Schnorr signatured keyed with the DEK of the encrypted headers is appended to the end.
 
-To decrypt, reader seek backwards in the ciphertext, looking for a decryptable header. Having found
+To decrypt, readers seek backwards in the ciphertext, looking for a decryptable header. Having found
 one, they then seek to the beginning of the ciphertext, decrypt it, verify the encapsulated MAC,
 hash the encrypted headers and any padding, and verify the Schnorr signature.
 
