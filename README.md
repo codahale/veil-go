@@ -37,9 +37,9 @@ by [Adam Langley](https://www.imperialviolet.org/2016/05/16/agility.html):
 ### Integrated Constructions
 
 Because STROBE provides a wide range of capabilities, it's possible to build fully integrated
-cryptographic constructions. Leveraging transcript consistency -- the fact that every operation
-changes a STROBE protocol's state in a cryptographically secure manner -- makes for much simpler
-protocols with guarantees that are easier to understand.
+cryptographic constructions. Leveraging transcript consistency–the fact that every operation changes
+a STROBE protocol's state in a cryptographically secure manner–makes for much simpler protocols with
+guarantees that are easier to understand.
 
 Instead of combining a hash function and a digital signature algorithm, we have a single digital
 signature construction. Instead of combining a key exchange, a KDF, and an AEAD, we have a single
@@ -50,17 +50,17 @@ data in a feed-forward mechanism, which removes it from the attackable surface a
 
 Veil is designed to be indistinguishable under adaptive chosen ciphertext attacks, since that's the
 gold standard for modern cryptosystems. It avoids, however, the usual approach to `IND-CCA2` design,
-which is to rub a nonce on everything. Nonces are required for `IND-CCA2` -- if ciphertexts are
+which is to rub a nonce on everything. Nonces are required for `IND-CCA2`–if ciphertexts are
 deterministically mapped from plaintexts, an adversary trivially wins the guessing game by having
 the challenger encrypt the same value twice, then offering to choose between the static ciphertext
-and any other ciphertext -- but both accidental and adversarial nonce-misuse is a concern.
+and any other ciphertext–but both accidental and adversarial nonce-misuse is a concern.
 
-Instead, Veil composes deterministic components -- a KEM and a streaming AEAD -- around a single,
+Instead, Veil composes deterministic components–a KEM and a streaming AEAD–around a single,
 probabilistic value: a symmetric data encryption key (DEK). As long as a sender can manage 256 bits
 of unpredictability per message, Veil is `IND-CCA2` as a system, with keys long enough to provide
 adequate security even in the multi-user model.
 
-Where challenge values are required -- an ephemeral scalar for Diffie-Hellman or Schorr -- they are
+Where challenge values are required–an ephemeral scalar for Diffie-Hellman or Schorr–they are
 derived from both the unique message and the sender's private key, to preserve unforgability
 guarantees.
 
