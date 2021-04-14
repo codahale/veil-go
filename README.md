@@ -74,6 +74,18 @@ traffic analysis.
 
 ## Algorithms & Constructions
 
+### Hierarchical Key Derivation
+
+Each participant in Veil has a secret key, which is a 64-byte random string. To derive a private key
+from a secret key, the secret key is mapped to a ristretto255 scalar. A delta scalar is derived from
+an opaque label value and added to the secret scalar to form a private key. The process is repeated
+to derive a private key from another private key. To derive a public key from a public key, the
+delta scalar is first multiplied by the curve's base element, then added to the public key element.
+
+This is used iterative to provide hierarchical key derivation. Public keys are created using
+hierarchical IDs like `/friends/alice`, in which the private key `/` is used to derive the private
+key `friends`, which is in turn used to derive the private key `alice`.
+
 ### STROBE Protocols
 
 Full details and documentation for all the Veil protocols can be found in the
@@ -119,18 +131,6 @@ non-uniform values. Veil uses them to derive private keys and label scalars.
 ristretto255, as described in the [STROBE
 paper](https://strobe.sourceforge.io/papers/strobe-20170130.pdf). Instead of hashing the message and
 signing the digest, it includes the message as sent/received cleartext.
-
-### Child Key Derivation
-
-Each participant in Veil has a secret key, which is a 64-byte random string. To derive a private key
-from a secret key, the secret key is mapped to a ristretto255 scalar. A delta scalar is derived from
-an opaque label value and added to the secret scalar to form a private key. The process is repeated
-to derive a private key from another private key. To derive a public key from a public key, the
-delta scalar is first multiplied by the curve's base element, then added to the public key element.
-
-This is used iterative to provide hierarchical key derivation. Public keys are created using
-hierarchical IDs like `/friends/alice`, in which the private key `/` is used to derive the private
-key `friends`, which is in turn used to derive the private key `alice`.
 
 ## License
 
