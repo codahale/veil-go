@@ -186,11 +186,3 @@ func BenchmarkVerifier(b *testing.B) {
 		}
 	}
 }
-
-type fakeReader struct{}
-
-func (f *fakeReader) Read(p []byte) (n int, err error) {
-	return len(p), nil
-}
-
-var _ io.Reader = &fakeReader{}
