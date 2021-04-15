@@ -83,12 +83,12 @@
 //     encryption of any other message.
 //
 // Veil's lack of framing data means that recipients don't know the actual ciphertext before they
-// begin attempting to decrypt footers, but the fact that veil.kem is not a traditional KEM
-// construction (i.e., it's actually a miniature authenticated HPKE itself) is used to make the KEM
-// ciphertexts dependent on the DEM ciphertext by including a MAC of the DEM ciphertext along with
-// the DEK as plaintext for veil.kem. An insider attempting to re-use the KEM ciphertext with a
-// forged DEM ciphertext will be foiled by recipients checking the recovered MAC from the KEM
-// ciphertext against the ersatz DEM ciphertext.
+// begin attempting to decrypt footers, so an existing construction like Tag-AKEM can't be used.
+// veil.hpke takes advantage of the fact that veil.kem is not a traditional KEM construction (i.e.,
+// it's actually a miniature AKEM/AEAD itself) to make the KEM ciphertexts dependent on the DEM
+// ciphertext by including a MAC of the DEM ciphertext along with the DEK as plaintext for veil.kem.
+// An insider attempting to re-use the KEM ciphertext with a forged DEM ciphertext will be foiled by
+// recipients checking the recovered MAC from the KEM ciphertext against the ersatz DEM ciphertext.
 //
 // The remaining piece of veil.hpke ciphertext to protect are the KEM footers which are not for a
 // given recipient. The signature of the encrypted footers assures their authenticity and the
