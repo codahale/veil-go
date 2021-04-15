@@ -90,10 +90,10 @@
 // An insider attempting to re-use the KEM ciphertext with a forged DEM ciphertext will be foiled by
 // recipients checking the recovered MAC from the KEM ciphertext against the ersatz DEM ciphertext.
 //
-// The remaining piece of veil.hpke ciphertext to protect are the KEM footers which are not for a
-// given recipient. The signature of the encrypted footers assures their authenticity and the
-// authenticity of the DEK, but cannot be verified without the DEK, or even distinguished from
-// random noise.
+// The remaining piece of veil.hpke ciphertext to protect are the KEM footers for other recipients.
+// The signature of the encrypted footers assures their authenticity, the authenticity of the
+// DEK/MAC, and thus the authenticity of the message, but cannot be verified without the DEK, or
+// even distinguished from random noise.
 //
 // Further, if the DEK is revealed, third parties will be able to decrypt the message and verify the
 // signature, but cannot confirm that the encrypted footers contain the DEK or that the message is

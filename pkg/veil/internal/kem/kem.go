@@ -1,9 +1,9 @@
 // Package kem provides the underlying STROBE protocol for Veil's authenticated key encapsulation
 // mechanism. It differs from the traditional AKEM construction in that it allows for the encryption
-// of arbitrary messages.
+// of arbitrary messages, as it combines an ECDH AKEM with an AEAD.
 //
-// Key encapsulation is as follows, given the sender's key pair, d_s and Q_s, the receiver's public
-// key, Q_r, a plaintext message M, and tag size N:
+// Encryption is as follows, given the sender's key pair, d_s and Q_s, the receiver's public key,
+// Q_r, a plaintext message M, and tag size N:
 //
 //     INIT('veil.kem', level=256)
 //     AD(LE_U32(N),    meta=true)
@@ -26,8 +26,8 @@
 //     AD(M)
 //     PRF(64) -> d_e
 //
-// Key de-encapsulation is then the inverse of encapsulation, given the recipient's key pair, d_r
-// and Q_r, and the sender's public key Q_s:
+// Decryption is then the inverse of encryption, given the recipient's key pair, d_r and Q_r, and
+// the sender's public key Q_s:
 //
 //     INIT('veil.kem', level=256)
 //     AD(LE_U32(N),    meta=true)
