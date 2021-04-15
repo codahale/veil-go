@@ -65,16 +65,41 @@
 // * Repudiability for the sender unless a recipient reveals their private key.
 // * Encryption of arbitrarily-sized messages, provided ciphertexts can be seeked.
 //
-// The signature of the encrypted footers assures their authenticity and the authenticity of the
-// DEK, but cannot be verified without the DEK, or even distinguished from random noise.
+// Borrowing Alwen et. al's analysis of the proposed HPKE specification, this construction is
+// intended to provide privacy and authenticity under both outsider and insider attacks. For a
+// single recipient, the construction is similar to the proposed HPKE specification, if the
+// authentication tag were sent in the clear as part of a traditional EtM AEAD design, and thus can
+// be assumed to have similar privacy properties for outsider and insider attacks. Similarly,
+// they show outsider authenticity to depend on the AKEM's Outsider-CCA/Outsider-Auth properties
+// combined with the AEAD's IND-CTXT property, which veil.hpke also provides.
+//
+// In contrast to the proposed HPKE specification, veil.hpke protects against the DEM-reuse attack
+// Alwen et. al detail in Section 5.4:
+//
+//     We can show that for any AKEM, KS, and AEAD, the construction APKE[AKEM,KS, AEAD] given in
+//     Listing 8 is not (n,qe,qd)-Insider-Auth secure. The inherent reason for this construction to
+//     be vulnerable against this attack is that the KEM ciphertext does not depend on the message.
+//     Thus, the KEM ciphertext can be reused and the DEM ciphertext can be exchanged by the
+//     encryption of any other message.
+//
+// Veil's lack of framing data means that recipients don't know the actual ciphertext before they
+// begin attempting to decrypt footers, but the fact that veil.kem is not a traditional KEM
+// construction (i.e., it's actually a miniature authenticated HPKE itself) is used to make the KEM
+// ciphertexts dependent on the DEM ciphertext by including a MAC of the DEM ciphertext along with
+// the DEK as plaintext for veil.kem. An insider attempting to re-use the KEM ciphertext with a
+// forged DEM ciphertext will be foiled by recipients checking the recovered MAC from the KEM
+// ciphertext against the ersatz DEM ciphertext.
+//
+// The remaining piece of veil.hpke ciphertext to protect are the KEM footers which are not for a
+// given recipient. The signature of the encrypted footers assures their authenticity and the
+// authenticity of the DEK, but cannot be verified without the DEK, or even distinguished from
+// random noise.
 //
 // Further, if the DEK is revealed, third parties will be able to decrypt the message and verify the
 // signature, but cannot confirm that the encrypted footers contain the DEK or that the message is
 // from the sender, only that the sender created a message with those encrypted footers.
 //
-// Any recipient attempting to splice footers and messages together to create a forgery would need
-// to either create a second message which matches the MAC in the encrypted footers or to create a
-// valid set of encrypted footers. Neither of those should be possible.
+// See https://eprint.iacr.org/2020/1499.pdf
 package hpke
 
 import (

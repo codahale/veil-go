@@ -1,5 +1,6 @@
 // Package kem provides the underlying STROBE protocol for Veil's authenticated key encapsulation
-// mechanism.
+// mechanism. It differs from the traditional AKEM construction in that it allows for the encryption
+// of arbitrary messages.
 //
 // Key encapsulation is as follows, given the sender's key pair, d_s and Q_s, the receiver's public
 // key, Q_r, a plaintext message M, and tag size N:
