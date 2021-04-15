@@ -61,9 +61,9 @@
 // signature algorithm (i.e. veil.schnorr). It also means the ciphertext is not decryptable without
 // knowledge of the sender's public key.
 //
-// In addition, this KEM does not require the transmission of ristretto255 elements in cleartext. A
-// passive adversary scanning for encoded elements would first need the parties' static
-// Diffie-Hellman secret.
+// Unlike other C(1e, 2s) models (e.g. draft-barnes-cfrg-hpke-01's AuthEncap), this KEM does not
+// require the transmission of ristretto255 elements in cleartext. A passive adversary scanning for
+// encoded elements would first need the parties' static Diffie-Hellman secret.
 //
 // See https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar3.pdf
 package kem
