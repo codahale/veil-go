@@ -1,10 +1,9 @@
 // Package schnorr provides the underlying STROBE protocol for Veil's Schnorr signatures.
 //
-// Signing is as follows, given a message in blocks M_0...M_n, a private scalar d, a public element
-// Q, and an optional secret key K:
+// Signing is as follows, given a message in blocks M_0...M_n, a private scalar d, and a public
+// element Q:
 //
 //     INIT('veil.schnorr', level=256)
-//     KEY(K) // elided if K is not provided
 //     AD(Q)
 //     SEND_CLR('',  more=false)
 //     SEND_CLR(M_0, more=true)
@@ -33,7 +32,6 @@
 // element Q, an encrypted ephemeral element S1, and an encrypted signature scalar S2:
 //
 //     INIT('veil.schnorr', level=256)
-//     KEY(K)
 //     AD(Q)
 //     RECV_CLR('',  more=false)
 //     RECV_CLR(M_0, more=true)
@@ -75,14 +73,9 @@ type Signer struct {
 }
 
 // NewSigner returns a Signer instance with the signer's key pair.
-func NewSigner(d *ristretto255.Scalar, q *ristretto255.Element, key []byte) *Signer {
+func NewSigner(d *ristretto255.Scalar, q *ristretto255.Element) *Signer {
 	// Initialize a new protocol.
 	schnorr := protocol.New("veil.schnorr")
-
-	// Key the protocol if one is provided.
-	if key != nil {
-		schnorr.KEY(key)
-	}
 
 	// Add the signer's public key to the protocol.
 	schnorr.AD(q.Encode(nil))
@@ -145,14 +138,9 @@ type Verifier struct {
 }
 
 // NewVerifier returns a Verifier instance with a signer's public key.
-func NewVerifier(q *ristretto255.Element, key []byte) *Verifier {
+func NewVerifier(q *ristretto255.Element) *Verifier {
 	// Initialize a new protocol.
 	schnorr := protocol.New("veil.schnorr")
-
-	// Key the protocol if one is provided.
-	if key != nil {
-		schnorr.KEY(key)
-	}
 
 	// Add the signer's public key to the protocol.
 	schnorr.AD(q.Encode(nil))

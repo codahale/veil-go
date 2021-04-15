@@ -24,17 +24,16 @@
 //
 //     SEND_CLR(F)
 //
-// Finally, a veil.schnorr signature S of the encrypted footers F, keyed with K, is created and
-// sent:
+// Finally, a veil.schnorr signature S of the encrypted footers F is encrypted and sent:
 //
-//     SEND_CLR(S)
+//     SEND_ENC(S)
 //
 // The resulting ciphertext then contains, in order:
 //
 // 1. The unauthenticated ciphertext of the message.
 // 2. A block of encrypted footers (each containing a copy of the DEK, the message ciphertext tag,
 //    and the message length) with random padding prepended.
-// 3. A signature of the encrypted footers, keyed with the DEK.
+// 3. An encrypted signature of the encrypted footers.
 //
 // Decryption is as follows, given the recipient's key pair, d_r and Q_r, the sender's public key,
 // Q_s, and a ciphertext in blocks C_0..C_n. First, the recipient seeks to the end of the ciphertext
@@ -54,7 +53,7 @@
 //     RECV_ENC(C_n,     more=true)
 //     RECV_MAC(T)
 //     RECV_CLR(F)
-//     RECV_CLR(S)
+//     RECV_ENC(S)
 //
 // Finally, the signature S is verified against the received footers F.
 //
@@ -63,15 +62,15 @@
 //
 // * Confidentiality and authenticity.
 // * Forward secrecy for the sender.
-// * Repudiability for the sender unless the recipient reveals their private key.
+// * Repudiability for the sender unless a recipient reveals their private key.
 // * Encryption of arbitrarily-sized messages, provided ciphertexts can be seeked.
 //
 // The signature of the encrypted footers assures their authenticity and the authenticity of the
 // DEK, but cannot be verified without the DEK, or even distinguished from random noise.
 //
 // Further, if the DEK is revealed, third parties will be able to decrypt the message and verify the
-// signature, but cannot confirm that the encrypted footers contain the DEK, only that the sender
-// sent something to someone using that DEK.
+// signature, but cannot confirm that the encrypted footers contain the DEK or that the message is
+// from the sender, only that the sender created a message with those encrypted footers.
 //
 // Any recipient attempting to splice footers and messages together to create a forgery would need
 // to either create a second message which matches the MAC in the encrypted footers or to create a
@@ -150,13 +149,13 @@ func Encrypt(
 		return written, err
 	}
 
-	// Create a signature of the footers using the DEK.
-	signer := schnorr.NewSigner(dS, qS, dek)
+	// Create a signature of the footers.
+	signer := schnorr.NewSigner(dS, qS)
 	_, _ = signer.Write(footers)
 	sig := signer.Sign()
 
-	// Send the signature.
-	hpke.SendCLR(sig)
+	// Encrypt and send the signature.
+	sig = hpke.SendENC(sig[:0], sig)
 
 	// Write the signature.
 	n, err = dst.Write(sig)
@@ -249,8 +248,11 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		return written, err
 	}
 
+	// Decrypt the signature.
+	sig = hpke.RecvENC(sig[:0], sig)
+
 	// Verify the signature.
-	verifier := schnorr.NewVerifier(qS, dek)
+	verifier := schnorr.NewVerifier(qS)
 	_, _ = verifier.Write(footers)
 
 	if !verifier.Verify(sig) {
