@@ -9,7 +9,7 @@
 //     SEND_CLR(M_0, more=true)
 //     SEND_CLR(M_1, more=true)
 //     ...
-//     SEND_CLR(M_0, more=true)
+//     SEND_CLR(M_n, more=true)
 //
 // This protocol's context is cloned and the clone is used to derive a deterministic nonce r from
 // the previously-sent message contents and the signer's private scalar d:
