@@ -2,10 +2,11 @@
 //
 // Encrypting a message is as follows, given the sender's key pair, d_s and Q_s, a message in blocks
 // M_0...M_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data encryption
-// key, K, and a tag size N:
+// key, K, a DEK size N_dek, and a tag size N_tag:
 //
 //     INIT('veil.hpke', level=256)
-//     AD(LE_32(N),      meta=true)
+//     AD(LE_32(N_dek),  meta=true)
+//     AD(LE_32(N_tag),  meta=true)
 //     AD(Q_s)
 //     KEY(K)
 //     SEND_ENC('')
@@ -43,7 +44,8 @@
 // the encryption protocol:
 //
 //     INIT('veil.hpke', level=256)
-//     AD(LE_32(N),      meta=true)
+//     AD(LE_32(N_dek),  meta=true)
+//     AD(LE_32(N_tag),  meta=true)
 //     AD(Q_s)
 //     KEY(K)
 //     RECV_ENC('')
@@ -290,6 +292,9 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 func initProtocol(qS *ristretto255.Element, dek []byte) *protocol.Protocol {
 	// Initialize a new protocol.
 	hpke := protocol.New("veil.hpke")
+
+	// Add the DEK size as associated metadata.
+	hpke.MetaAD(protocol.LittleEndianU32(dekSize))
 
 	// Add the tag size as associated metadata.
 	hpke.MetaAD(protocol.LittleEndianU32(internal.TagSize))
