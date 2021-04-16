@@ -144,7 +144,7 @@ func Encrypt(
 	}
 
 	// Send a MAC of the ciphertext and add it to the middle of the footer.
-	hpke.SendMAC(dek, internal.TagSize)
+	hpke.SendMAC(footer[:dekSize], internal.TagSize)
 
 	// Add the message length to the end of the footer.
 	binary.LittleEndian.PutUint64(footer[dekSize+internal.TagSize:], uint64(written))
