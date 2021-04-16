@@ -47,6 +47,9 @@ signature construction. Instead of combining a key exchange, a KDF, and an AEAD,
 key encapsulation mechanism. This integration bakes in logical dependencies on sent and received
 data in a feed-forward mechanism, which removes it from the attackable surface area of the protocol.
 
+Further, the use of STROBE means all protocols which include `RECV_MAC` calls are [compactly
+committing](https://eprint.iacr.org/2019/016.pdf).
+
 ### Deterministic Components, `IND-CCA2` System
 
 Veil is designed to be indistinguishable under adaptive chosen ciphertext attacks, since that's the
