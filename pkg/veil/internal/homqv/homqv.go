@@ -85,7 +85,7 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 
 	// Initialize protocol.
 	homqv := protocol.New("veil.homqv")
-	homqv.AD(protocol.LittleEndianU32(internal.TagSize))
+	homqv.MetaAD(protocol.LittleEndianU32(internal.TagSize))
 
 	// Key with the ECDH shared secret between sender's private key and recipient's public key.
 	homqv.KEY(ristretto255.NewElement().ScalarMult(dS, qR).Encode(buf[:0]))
@@ -132,7 +132,7 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 
 	// Initialize the protocol.
 	homqv := protocol.New("veil.homqv")
-	homqv.AD(protocol.LittleEndianU32(internal.TagSize))
+	homqv.MetaAD(protocol.LittleEndianU32(internal.TagSize))
 
 	// Key with the ECDH shared secret between recipient's private key and sender's public key.
 	homqv.KEY(ristretto255.NewElement().ScalarMult(dR, qS).Encode(buf[:0]))
