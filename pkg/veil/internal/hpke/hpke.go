@@ -20,7 +20,7 @@
 //     SEND_MAC(N) -> T
 //
 // Next, a footer consisting of K, T, and LE_64(len(M)) is encapsulated for all recipient public
-// keys using veil.kem. Random padding is prepended to the concatenated encrypted footers, and the
+// keys using veil.homqv. Random padding is prepended to the concatenated encrypted footers, and the
 // block F is sent as cleartext:
 //
 //     SEND_CLR(F)
@@ -39,7 +39,7 @@
 // Decryption is as follows, given the recipient's key pair, d_r and Q_r, the sender's public key,
 // Q_s, and a ciphertext in blocks C_0..C_n. First, the recipient seeks to the end of the ciphertext
 // and then backwards by N bytes. Second, they seek backwards and read each possible encrypted
-// footer, attempting to decrypt it via veil.kem. Once they find a footer which can be decrypted,
+// footer, attempting to decrypt it via veil.homqv. Once they find a footer which can be decrypted,
 // they recover the DEK, the ciphertext MAC T, and the message offset. They they run the inverse of
 // the encryption protocol:
 //
@@ -86,11 +86,12 @@
 //
 // Veil's lack of framing data means that recipients don't know the actual ciphertext before they
 // begin attempting to decrypt footers, so an existing construction like Tag-AKEM can't be used.
-// veil.hpke takes advantage of the fact that veil.kem is not a traditional KEM construction (i.e.,
-// it's actually a miniature AKEM/AEAD itself) to make the KEM ciphertexts dependent on the DEM
-// ciphertext by including a MAC of the DEM ciphertext along with the DEK as plaintext for veil.kem.
-// An insider attempting to re-use the KEM ciphertext with a forged DEM ciphertext will be foiled by
-// recipients checking the recovered MAC from the KEM ciphertext against the ersatz DEM ciphertext.
+// veil.hpke takes advantage of the fact that veil.homqv is not a traditional KEM construction
+// (i.e., it's actually a miniature AKEM/AEAD itself) to make the KEM ciphertexts dependent on the
+// DEM ciphertext by including a MAC of the DEM ciphertext along with the DEK as plaintext for
+// veil.homqv. An insider attempting to re-use the KEM ciphertext with a forged DEM ciphertext will
+// be foiled by recipients checking the recovered MAC from the KEM ciphertext against the ersatz DEM
+// ciphertext.
 //
 // The remaining piece of veil.hpke ciphertext to protect are the KEM footers for other recipients.
 // The signature of the encrypted footers assures their authenticity, the authenticity of the
@@ -112,7 +113,7 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/kem"
+	"github.com/codahale/veil/pkg/veil/internal/homqv"
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/gtank/ristretto255"
@@ -161,7 +162,7 @@ func Encrypt(
 
 	// Encrypt copies of the footer.
 	for _, qR := range qRs {
-		footers = kem.Encrypt(footers, dS, qS, qR, footer)
+		footers = homqv.Encrypt(footers, dS, qS, qR, footer)
 	}
 
 	// Send the encrypted footers. These will be mostly opaque to recipients, so we mark them as
@@ -227,7 +228,7 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		}
 
 		// Try to decrypt the footer.
-		plaintext, err := kem.Decrypt(footer[:0], dR, qR, qS, footer)
+		plaintext, err := homqv.Decrypt(footer[:0], dR, qR, qS, footer)
 		if err != nil {
 			// If we can't, try the next possibility.
 			continue
@@ -311,5 +312,5 @@ func initProtocol(qS *ristretto255.Element, dek []byte) *protocol.Protocol {
 const (
 	dekSize             = 64 // 512 bits for a hilarious margin of security in the multi-user model
 	footerSize          = dekSize + internal.TagSize + 8
-	encryptedFooterSize = footerSize + kem.Overhead
+	encryptedFooterSize = footerSize + homqv.Overhead
 )

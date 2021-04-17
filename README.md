@@ -96,9 +96,9 @@ Full details and documentation for all the Veil protocols can be found in the
 
 #### `veil.hpke`
 
-`veil.hpke` implements multi-recipient hybrid public key encryption using `veil.kem`. Messages are
+`veil.hpke` implements multi-recipient hybrid public key encryption using `veil.homqv`. Messages are
 encrypted with a random DEK, and the DEK and a MAC of the ciphertext are encapsulated in footers
-with `veil.kem`. Random padding can be prepended to the footers to obscure the actual message
+with `veil.homqv`. Random padding can be prepended to the footers to obscure the actual message
 length, and a `veil.schnorr` signature keyed with the DEK of the encrypted footers is appended to
 the end.
 
@@ -111,13 +111,14 @@ This provides strong confidentiality and authenticity guarantees while still pro
 forward security for senders (compromise of a sender's private key will not compromise past messages
 they sent).
 
-#### `veil.kem`
+#### `veil.homqv`
 
-`veil.kem` implements an authenticated `C(1e, 2s, ECC DH)` key encapsulation mechanism over
-ristretto255. It provides authentication, sender forward security (i.e. if the sender's private key
-is compromised, the messages they sent remain confidential), as well as the novel property of
-sending no values in cleartext: the ephemeral public key is encrypted with the static shared secret
-before sending.
+`veil.homqv` implements
+[HOMQV](https://link.springer.com/content/pdf/10.1007/978-3-642-19379-8_20.pdf), an authenticated
+key encapsulation mechanism, over ristretto255. It provides authentication, sender forward security
+(i.e. if the sender's private key is compromised, the messages they sent remain confidential), as
+well as the novel property of sending no values in cleartext: the ephemeral public key is encrypted
+with a static shared secret before sending.
 
 #### `veil.pbenc`
 

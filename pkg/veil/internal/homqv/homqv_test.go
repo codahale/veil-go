@@ -1,10 +1,10 @@
-package kem
+package homqv
 
 import (
 	"bytes"
 	"testing"
-
 	"github.com/codahale/gubbins/assert"
+
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/gtank/ristretto255"
 )
