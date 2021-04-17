@@ -1,5 +1,5 @@
-// Package homqv implements HOMQV (aka One-Pass HMQV) as a secure signcryption KEM/DEM, with the
-// ephemeral element being encrypted with the static ECDH shared secret before transmission.
+// Package homqv implements HOMQV (aka Hashed One-Pass MQV) as a secure signcryption KEM/DEM, with
+// the ephemeral element being encrypted with the static ECDH shared secret before transmission.
 //
 //     We thus conclude that when used in conjunction with PKI, the protocol HOMQV with the DEM part
 //     can UC-realize secure messaging. This UC-secure-messaging, in turn, can be used to transport
