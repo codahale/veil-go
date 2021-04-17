@@ -1,4 +1,4 @@
-// Package homqv implements HOMQV (aka One-Pass HMQV) as secure signcryption KEM/DEM, with the
+// Package homqv implements HOMQV (aka One-Pass HMQV) as a secure signcryption KEM/DEM, with the
 // ephemeral element being encrypted with the static ECDH shared secret before transmission.
 //
 //     We thus conclude that when used in conjunction with PKI, the protocol HOMQV with the DEM part
@@ -110,9 +110,8 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	e := homqv.PRFScalar()
 
 	// Calculate the shared secret.
-	be := ristretto255.NewScalar().Multiply(dS, e)
-	bey := ristretto255.NewScalar().Add(be, dE)
-	sigma := ristretto255.NewElement().ScalarMult(bey, qR)
+	sigma := ristretto255.NewElement().ScalarMult(
+		ristretto255.NewScalar().Add(ristretto255.NewScalar().Multiply(dS, e), dE), qR)
 
 	// Key with the shared secret.
 	homqv.KEY(sigma.Encode(buf[:0]))
@@ -152,9 +151,8 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 	e := homqv.PRFScalar()
 
 	// Re-calculate the shared secret.
-	sigma := ristretto255.NewElement().ScalarMult(e, qS)
-	sigma = sigma.Add(sigma, qE)
-	sigma = sigma.ScalarMult(dR, sigma)
+	sigma := ristretto255.NewElement().ScalarMult(dR,
+		ristretto255.NewElement().Add(ristretto255.NewElement().ScalarMult(e, qS), qE))
 
 	// Key with the shared secret.
 	homqv.KEY(sigma.Encode(buf[:0]))
