@@ -26,7 +26,6 @@ linters:
     - goerr113
     - gofmt
     - gofumpt
-    - goimports
     - golint
     - gomoddirectives
     - gomodguard
@@ -67,6 +66,7 @@ linters:
 #    - forbidigo
 #    - gci
 #    - goheader
+#    - goimports
 #    - gomnd
 #    - interfacer
 #    - maligned
