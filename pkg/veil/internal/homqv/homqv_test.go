@@ -2,8 +2,9 @@ package homqv
 
 import (
 	"bytes"
-	"github.com/codahale/gubbins/assert"
 	"testing"
+
+	"github.com/codahale/gubbins/assert"
 
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/gtank/ristretto255"
