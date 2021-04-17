@@ -141,7 +141,9 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 	homqv.AD(qS.Encode(buf[:0]))
 	homqv.AD(qR.Encode(buf[:0]))
 
-	// Decrypt and decode the ephemeral public key.
+	// Decrypt and decode the ephemeral public key. N.B.: This value is confidential but not yet
+	// authenticated. Authentication happens after the MAC is verified in the last step of this
+	// process.
 	qE := ristretto255.NewElement()
 	if err := qE.Decode(homqv.RecvENC(buf[:0], ciphertext[:internal.ElementSize])); err != nil {
 		return nil, err
