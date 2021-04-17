@@ -72,6 +72,7 @@ import (
 	"github.com/gtank/ristretto255"
 )
 
+// Overhead is the number of bytes HOMQV adds to ciphertexts.
 const Overhead = internal.ElementSize + internal.TagSize
 
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
