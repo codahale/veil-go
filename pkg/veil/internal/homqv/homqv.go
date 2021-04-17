@@ -93,8 +93,13 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	homqv.AD(qS.Encode(buf[:0]))
 	homqv.AD(qR.Encode(buf[:0]))
 
-	// Derive an ephemeral key pair from the sender's private key and the plaintext.
-	dE := deriveNonce(homqv.Clone(), dS, plaintext)
+	// Clone the protocol's context and key with the sender's private key and plaintext.
+	clone := homqv.Clone()
+	clone.KEY(dS.Encode(buf[:0]))
+	clone.AD(plaintext)
+
+	// Derive an ephemeral key pair from the cloned context.
+	dE := clone.PRFScalar()
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
 	// Encrypt and send the ephemeral element.
@@ -163,11 +168,4 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 
 	// If the MAC verifies, return the plaintext.
 	return plaintext, nil
-}
-
-func deriveNonce(clone *protocol.Protocol, dS *ristretto255.Scalar, msg []byte) *ristretto255.Scalar {
-	clone.KEY(dS.Encode(nil))
-	clone.AD(msg)
-
-	return clone.PRFScalar()
 }
