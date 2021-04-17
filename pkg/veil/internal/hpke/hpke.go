@@ -310,7 +310,7 @@ func initProtocol(qS *ristretto255.Element, dek []byte) *protocol.Protocol {
 }
 
 const (
-	dekSize             = 64 // 512 bits for a hilarious margin of security in the multi-user model
+	dekSize             = 32
 	footerSize          = dekSize + internal.TagSize + 8
 	encryptedFooterSize = footerSize + homqv.Overhead
 )
