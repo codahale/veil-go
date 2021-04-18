@@ -40,7 +40,7 @@
 //
 // This construction integrates message hashing with signature creation/validation, binds the
 // signer's identity, and produces indistinguishable signatures. When encrypted with an unrelated
-// key (i.e., via veil.hpke), the construction is isomorphic to Fleischhacker et al's DRPC compiler
+// key (i.e., via veil.mres), the construction is isomorphic to Fleischhacker et al's DRPC compiler
 // for producing pseudorandom signatures, which are indistinguishable from random.
 //
 // See https://eprint.iacr.org/2011/673.pdf

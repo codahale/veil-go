@@ -1,10 +1,11 @@
-// Package hpke provides the underlying STROBE protocol for Veil's hybrid public key encryption.
+// Package mres provides the underlying STROBE protocol for Veil's multi-recipient encryption
+// system.
 //
 // Encrypting a message is as follows, given the sender's key pair, d_s and Q_s, a message in blocks
 // M_0...M_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data encryption
 // key, K, a DEK size N_dek, and a tag size N_tag:
 //
-//     INIT('veil.hpke', level=256)
+//     INIT('veil.mres', level=256)
 //     AD(LE_32(N_dek),  meta=true)
 //     AD(LE_32(N_tag),  meta=true)
 //     AD(Q_s)
@@ -43,7 +44,7 @@
 // they recover the DEK, the ciphertext MAC T, and the message offset. They they run the inverse of
 // the encryption protocol:
 //
-//     INIT('veil.hpke', level=256)
+//     INIT('veil.mres', level=256)
 //     AD(LE_32(N_dek),  meta=true)
 //     AD(LE_32(N_tag),  meta=true)
 //     AD(Q_s)
@@ -73,9 +74,9 @@
 // authentication tag were sent in the clear as part of a traditional EtM AEAD design, and thus can
 // be assumed to have similar privacy properties for outsider and insider attacks. Similarly,
 // they show outsider authenticity to depend on the AKEM's Outsider-CCA/Outsider-Auth properties
-// combined with the AEAD's IND-CTXT property, which veil.hpke also provides.
+// combined with the AEAD's IND-CTXT property, which veil.mres also provides.
 //
-// In contrast to the proposed HPKE specification, veil.hpke protects against the DEM-reuse attack
+// In contrast to the proposed HPKE specification, veil.mres protects against the DEM-reuse attack
 // Alwen et. al detail in Section 5.4:
 //
 //     We can show that for any AKEM, KS, and AEAD, the construction APKE[AKEM,KS, AEAD] given in
@@ -86,13 +87,13 @@
 //
 // Veil's lack of framing data means that recipients don't know the actual ciphertext before they
 // begin attempting to decrypt footers, so an existing construction like Tag-AKEM can't be used.
-// veil.hpke takes advantage of the fact that veil.kem is not a traditional KEM construction (i.e.,
+// veil.mres takes advantage of the fact that veil.kem is not a traditional KEM construction (i.e.,
 // it's actually a miniature AKEM/AEAD itself) to make the KEM ciphertexts dependent on the DEM
 // ciphertext by including a MAC of the DEM ciphertext along with the DEK as plaintext for veil.kem.
 // An insider attempting to re-use the KEM ciphertext with a forged DEM ciphertext will be foiled by
 // recipients checking the recovered MAC from the KEM ciphertext against the ersatz DEM ciphertext.
 //
-// The remaining piece of veil.hpke ciphertext to protect are the KEM footers for other recipients.
+// The remaining piece of veil.mres ciphertext to protect are the KEM footers for other recipients.
 // The signature of the encrypted footers assures their authenticity, the authenticity of the
 // DEK/MAC, and thus the authenticity of the message, but cannot be verified without the DEK, or
 // even distinguished from random noise.
@@ -102,7 +103,7 @@
 // from the sender, only that the sender created a message with those encrypted footers.
 //
 // See https://eprint.iacr.org/2020/1499.pdf
-package hpke
+package mres
 
 import (
 	"crypto/rand"
@@ -137,16 +138,16 @@ func Encrypt(
 	}
 
 	// Initialize the protocol.
-	hpke := initProtocol(qS, dek)
+	mres := initProtocol(qS, dek)
 
 	// Encrypt and send the plaintext.
-	written, err := io.Copy(hpke.SendENCStream(dst), src)
+	written, err := io.Copy(mres.SendENCStream(dst), src)
 	if err != nil {
 		return written, err
 	}
 
 	// Send a MAC of the ciphertext and add it to the middle of the footer.
-	hpke.SendMAC(footer[:dekSize], internal.TagSize)
+	mres.SendMAC(footer[:dekSize], internal.TagSize)
 
 	// Add the message length to the end of the footer.
 	binary.LittleEndian.PutUint64(footer[dekSize+internal.TagSize:], uint64(written))
@@ -169,7 +170,7 @@ func Encrypt(
 
 	// Send the encrypted footers. These will be mostly opaque to recipients, so we mark them as
 	// cleartext in the protocol.
-	hpke.SendCLR(footers)
+	mres.SendCLR(footers)
 
 	// Write the encrypted footers.
 	n, err := dst.Write(footers)
@@ -189,7 +190,7 @@ func Encrypt(
 	}
 
 	// Encrypt and send the signature.
-	sig = hpke.SendENC(sig[:0], sig)
+	sig = mres.SendENC(sig[:0], sig)
 
 	// Write the signature.
 	n, err = dst.Write(sig)
@@ -254,16 +255,16 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 	}
 
 	// Initialize a new protocol.
-	hpke := initProtocol(qS, dek)
+	mres := initProtocol(qS, dek)
 
 	// Receive and decrypt the ciphertext.
-	written, err := io.Copy(hpke.RecvENCStream(dst), io.LimitReader(src, messageEnd))
+	written, err := io.Copy(mres.RecvENCStream(dst), io.LimitReader(src, messageEnd))
 	if err != nil {
 		return written, err
 	}
 
 	// Verify the MAC of the ciphertext with that recovered from the KEM.
-	if err := hpke.RecvMAC(ctMac); err != nil {
+	if err := mres.RecvMAC(ctMac); err != nil {
 		return written, ErrInvalidCiphertext
 	}
 
@@ -274,7 +275,7 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 	}
 
 	// Receive the encrypted footers.
-	hpke.RecvCLR(footers)
+	mres.RecvCLR(footers)
 
 	// Read the signature of the encrypted footers.
 	sig := make([]byte, schnorr.SignatureSize)
@@ -283,7 +284,7 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 	}
 
 	// Decrypt the signature.
-	sig = hpke.RecvENC(sig[:0], sig)
+	sig = mres.RecvENC(sig[:0], sig)
 
 	// Verify the signature.
 	verifier := schnorr.NewVerifier(qS)
@@ -298,21 +299,21 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 
 func initProtocol(qS *ristretto255.Element, dek []byte) *protocol.Protocol {
 	// Initialize a new protocol.
-	hpke := protocol.New("veil.hpke")
+	mres := protocol.New("veil.mres")
 
 	// Add the DEK size as associated metadata.
-	hpke.MetaAD(protocol.LittleEndianU32(dekSize))
+	mres.MetaAD(protocol.LittleEndianU32(dekSize))
 
 	// Add the tag size as associated metadata.
-	hpke.MetaAD(protocol.LittleEndianU32(internal.TagSize))
+	mres.MetaAD(protocol.LittleEndianU32(internal.TagSize))
 
 	// Key the protocol with the DEK.
-	hpke.KEY(dek)
+	mres.KEY(dek)
 
 	// Add the sender's public key as associated data.
-	hpke.AD(qS.Encode(nil))
+	mres.AD(qS.Encode(nil))
 
-	return hpke
+	return mres
 }
 
 const (

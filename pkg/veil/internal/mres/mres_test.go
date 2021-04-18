@@ -1,4 +1,4 @@
-package hpke
+package mres
 
 import (
 	"bytes"

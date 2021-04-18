@@ -3,7 +3,7 @@ package veil
 import (
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/hpke"
+	"github.com/codahale/veil/pkg/veil/internal/mres"
 	"github.com/codahale/veil/pkg/veil/internal/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/gtank/ristretto255"
@@ -30,7 +30,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 		qRs[i] = pk.q
 	}
 
-	return hpke.Encrypt(dst, src, pk.d, pk.q, qRs, padding)
+	return mres.Encrypt(dst, src, pk.d, pk.q, qRs, padding)
 }
 
 // Decrypt decrypts the data in src if originally encrypted by the given public key. Returns the
@@ -40,7 +40,7 @@ func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*Public
 // to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
 // output written to dst should be discarded, as it cannot be ascertained to be authentic.
 func (pk *PrivateKey) Decrypt(dst io.Writer, src io.ReadSeeker, sender *PublicKey) (int64, error) {
-	return hpke.Decrypt(dst, src, pk.d, pk.q, sender.q)
+	return mres.Decrypt(dst, src, pk.d, pk.q, sender.q)
 }
 
 // Derive derives a PrivateKey from the receiver with the given sub-key ID.

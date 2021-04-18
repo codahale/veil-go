@@ -76,23 +76,6 @@ key `friends`, which is in turn used to derive the private key `alice`.
 Full details and documentation for all the Veil protocols can be found in the
 [`pkg/veil/internal`](https://github.com/codahale/veil/tree/main/pkg/veil/internal) directory.
 
-#### `veil.hpke`
-
-`veil.hpke` implements multi-recipient hybrid public key encryption using `veil.kem`. Messages are
-encrypted with a random DEK, and the DEK and a MAC of the ciphertext are encapsulated in footers
-with `veil.kem`. Random padding can be prepended to the footers to obscure the actual message
-length, and a `veil.schnorr` signature keyed with the DEK of the encrypted footers is appended to
-the end.
-
-To decrypt, readers seek backwards in the ciphertext, looking for a decryptable footer. Having found
-one, they then seek to the beginning of the ciphertext, decrypt it, verify the encapsulated MAC,
-hash the encrypted footers and any padding, and verify the signature.
-
-This provides strong confidentiality and authenticity guarantees while still providing repudiability
-(no recipient can prove a message's contents and origin without revealing their private key) and
-forward security for senders (compromise of a sender's private key will not compromise past messages
-they sent).
-
 #### `veil.kem`
 
 `veil.kem` implements an authenticated `C(1e, 2s, ECC DH)` key encapsulation mechanism over
@@ -100,6 +83,22 @@ ristretto255. It provides authentication, sender forward security (i.e. if the s
 is compromised, the messages they sent remain confidential), as well as the novel property of
 sending no values in cleartext: the ephemeral public key is encrypted with the static shared secret
 before sending.
+
+#### `veil.mres`
+
+`veil.mres` implements multi-recipient encryption system using `veil.kem`. Messages are encrypted
+with a random DEK, and copies of the DEK and a MAC of the ciphertext are encrypted in footers with
+`veil.kem`. Random padding can be prepended to the footers to obscure the actual message length, and
+a `veil.schnorr` signature keyed with the DEK of the encrypted footers is appended to the end.
+
+To decrypt, readers seek backwards in the ciphertext, looking for a decryptable footer. Having found
+one, they then seek to the beginning of the ciphertext, decrypt it, verify the encrypted MAC, hash
+the encrypted footers and any padding, and verify the signature.
+
+This provides strong confidentiality and authenticity guarantees while still providing repudiability
+(no recipient can prove a message's contents and origin without revealing their private key) and
+forward security for senders (compromise of a sender's private key will not compromise past messages
+they sent).
 
 #### `veil.pbenc`
 
@@ -116,7 +115,7 @@ non-uniform values. Veil uses them to derive private keys and label scalars.
 `veil.schnorr` implements a fully integrated Schnorr signature algorithm over ristretto255, as
 described by [Fleischhacker et al](https://eprint.iacr.org/2011/673.pdf). It produces
 _indistinguishable_ signatures (i.e., signatures which do not reveal anything about the signing key
-or signed message) and when encrypted with an unrelated key (i.e. by `veil.hpke`) are _pseudorandom_
+or signed message) and when encrypted with an unrelated key (i.e. by `veil.mres`) are _pseudorandom_
 (i.e. indistinguishable from random noise).
 
 ## License

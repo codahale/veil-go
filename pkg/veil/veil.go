@@ -17,14 +17,14 @@ import (
 	"strings"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/hpke"
+	"github.com/codahale/veil/pkg/veil/internal/mres"
 	"github.com/gtank/ristretto255"
 )
 
 var (
 	// ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an
 	// incorrect key or tampering.
-	ErrInvalidCiphertext = hpke.ErrInvalidCiphertext
+	ErrInvalidCiphertext = mres.ErrInvalidCiphertext
 
 	// ErrInvalidSignature is returned when a signature, public key, and message do not match.
 	ErrInvalidSignature = errors.New("invalid signature")
