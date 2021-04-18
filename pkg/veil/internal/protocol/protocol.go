@@ -149,6 +149,24 @@ func (p *Protocol) RecvMAC(mac []byte) error {
 	return p.s.RecvMAC(m, defaultOpts)
 }
 
+func (p *Protocol) RecvCLRStream(dst io.Writer) io.Writer {
+	p.RecvCLR(nil)
+
+	return &recvCLRWriter{
+		p:   p,
+		dst: dst,
+	}
+}
+
+func (p *Protocol) SendCLRStream(dst io.Writer) io.Writer {
+	p.SendCLR(nil)
+
+	return &sendCLRWriter{
+		p:   p,
+		dst: dst,
+	}
+}
+
 func (p *Protocol) SendCLR(data []byte) {
 	if err := p.s.SendCLR(data, defaultOpts); err != nil {
 		panic(err)
@@ -200,6 +218,28 @@ type recvENCWriter struct {
 
 func (w *recvENCWriter) Write(p []byte) (n int, err error) {
 	p = w.p.MoreRecvENC(p[:0], p)
+
+	return w.dst.Write(p)
+}
+
+type sendCLRWriter struct {
+	p   *Protocol
+	dst io.Writer
+}
+
+func (w *sendCLRWriter) Write(p []byte) (n int, err error) {
+	w.p.MoreSendCLR(p)
+
+	return w.dst.Write(p)
+}
+
+type recvCLRWriter struct {
+	p   *Protocol
+	dst io.Writer
+}
+
+func (w *recvCLRWriter) Write(p []byte) (n int, err error) {
+	w.p.MoreRecvCLR(p)
 
 	return w.dst.Write(p)
 }

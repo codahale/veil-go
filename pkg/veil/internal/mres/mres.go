@@ -156,38 +156,37 @@ func Encrypt(
 	// Add the message length to the end of the footer.
 	binary.LittleEndian.PutUint64(footer[dekSize+internal.TagSize:], uint64(written))
 
-	// Create a buffer for the encrypted footers.
-	footers := make([]byte, padding, padding+len(qRs)*encryptedFooterSize)
+	// Create a new signer for the encrypted footers.
+	signer := schnorr.NewSigner(dS, qS)
+	sdst := io.MultiWriter(signer, mres.SendCLRStream(dst))
 
 	// Add random padding to the beginning of the encrypted footers.
-	if _, err := rand.Read(footers); err != nil {
-		return written, fmt.Errorf("error generating padding: %w", err)
-	}
-
-	// Encrypt copies of the footer.
-	for _, qR := range qRs {
-		footers, err = hpke.Encrypt(footers, dS, qS, qR, footer)
-		if err != nil {
-			return written, err
-		}
-	}
-
-	// Send the encrypted footers. These will be mostly opaque to recipients, so we mark them as
-	// cleartext in the protocol.
-	mres.SendCLR(footers)
-
-	// Write the encrypted footers.
-	n, err := dst.Write(footers)
-	written += int64(n)
+	pn, err := io.CopyN(sdst, rand.Reader, int64(padding))
+	written += pn
 
 	if err != nil {
 		return written, err
 	}
 
-	// Create a signature of the footers.
-	signer := schnorr.NewSigner(dS, qS)
-	_, _ = signer.Write(footers)
+	// Create a buffer for the encrypted footers.
+	encFooter := make([]byte, len(footer)+hpke.Overhead)
 
+	// Encrypt, sign, and writes copies of the footer.
+	for _, qR := range qRs {
+		encFooter, err = hpke.Encrypt(encFooter[:0], dS, qS, qR, footer)
+		if err != nil {
+			return written, err
+		}
+
+		n, err := sdst.Write(encFooter)
+		written += int64(n)
+
+		if err != nil {
+			return written, err
+		}
+	}
+
+	// Create a signature of the footers.
 	sig, err := signer.Sign()
 	if err != nil {
 		return written, err
@@ -197,7 +196,7 @@ func Encrypt(
 	sig = mres.SendENC(sig[:0], sig)
 
 	// Write the signature.
-	n, err = dst.Write(sig)
+	n, err := dst.Write(sig)
 	written += int64(n)
 
 	return written, err
