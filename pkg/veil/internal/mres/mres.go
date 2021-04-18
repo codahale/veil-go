@@ -103,6 +103,8 @@
 //
 // See https://eprint.iacr.org/2020/1499.pdf
 // See https://www.cc.gatech.edu/~aboldyre/papers/bbks.pdf
+// See http://www.cogentcryptography.com/papers/inner.pdf
+// See http://www.cogentcryptography.com/papers/outer.pdf
 package mres
 
 import (
