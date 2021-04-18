@@ -51,21 +51,20 @@
 // inputs, and deriving the key from all data sent or received adds key-commitment with all public
 // keys as openers.
 //
-// The ephemeral private key is derived from the sender's private key and the message, allowing for
-// safe deterministic behavior.
+// The ephemeral private key is additionally derived from the sender's private key and the message,
+// allowing for safe deterministic behavior.
 //
 // Unlike C(0e, 2s) schemes (e.g. NaCl's box construction), this KEM provides forward security for
 // the sender. If the sender's private key is compromised, the most an attacker can discover about
 // previously sent messages is the ephemeral public key, not the message itself.
 //
-// Unlike C(1e, 1s) schemes (e.g. IES), this KEM binds the sender's identity. This property is
+// Unlike C(1e, 1s) schemes (e.g. IES), this KEM is implicitly authenticated. This property is
 // useful, as it allows for readers to confirm the sender's identity before beginning to decrypt the
-// message or verify its signature. This enables the use of an integrated single-pass digital
-// signature algorithm (i.e. veil.schnorr). It also means the ciphertext is not decryptable without
+// message or verify its signature. It also means the ciphertext is not decryptable without
 // knowledge of the sender's public key.
 //
 // Unlike other C(1e, 2s) models (e.g. draft-barnes-cfrg-hpke-01's AuthEncap), this KEM does not
-// require the transmission of ristretto255 elements in cleartext. A passive adversary scanning for
+// require the transmission of ephemeral elements in cleartext. A passive adversary scanning for
 // encoded elements would first need the parties' static Diffie-Hellman secret.
 //
 // See https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar3.pdf
