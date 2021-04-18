@@ -1,5 +1,11 @@
 // Package mres provides the underlying STROBE protocol for Veil's multi-recipient encryption
-// system.
+// system. This scheme provides streaming, authenticated, multi-recipient public key encryption with
+// the following benefits:
+//
+// * Confidentiality and authenticity.
+// * Forward secrecy for the sender.
+// * Anonymity for recipients.
+// * Repudiability unless a recipient reveals their private key.
 //
 // Encrypting a message is as follows, given the sender's key pair, d_s and Q_s, a message in blocks
 // M_0...M_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data encryption
@@ -59,14 +65,6 @@
 //     RECV_ENC(S)
 //
 // Finally, the signature S is verified against the received footers F.
-//
-// This construction provides streaming, authenticated public key encryption with the following
-// benefits:
-//
-// * Confidentiality and authenticity.
-// * Forward secrecy for the sender.
-// * Repudiability for the sender unless a recipient reveals their private key.
-// * Encryption of arbitrarily-sized messages, provided ciphertexts can be seeked.
 //
 // Borrowing Alwen et. al's analysis of the proposed HPKE specification, this construction is
 // intended to provide privacy and authenticity under both outsider and insider attacks. For a
