@@ -101,6 +101,10 @@
 // signature, but cannot confirm that the encrypted footers contain the DEK or that the message is
 // from the sender, only that the sender created a message with those encrypted footers.
 //
+// In terms of logical dependencies, the DEM ciphertext depends on the message and the DEK, the
+// footer ciphertexts depend on the DEK and the DEM ciphertext, and the final signature depends on
+// the DEK and the footer ciphertexts.
+//
 // See https://eprint.iacr.org/2020/1499.pdf
 // See https://www.cc.gatech.edu/~aboldyre/papers/bbks.pdf
 // See http://www.cogentcryptography.com/papers/inner.pdf
