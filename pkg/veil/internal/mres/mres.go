@@ -271,14 +271,14 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		return written, ErrInvalidCiphertext
 	}
 
-	// Read the encrypted footers.
-	footers := make([]byte, footerEnd-messageEnd)
-	if _, err = io.ReadFull(src, footers); err != nil {
+	// Create a verifier for the encrypted footers.
+	verifier := schnorr.NewVerifier(qS)
+	vdst := mres.RecvCLRStream(verifier)
+
+	// Read the encrypted footers, adding them to the verifier and the protocol.
+	if _, err := io.CopyN(vdst, src, footerEnd-messageEnd); err != nil {
 		return written, err
 	}
-
-	// Receive the encrypted footers.
-	mres.RecvCLR(footers)
 
 	// Read the signature of the encrypted footers.
 	sig := make([]byte, schnorr.SignatureSize)
@@ -289,10 +289,7 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 	// Decrypt the signature.
 	sig = mres.RecvENC(sig[:0], sig)
 
-	// Verify the signature.
-	verifier := schnorr.NewVerifier(qS)
-	_, _ = verifier.Write(footers)
-
+	// Verify the signature of the encrypted footers.
 	if !verifier.Verify(sig) {
 		return written, ErrInvalidCiphertext
 	}
