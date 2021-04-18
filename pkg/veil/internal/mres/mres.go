@@ -102,6 +102,7 @@
 // from the sender, only that the sender created a message with those encrypted footers.
 //
 // See https://eprint.iacr.org/2020/1499.pdf
+// See https://www.cc.gatech.edu/~aboldyre/papers/bbks.pdf
 package mres
 
 import (
