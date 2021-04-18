@@ -26,7 +26,7 @@
 //
 //     R = rG
 //     AD(R)
-//	   PRF(64) -> c
+//     PRF(64) -> c
 //     s = d_sc + r
 //
 // The resulting signature consists of the two scalars, c and s.
@@ -59,9 +59,8 @@ package schnorr
 import (
 	"io"
 
-	"github.com/codahale/veil/pkg/veil/internal/protocol"
-
 	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/codahale/veil/pkg/veil/internal/protocol"
 	"github.com/gtank/ristretto255"
 )
 
