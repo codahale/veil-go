@@ -11,20 +11,22 @@
 //     AD(Q_s)
 //     ZZ_s = d_sQ_r
 //     KEY(ZZ_s)
-//     d_e = veil.kem.nonce(d_S, M)
+//
+// The protocol is cloned, keyed with the sender's private key and the message, and used to derive
+// an ephemeral scalar:
+//
+//     KEY(d_s)
+//     AD(M)
+//     PRF(64) -> d_e
+//
+// The cloned context is discard and d_e is returned to the parent context:
+//
 //     Q_e = d_eG
 //     SEND_ENC(Q_e) -> E
 //     ZZ_e = d_eQ_r
 //     KEY(ZZ_e)
 //     SEND_ENC(M) -> C
 //     SEND_MAC(N) -> T
-//
-// d_e is derived as follows, given the sender's private key d_s and a message M:
-//
-//     INIT('veil.kem.nonce', level=256)
-//     KEY(d_s)
-//     AD(M)
-//     PRF(64) -> d_e
 //
 // Decryption is then the inverse of encryption, given the recipient's key pair, d_r and Q_r, and
 // the sender's public key Q_s:
@@ -103,9 +105,13 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	// Key the protocol with the static shared secret.
 	kem.KEY(zzS.Encode(buf[:0]))
 
-	// Deterministically derive an ephemeral private key from the sender's private key and the
-	// message.
-	dE := deriveEphemeral(dS, plaintext)
+	// Create a clone with all previous state plus the sender's private key and the message.
+	clone := kem.Clone()
+	clone.KEY(dS.Encode(buf[:0]))
+	clone.AD(plaintext)
+
+	// Deterministically derive an ephemeral private key from the clone.
+	dE := clone.PRFScalar()
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
 	// Encrypt the ephemeral public key.
@@ -183,19 +189,4 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 
 	// Return the authenticated plaintext.
 	return plaintext, nil
-}
-
-// deriveEphemeral derives an ephemeral scalar from a KEM sender's private key and a message.
-func deriveEphemeral(d *ristretto255.Scalar, msg []byte) *ristretto255.Scalar {
-	// Initialize the protocol.
-	kemNonce := protocol.New("veil.kem.nonce")
-
-	// Key the protocol with the sender's private key.
-	kemNonce.KEY(d.Encode(nil))
-
-	// Include the message as associated data.
-	kemNonce.AD(msg)
-
-	// Generate 64 bytes of PRF output and map it to a scalar.
-	return kemNonce.PRFScalar()
 }
