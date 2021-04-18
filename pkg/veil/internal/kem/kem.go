@@ -11,16 +11,7 @@
 //     AD(Q_s)
 //     ZZ_s = d_sQ_r
 //     KEY(ZZ_s)
-//
-// The protocol is cloned, keyed with the sender's private key and the message, and used to derive
-// an ephemeral scalar:
-//
-//     KEY(d_s)
-//     AD(M)
-//     PRF(64) -> d_e
-//
-// The cloned context is discard and d_e is returned to the parent context:
-//
+//     d_e = rand_scalar()
 //     Q_e = d_eG
 //     SEND_ENC(Q_e) -> E
 //     ZZ_e = d_eQ_r
@@ -71,6 +62,8 @@
 package kem
 
 import (
+	"crypto/rand"
+
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
 	"github.com/gtank/ristretto255"
@@ -80,10 +73,10 @@ const Overhead = internal.ElementSize + internal.TagSize
 
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
-func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte) []byte {
+func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte) ([]byte, error) {
 	ret, out := internal.SliceForAppend(dst, len(plaintext)+Overhead)
 
-	var buf [internal.ElementSize]byte
+	var buf [internal.UniformBytestringSize]byte
 
 	// Initialize the protocol.
 	kem := protocol.New("veil.kem")
@@ -104,13 +97,13 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	// Key the protocol with the static shared secret.
 	kem.KEY(zzS.Encode(buf[:0]))
 
-	// Create a clone with all previous state plus the sender's private key and the message.
-	clone := kem.Clone()
-	clone.KEY(dS.Encode(buf[:0]))
-	clone.AD(plaintext)
+	// Generate a random nonce.
+	if _, err := rand.Read(buf[:]); err != nil {
+		return nil, err
+	}
 
-	// Deterministically derive an ephemeral private key from the clone.
-	dE := clone.PRFScalar()
+	// Derive an ephemeral key pair from the nonce.
+	dE := ristretto255.NewScalar().FromUniformBytes(buf[:])
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
 	// Encrypt the ephemeral public key.
@@ -130,7 +123,7 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	_ = kem.SendMAC(out, internal.TagSize)
 
 	// Return the encrypted ephemeral public key, the encrypted message, and the MAC.
-	return ret
+	return ret, nil
 }
 
 // Decrypt decrypts the ciphertext iff it was encrypted by the owner of qS for the owner of qR and

@@ -173,12 +173,6 @@ func (p *Protocol) MoreRecvCLR(data []byte) {
 	}
 }
 
-func (p *Protocol) Clone() *Protocol {
-	return &Protocol{
-		s: p.s.Clone(),
-	}
-}
-
 // LittleEndianU32 returns n as a 32-bit little endian bit string.
 func LittleEndianU32(n int) []byte {
 	var b [4]byte

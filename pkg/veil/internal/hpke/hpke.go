@@ -161,7 +161,10 @@ func Encrypt(
 
 	// Encrypt copies of the footer.
 	for _, qR := range qRs {
-		footers = kem.Encrypt(footers, dS, qS, qR, footer)
+		footers, err = kem.Encrypt(footers, dS, qS, qR, footer)
+		if err != nil {
+			return written, err
+		}
 	}
 
 	// Send the encrypted footers. These will be mostly opaque to recipients, so we mark them as
