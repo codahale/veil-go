@@ -1,5 +1,10 @@
 // Package schnorr provides the underlying STROBE protocol for Veil's Schnorr signatures.
 //
+// Per Fleischhacker et al:
+//
+//     The (generalized) Schnorr signature scheme is indistinguishable with full key exposure,
+//     in the random oracle model.
+//
 // Signing is as follows, given a message in blocks M_0...M_n, a private scalar d, and a public
 // element Q:
 //
@@ -20,16 +25,14 @@
 // Once r is generated, the clone's context is discarded and r is returned to the parent context:
 //
 //     R = rG
-//     SEND_ENC(R) -> S1
-//     PRF(64) -> k
-//     s = (kd + r)
-//     SEND_ENC(s) -> S2
+//     AD(R)
+//	   PRF(64) -> c
+//     s = d_sc + r
 //
-// The resulting signature consists of the encrypted ephemeral element S1 and the encrypted
-// signature scalar S2.
+// The resulting signature consists of the two scalars, c and s.
 //
 // To verify, veil.schnorr is run with associated data D, message in blocks M_0...M_n, a public
-// element Q, an encrypted ephemeral element S1, and an encrypted signature scalar S2:
+// element Q:
 //
 //     INIT('veil.schnorr', level=256)
 //     AD(Q)
@@ -38,18 +41,19 @@
 //     RECV_CLR(M_1, more=true)
 //     ...
 //     RECV_CLR(M_n, more=true)
-//     RECV_ENC(S1) -> R
-//     PRF(64) -> k
-//     RECV_ENC(S2) -> s
-//     R' = -kQ + sG
+//     R' = -cQ + sG
+//     AD(R')
+//     PRF(64) -> c'
 //
-// Finally, the verifier compares R' == R. If the two elements are equivalent, the signature is
+// Finally, the verifier compares c' == c. If the two scalars are equivalent, the signature is
 // valid.
 //
 // This construction integrates message hashing with signature creation/validation, uses the
 // sender's private key and the message to derive a challenge nonce, binds the signer's identity,
 // and produces a signature which is indistinguishable from random noise without the signer's public
-// key, the associated data, and the message.
+// key and the message.
+//
+// See https://eprint.iacr.org/2011/673.pdf
 package schnorr
 
 import (
@@ -96,39 +100,31 @@ func (sn *Signer) Write(p []byte) (n int, err error) {
 // Sign uses the given key pair to construct a deterministic Schnorr signature of the previously
 // written data.
 func (sn *Signer) Sign() []byte {
-	// Deterministically derive a nonce in a cloned context.
-	r := sn.deriveNonce(sn.d)
+	var buf [SignatureSize]byte
 
-	// Calculate the signature ephemeral.
-	R := ristretto255.NewElement().ScalarBaseMult(r)
-
-	// Encrypt the signature ephemeral.
-	sigA := sn.schnorr.SendENC(nil, R.Encode(nil))
-
-	// Derive a challenge value scalar.
-	k := sn.schnorr.PRFScalar()
-
-	// Calculate the signature scalar (kd + r).
-	s := ristretto255.NewScalar().Multiply(k, sn.d)
-	s = ristretto255.NewScalar().Add(s, r)
-
-	// Encrypt the signature scalar.
-	sigB := sn.schnorr.SendENC(nil, s.Encode(nil))
-
-	// Return the encoding of R and the ciphertext of s as the signature.
-	return append(sigA, sigB...)
-}
-
-func (sn *Signer) deriveNonce(d *ristretto255.Scalar) *ristretto255.Scalar {
 	// Clone the protocol context. This step requires knowledge of the signer's private key, so it
 	// can't be part of the verification process.
 	clone := sn.schnorr.Clone()
 
 	// Key the clone with the signer's private key.
-	clone.KEY(d.Encode(nil))
+	clone.KEY(sn.d.Encode(buf[:0]))
 
-	// Derive a nonce scalar.
-	return clone.PRFScalar()
+	// Deterministically derive an ephemeral key pair from the cloned context.
+	r := clone.PRFScalar()
+	R := ristretto255.NewElement().ScalarBaseMult(r)
+
+	// Hash the ephemeral public key.
+	sn.schnorr.AD(R.Encode(buf[:0]))
+
+	// Extract a challenge scalar from the protocol state.
+	c := sn.schnorr.PRFScalar()
+
+	// Calculate the signature scalar.
+	s := ristretto255.NewScalar().Multiply(sn.d, c)
+	s = s.Add(s, r)
+
+	// Return the challenge and signature scalars.
+	return s.Encode(c.Encode(buf[:0]))
 }
 
 // Verifier is an io.Writer which adds written data to a STROBE protocol for verification.
@@ -167,36 +163,31 @@ func (vr *Verifier) Verify(sig []byte) bool {
 		return false
 	}
 
-	// Split the signature.
-	sigA, sigB := sig[:internal.ElementSize], sig[internal.ElementSize:]
-
-	// Receive the signature ephemeral.
-	sigA = vr.schnorr.RecvENC(buf[:0], sigA)
-
-	// Decode the signature ephemeral.
-	R := ristretto255.NewElement()
-	if err := R.Decode(sigA); err != nil {
+	// Decode the challenge scalar.
+	c := ristretto255.NewScalar()
+	if err := c.Decode(sig[:internal.ScalarSize]); err != nil {
 		return false
 	}
-
-	// Derive a challenge scalar.
-	k := vr.schnorr.PRFScalar()
-
-	// Decrypt the signature scalar.
-	sigB = vr.schnorr.RecvENC(buf[:0], sigB)
 
 	// Decode the signature scalar.
 	s := ristretto255.NewScalar()
-	if err := s.Decode(sigB); err != nil {
+	if err := s.Decode(sig[internal.ScalarSize:]); err != nil {
 		return false
 	}
 
-	// R' = -kQ + sG
-	kQ := ristretto255.NewElement().ScalarMult(k, vr.q)
-	sG := ristretto255.NewElement().ScalarBaseMult(s)
-	Rp := ristretto255.NewElement().Subtract(sG, kQ)
+	// Re-calculate the ephemeral public key.
+	S := ristretto255.NewElement().ScalarBaseMult(s)
+	Qc := ristretto255.NewElement().ScalarMult(ristretto255.NewScalar().Negate(c), vr.q)
+	Rp := ristretto255.NewElement().Add(S, Qc)
 
-	return Rp.Equal(R) == 1
+	// Hash the ephemeral public key.
+	vr.schnorr.AD(Rp.Encode(buf[:0]))
+
+	// Extract a challenge scalar from the protocol state.
+	cp := vr.schnorr.PRFScalar()
+
+	// Compare the extracted challenge scalar to the received challenge scalar.
+	return c.Equal(cp) == 1
 }
 
 var (
