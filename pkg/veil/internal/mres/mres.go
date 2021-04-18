@@ -87,7 +87,7 @@
 //
 // Veil's lack of framing data means that recipients don't know the actual ciphertext before they
 // begin attempting to decrypt footers, so an existing construction like Tag-AKEM can't be used.
-// Instead, veil.mres includs a MAC of the DEM ciphertext along with the DEK as plaintext for
+// Instead, veil.mres includes a MAC of the DEM ciphertext along with the DEK as plaintext for
 // veil.hpke. An insider attempting to re-use the encrypted footers with a forged DEM ciphertext
 // will be foiled by recipients checking the recovered MAC from the footer against the ersatz DEM
 // ciphertext.
