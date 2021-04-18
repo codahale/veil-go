@@ -67,7 +67,10 @@ func (pk *PrivateKey) Sign(src io.Reader) (*Signature, error) {
 	}
 
 	// Create a signature of the message.
-	sig := signer.Sign()
+	sig, err := signer.Sign()
+	if err != nil {
+		return nil, err
+	}
 
 	return &Signature{b: sig}, nil
 }

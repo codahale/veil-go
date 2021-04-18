@@ -24,6 +24,12 @@ func TestSignAndVerify(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Sign it.
+	sig, err := signer.Sign()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Write a message to a verifier.
 	verifier := NewVerifier(q)
 	if _, err := io.Copy(verifier, bytes.NewBufferString("this is great")); err != nil {
@@ -31,7 +37,7 @@ func TestSignAndVerify(t *testing.T) {
 	}
 
 	// Verify the signature.
-	if !verifier.Verify(signer.Sign()) {
+	if !verifier.Verify(sig) {
 		t.Error("didn't verify")
 	}
 }
@@ -54,6 +60,12 @@ func TestSignAndVerify_BadPublicKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Sign it.
+	sig, err := signer.Sign()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Write a message to a verifier.
 	verifier := NewVerifier(qP)
 	if _, err := io.Copy(verifier, bytes.NewBufferString("this is great")); err != nil {
@@ -61,7 +73,7 @@ func TestSignAndVerify_BadPublicKey(t *testing.T) {
 	}
 
 	// Verify the signature.
-	if verifier.Verify(signer.Sign()) {
+	if verifier.Verify(sig) {
 		t.Error("didn't verify")
 	}
 }
@@ -81,6 +93,12 @@ func TestSignAndVerify_BadMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Sign it.
+	sig, err := signer.Sign()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Write a different message to a verifier.
 	verifier := NewVerifier(q)
 	if _, err := io.Copy(verifier, bytes.NewBufferString("this is not great")); err != nil {
@@ -88,7 +106,7 @@ func TestSignAndVerify_BadMessage(t *testing.T) {
 	}
 
 	// Verify the signature.
-	if verifier.Verify(signer.Sign()) {
+	if verifier.Verify(sig) {
 		t.Error("did verify")
 	}
 }
@@ -108,8 +126,11 @@ func TestSignAndVerify_BadSig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create a signature.
-	sig := signer.Sign()
+	// Sign it.
+	sig, err := signer.Sign()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Modify the signature.
 	sig[0] ^= 1
@@ -136,7 +157,7 @@ func BenchmarkSigner(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		signer := NewSigner(d, q)
 		_, _ = signer.Write(message)
-		_ = signer.Sign()
+		_, _ = signer.Sign()
 	}
 }
 
@@ -146,7 +167,11 @@ func BenchmarkVerifier(b *testing.B) {
 	message := make([]byte, 1024)
 	signer := NewSigner(d, q)
 	_, _ = signer.Write(message)
-	sig := signer.Sign()
+
+	sig, err := signer.Sign()
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 

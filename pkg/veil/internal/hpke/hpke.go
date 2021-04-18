@@ -179,7 +179,11 @@ func Encrypt(
 	// Create a signature of the footers.
 	signer := schnorr.NewSigner(dS, qS)
 	_, _ = signer.Write(footers)
-	sig := signer.Sign()
+
+	sig, err := signer.Sign()
+	if err != nil {
+		return written, err
+	}
 
 	// Encrypt and send the signature.
 	sig = hpke.SendENC(sig[:0], sig)

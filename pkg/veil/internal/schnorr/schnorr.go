@@ -1,9 +1,7 @@
 // Package schnorr provides the underlying STROBE protocol for Veil's Schnorr signatures.
 //
-// Per Fleischhacker et al:
-//
-//     The (generalized) Schnorr signature scheme is indistinguishable with full key exposure,
-//     in the random oracle model.
+// It creates signatures which are indistinguishable per Fleischhacker et al, which is to say that
+// no information about the signing key or message can be recovered from the signature.
 //
 // Signing is as follows, given a message in blocks M_0...M_n, a private scalar d, and a public
 // element Q:
@@ -15,15 +13,7 @@
 //     SEND_CLR(M_1, more=true)
 //     ...
 //     SEND_CLR(M_n, more=true)
-//
-// This protocol's context is cloned and the clone is used to derive a deterministic nonce r from
-// the previously-sent message contents and the signer's private scalar d:
-//
-//     KEY(d)
-//     PRF(64) -> r
-//
-// Once r is generated, the clone's context is discarded and r is returned to the parent context:
-//
+//     r = rand_scalar()
 //     R = rG
 //     AD(R)
 //     PRF(64) -> c
@@ -48,15 +38,16 @@
 // Finally, the verifier compares c' == c. If the two scalars are equivalent, the signature is
 // valid.
 //
-// This construction integrates message hashing with signature creation/validation, uses the
-// sender's private key and the message to derive a challenge nonce, binds the signer's identity,
-// and produces a signature which is indistinguishable from random noise without the signer's public
-// key and the message.
+// This construction integrates message hashing with signature creation/validation, binds the
+// signer's identity, and produces indistinguishable signatures. When encrypted with an unrelated
+// key (i.e., via veil.hpke), the construction is isomorphic to Fleischhacker et al's DRPC compiler
+// for producing pseudorandom signatures, which are indistinguishable from random.
 //
 // See https://eprint.iacr.org/2011/673.pdf
 package schnorr
 
 import (
+	"crypto/rand"
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal"
@@ -96,20 +87,17 @@ func (sn *Signer) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// Sign uses the given key pair to construct a deterministic Schnorr signature of the previously
-// written data.
-func (sn *Signer) Sign() []byte {
+// Sign uses the given key pair to construct a Schnorr signature of the previously written data.
+func (sn *Signer) Sign() ([]byte, error) {
 	var buf [SignatureSize]byte
 
-	// Clone the protocol context. This step requires knowledge of the signer's private key, so it
-	// can't be part of the verification process.
-	clone := sn.schnorr.Clone()
+	// Generate a random nonce.
+	if _, err := rand.Read(buf[:internal.UniformBytestringSize]); err != nil {
+		return nil, err
+	}
 
-	// Key the clone with the signer's private key.
-	clone.KEY(sn.d.Encode(buf[:0]))
-
-	// Deterministically derive an ephemeral key pair from the cloned context.
-	r := clone.PRFScalar()
+	// Derive an ephemeral key pair from the nonce.
+	r := ristretto255.NewScalar().FromUniformBytes(buf[:internal.UniformBytestringSize])
 	R := ristretto255.NewElement().ScalarBaseMult(r)
 
 	// Hash the ephemeral public key.
@@ -123,7 +111,7 @@ func (sn *Signer) Sign() []byte {
 	s = s.Add(s, r)
 
 	// Return the challenge and signature scalars.
-	return s.Encode(c.Encode(buf[:0]))
+	return s.Encode(c.Encode(buf[:0])), nil
 }
 
 // Verifier is an io.Writer which adds written data to a STROBE protocol for verification.
