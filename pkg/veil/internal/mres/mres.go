@@ -20,9 +20,9 @@
 //
 //     SEND_MAC(N) -> T
 //
-// Next, a footer consisting of K, T, and LE_64(len(M)) is encapsulated for all recipient public
-// keys using veil.kem. Random padding is prepended to the concatenated encrypted footers, and the
-// block F is sent as cleartext:
+// Next, footers consisting of K, T, and LE_64(len(M)) are encrypted for all recipient public keys
+// using veil.hpke. Random padding is prepended to the concatenated encrypted footers, and the block
+// F is sent as cleartext:
 //
 //     SEND_CLR(F)
 //
@@ -40,7 +40,7 @@
 // Decryption is as follows, given the recipient's key pair, d_r and Q_r, the sender's public key,
 // Q_s, and a ciphertext in blocks C_0..C_n. First, the recipient seeks to the end of the ciphertext
 // and then backwards by N bytes. Second, they seek backwards and read each possible encrypted
-// footer, attempting to decrypt it via veil.kem. Once they find a footer which can be decrypted,
+// footer, attempting to decrypt it via veil.hpke. Once they find a footer which can be decrypted,
 // they recover the DEK, the ciphertext MAC T, and the message offset. They they run the inverse of
 // the encryption protocol:
 //
@@ -87,16 +87,15 @@
 //
 // Veil's lack of framing data means that recipients don't know the actual ciphertext before they
 // begin attempting to decrypt footers, so an existing construction like Tag-AKEM can't be used.
-// veil.mres takes advantage of the fact that veil.kem is not a traditional KEM construction (i.e.,
-// it's actually a miniature AKEM/AEAD itself) to make the KEM ciphertexts dependent on the DEM
-// ciphertext by including a MAC of the DEM ciphertext along with the DEK as plaintext for veil.kem.
-// An insider attempting to re-use the KEM ciphertext with a forged DEM ciphertext will be foiled by
-// recipients checking the recovered MAC from the KEM ciphertext against the ersatz DEM ciphertext.
+// Instead, veil.mres includs a MAC of the DEM ciphertext along with the DEK as plaintext for
+// veil.hpke. An insider attempting to re-use the encrypted footers with a forged DEM ciphertext
+// will be foiled by recipients checking the recovered MAC from the footer against the ersatz DEM
+// ciphertext.
 //
-// The remaining piece of veil.mres ciphertext to protect are the KEM footers for other recipients.
-// The signature of the encrypted footers assures their authenticity, the authenticity of the
-// DEK/MAC, and thus the authenticity of the message, but cannot be verified without the DEK, or
-// even distinguished from random noise.
+// The remaining piece of veil.mres ciphertext to protect are the footers encrypted for other
+// recipients. The signature of the encrypted footers assures their authenticity, the authenticity
+// of the DEK/MAC, and thus the authenticity of the message, but cannot be verified without the DEK,
+// or even distinguished from random noise.
 //
 // Further, if the DEK is revealed, third parties will be able to decrypt the message and verify the
 // signature, but cannot confirm that the encrypted footers contain the DEK or that the message is
@@ -113,7 +112,7 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/kem"
+	"github.com/codahale/veil/pkg/veil/internal/hpke"
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/gtank/ristretto255"
@@ -162,7 +161,7 @@ func Encrypt(
 
 	// Encrypt copies of the footer.
 	for _, qR := range qRs {
-		footers, err = kem.Encrypt(footers, dS, qS, qR, footer)
+		footers, err = hpke.Encrypt(footers, dS, qS, qR, footer)
 		if err != nil {
 			return written, err
 		}
@@ -235,7 +234,7 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		}
 
 		// Try to decrypt the footer.
-		plaintext, err := kem.Decrypt(footer[:0], dR, qR, qS, footer)
+		plaintext, err := hpke.Decrypt(footer[:0], dR, qR, qS, footer)
 		if err != nil {
 			// If we can't, try the next possibility.
 			continue
@@ -263,7 +262,7 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		return written, err
 	}
 
-	// Verify the MAC of the ciphertext with that recovered from the KEM.
+	// Verify the MAC of the ciphertext with that recovered from the footer.
 	if err := mres.RecvMAC(ctMac); err != nil {
 		return written, ErrInvalidCiphertext
 	}
@@ -319,5 +318,5 @@ func initProtocol(qS *ristretto255.Element, dek []byte) *protocol.Protocol {
 const (
 	dekSize             = 32
 	footerSize          = dekSize + internal.TagSize + 8
-	encryptedFooterSize = footerSize + kem.Overhead
+	encryptedFooterSize = footerSize + hpke.Overhead
 )

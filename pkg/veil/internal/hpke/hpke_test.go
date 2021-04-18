@@ -1,4 +1,4 @@
-package kem
+package hpke
 
 import (
 	"bytes"

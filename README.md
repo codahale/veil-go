@@ -76,20 +76,21 @@ key `friends`, which is in turn used to derive the private key `alice`.
 Full details and documentation for all the Veil protocols can be found in the
 [`pkg/veil/internal`](https://github.com/codahale/veil/tree/main/pkg/veil/internal) directory.
 
-#### `veil.kem`
+#### `veil.hpke`
 
-`veil.kem` implements an authenticated `C(1e, 2s, ECC DH)` key encapsulation mechanism over
-ristretto255. It provides authentication, sender forward security (i.e. if the sender's private key
-is compromised, the messages they sent remain confidential), as well as the novel property of
-sending no values in cleartext: the ephemeral public key is encrypted with the static shared secret
-before sending.
+`veil.hpke` implements an authenticated `C(1e, 2s, ECC DH)` hybrid public key encryption system with
+ristretto255 and STROBE. It provides authentication, sender forward security (i.e. if the sender's
+private key is compromised, the messages they sent remain confidential), as well as the novel
+property of sending no values in cleartext: the ephemeral public key is encrypted with the static
+shared secret before sending.
 
 #### `veil.mres`
 
-`veil.mres` implements multi-recipient encryption system using `veil.kem`. Messages are encrypted
-with a random DEK, and copies of the DEK and a MAC of the ciphertext are encrypted in footers with
-`veil.kem`. Random padding can be prepended to the footers to obscure the actual message length, and
-a `veil.schnorr` signature keyed with the DEK of the encrypted footers is appended to the end.
+`veil.mres` implements the multi-recipient encryption system for encrypted Veil messages. Messages
+are encrypted with a random DEK, and copies of the DEK and a MAC of the ciphertext are encrypted in
+footers with `veil.hpke`. Random padding can be prepended to the footers to obscure the actual
+message length, and a `veil.schnorr` signature keyed with the DEK of the encrypted footers is
+appended to the end.
 
 To decrypt, readers seek backwards in the ciphertext, looking for a decryptable footer. Having found
 one, they then seek to the beginning of the ciphertext, decrypt it, verify the encrypted MAC, hash
