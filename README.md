@@ -50,24 +50,6 @@ data in a feed-forward mechanism, which removes it from the attackable surface a
 Further, the use of STROBE means all protocols which include `RECV_MAC` calls are [compactly
 committing](https://eprint.iacr.org/2019/016.pdf).
 
-### Deterministic Components, `IND-CCA2` System
-
-Veil is designed to be indistinguishable under adaptive chosen ciphertext attacks, since that's the
-gold standard for modern cryptosystems. It avoids, however, the usual approach to `IND-CCA2` design,
-which is to rub a nonce on everything. Nonces are required for `IND-CCA2`–if ciphertexts are
-deterministically mapped from plaintexts, an adversary trivially wins the guessing game by having
-the challenger encrypt the same value twice, then offering to choose between the static ciphertext
-and any other ciphertext–but both accidental and adversarial nonce-misuse is a concern.
-
-Instead, Veil composes deterministic components–a KEM and a streaming AEAD–around a single,
-probabilistic value: a symmetric data encryption key (DEK). As long as a sender can manage 256 bits
-of unpredictability per message, Veil is `IND-CCA2` as a system, with keys long enough to provide
-adequate security even in the multi-user model.
-
-Where challenge values are required–an ephemeral scalar for Diffie-Hellman or Schorr–they are
-derived from both the unique message and the sender's private key, to preserve unforgability
-guarantees.
-
 ### Indistinguishable From Random Noise
 
 Veil messages are entirely indistinguishable from random noise. They contain no plaintext metadata,
