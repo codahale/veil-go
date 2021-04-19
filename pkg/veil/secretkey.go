@@ -6,9 +6,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/codahale/veil/pkg/veil/internal/pbenc"
-
 	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/codahale/veil/pkg/veil/internal/pbenc"
 	"github.com/codahale/veil/pkg/veil/internal/scaldf"
 	"github.com/gtank/ristretto255"
 )

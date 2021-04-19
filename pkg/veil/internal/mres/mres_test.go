@@ -5,11 +5,9 @@ import (
 	"io"
 	"testing"
 
-	"github.com/google/go-cmp/cmp/cmpopts"
-
 	"github.com/codahale/gubbins/assert"
-
 	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/gtank/ristretto255"
 )
 

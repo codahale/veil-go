@@ -4,9 +4,8 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/gtank/ristretto255"
-
 	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/gtank/ristretto255"
 	"github.com/sammyne/strobe"
 )
 
