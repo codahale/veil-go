@@ -64,6 +64,8 @@ const (
 type Signer struct {
 	schnorr *protocol.Protocol
 	d       *ristretto255.Scalar
+
+	io.Writer
 }
 
 // NewSigner returns a Signer instance with the signer's key pair.
@@ -74,17 +76,7 @@ func NewSigner(d *ristretto255.Scalar, q *ristretto255.Element) *Signer {
 	// Add the signer's public key to the protocol.
 	schnorr.AD(q.Encode(nil))
 
-	// Prep it for streaming cleartext.
-	schnorr.SendCLR(nil)
-
-	return &Signer{schnorr: schnorr, d: d}
-}
-
-func (sn *Signer) Write(p []byte) (n int, err error) {
-	// Update the protocol with the written data.
-	sn.schnorr.MoreSendCLR(p)
-
-	return len(p), nil
+	return &Signer{schnorr: schnorr, d: d, Writer: schnorr.SendCLRStream(io.Discard)}
 }
 
 // Sign uses the given key pair to construct a Schnorr signature of the previously written data.
@@ -118,6 +110,8 @@ func (sn *Signer) Sign() ([]byte, error) {
 type Verifier struct {
 	schnorr *protocol.Protocol
 	q       *ristretto255.Element
+
+	io.Writer
 }
 
 // NewVerifier returns a Verifier instance with a signer's public key.
@@ -128,17 +122,7 @@ func NewVerifier(q *ristretto255.Element) *Verifier {
 	// Add the signer's public key to the protocol.
 	schnorr.AD(q.Encode(nil))
 
-	// Prep it for streaming cleartext.
-	schnorr.RecvCLR(nil)
-
-	return &Verifier{schnorr: schnorr, q: q}
-}
-
-func (vr *Verifier) Write(p []byte) (n int, err error) {
-	// Update the protocol with the written data.
-	vr.schnorr.MoreRecvCLR(p)
-
-	return len(p), nil
+	return &Verifier{schnorr: schnorr, q: q, Writer: schnorr.RecvCLRStream(io.Discard)}
 }
 
 // Verify uses the given public key to verify the signature of the previously read data.

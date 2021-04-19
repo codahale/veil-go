@@ -66,19 +66,6 @@ func (p *Protocol) PRFScalar() *ristretto255.Scalar {
 	return ristretto255.NewScalar().FromUniformBytes(buf[:])
 }
 
-func (p *Protocol) SendENCStream(dst io.Writer) io.Writer {
-	// Prep the protocol for streaming encryption.
-	p.SendENC(nil, nil)
-
-	// Return a writer.
-	return &callbackWriter{
-		callback: func(b []byte) []byte {
-			return p.MoreSendENC(nil, b)
-		},
-		dst: dst,
-	}
-}
-
 func (p *Protocol) SendENC(dst, plaintext []byte) []byte {
 	ret, out := internal.SliceForAppend(dst, len(plaintext))
 	copy(out, plaintext)
@@ -90,46 +77,11 @@ func (p *Protocol) SendENC(dst, plaintext []byte) []byte {
 	return ret
 }
 
-func (p *Protocol) RecvENCStream(dst io.Writer) io.Writer {
-	// Prep the protocol for streaming encryption.
-	p.RecvENC(nil, nil)
-
-	// Return a writer.
-	return &callbackWriter{
-		callback: func(b []byte) []byte {
-			return p.MoreRecvENC(b[:0], b)
-		},
-		dst: dst,
-	}
-}
-
 func (p *Protocol) RecvENC(dst, ciphertext []byte) []byte {
 	ret, out := internal.SliceForAppend(dst, len(ciphertext))
 	copy(out, ciphertext)
 
 	if _, err := p.s.RecvENC(out, defaultOpts); err != nil {
-		panic(err)
-	}
-
-	return ret
-}
-
-func (p *Protocol) MoreSendENC(dst, plaintext []byte) []byte {
-	ret, out := internal.SliceForAppend(dst, len(plaintext))
-	copy(out, plaintext)
-
-	if _, err := p.s.SendENC(out, streamingOpts); err != nil {
-		panic(err)
-	}
-
-	return ret
-}
-
-func (p *Protocol) MoreRecvENC(dst, ciphertext []byte) []byte {
-	ret, out := internal.SliceForAppend(dst, len(ciphertext))
-	copy(out, ciphertext)
-
-	if _, err := p.s.RecvENC(out, streamingOpts); err != nil {
 		panic(err)
 	}
 
@@ -153,32 +105,6 @@ func (p *Protocol) RecvMAC(mac []byte) error {
 	return p.s.RecvMAC(m, defaultOpts)
 }
 
-func (p *Protocol) RecvCLRStream(dst io.Writer) io.Writer {
-	p.RecvCLR(nil)
-
-	return &callbackWriter{
-		callback: func(b []byte) []byte {
-			p.MoreRecvCLR(b)
-
-			return b
-		},
-		dst: dst,
-	}
-}
-
-func (p *Protocol) SendCLRStream(dst io.Writer) io.Writer {
-	p.SendCLR(nil)
-
-	return &callbackWriter{
-		callback: func(b []byte) []byte {
-			p.MoreSendCLR(b)
-
-			return b
-		},
-		dst: dst,
-	}
-}
-
 func (p *Protocol) SendCLR(data []byte) {
 	if err := p.s.SendCLR(data, defaultOpts); err != nil {
 		panic(err)
@@ -191,13 +117,87 @@ func (p *Protocol) RecvCLR(data []byte) {
 	}
 }
 
-func (p *Protocol) MoreSendCLR(data []byte) {
+func (p *Protocol) SendENCStream(dst io.Writer) io.Writer {
+	// Prep the protocol for streaming encryption.
+	p.SendENC(nil, nil)
+
+	// Return a writer.
+	return &callbackWriter{
+		callback: func(b []byte) []byte {
+			return p.moreSendENC(nil, b)
+		},
+		dst: dst,
+	}
+}
+
+func (p *Protocol) RecvENCStream(dst io.Writer) io.Writer {
+	// Prep the protocol for streaming encryption.
+	p.RecvENC(nil, nil)
+
+	// Return a writer.
+	return &callbackWriter{
+		callback: func(b []byte) []byte {
+			return p.moreRecvENC(b[:0], b)
+		},
+		dst: dst,
+	}
+}
+
+func (p *Protocol) RecvCLRStream(dst io.Writer) io.Writer {
+	p.RecvCLR(nil)
+
+	return &callbackWriter{
+		callback: func(b []byte) []byte {
+			p.moreRecvCLR(b)
+
+			return b
+		},
+		dst: dst,
+	}
+}
+
+func (p *Protocol) SendCLRStream(dst io.Writer) io.Writer {
+	p.SendCLR(nil)
+
+	return &callbackWriter{
+		callback: func(b []byte) []byte {
+			p.moreSendCLR(b)
+
+			return b
+		},
+		dst: dst,
+	}
+}
+
+func (p *Protocol) moreSendENC(dst, plaintext []byte) []byte {
+	ret, out := internal.SliceForAppend(dst, len(plaintext))
+	copy(out, plaintext)
+
+	if _, err := p.s.SendENC(out, streamingOpts); err != nil {
+		panic(err)
+	}
+
+	return ret
+}
+
+func (p *Protocol) moreRecvENC(dst, ciphertext []byte) []byte {
+	ret, out := internal.SliceForAppend(dst, len(ciphertext))
+	copy(out, ciphertext)
+
+	if _, err := p.s.RecvENC(out, streamingOpts); err != nil {
+		panic(err)
+	}
+
+	return ret
+}
+
+func (p *Protocol) moreSendCLR(data []byte) {
 	if err := p.s.SendCLR(data, streamingOpts); err != nil {
 		panic(err)
 	}
 }
 
-func (p *Protocol) MoreRecvCLR(data []byte) {
+func (p *Protocol) moreRecvCLR(data []byte) {
 	if err := p.s.RecvCLR(data, streamingOpts); err != nil {
 		panic(err)
 	}
