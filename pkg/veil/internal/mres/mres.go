@@ -151,7 +151,7 @@ func Encrypt(
 	}
 
 	// Send a MAC of the ciphertext and add it to the middle of the footer.
-	mres.SendMAC(footer[:dekSize], internal.TagSize)
+	mres.SendMAC(footer[:dekSize])
 
 	// Add the message length to the end of the footer.
 	binary.LittleEndian.PutUint64(footer[dekSize+internal.TagSize:], uint64(written))

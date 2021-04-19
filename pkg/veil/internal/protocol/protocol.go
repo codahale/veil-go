@@ -87,8 +87,8 @@ func (p *Protocol) RecvENC(dst, ciphertext []byte) []byte {
 	return ret
 }
 
-func (p *Protocol) SendMAC(dst []byte, n int) []byte {
-	ret, out := internal.SliceForAppend(dst, n)
+func (p *Protocol) SendMAC(dst []byte) []byte {
+	ret, out := internal.SliceForAppend(dst, internal.TagSize)
 
 	if err := p.s.SendMAC(out, defaultOpts); err != nil {
 		panic(err)
@@ -98,6 +98,10 @@ func (p *Protocol) SendMAC(dst []byte, n int) []byte {
 }
 
 func (p *Protocol) RecvMAC(mac []byte) error {
+	if len(mac) != internal.TagSize {
+		return strobe.ErrAuthenticationFailed
+	}
+
 	m := make([]byte, len(mac))
 	copy(m, mac)
 

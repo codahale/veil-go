@@ -128,7 +128,7 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	out = hpke.SendENC(out, plaintext)
 
 	// Create a MAC.
-	_ = hpke.SendMAC(out, internal.TagSize)
+	_ = hpke.SendMAC(out)
 
 	// Return the encrypted ephemeral public key, the encrypted message, and the MAC.
 	return ret, nil

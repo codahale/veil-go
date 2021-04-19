@@ -58,7 +58,7 @@ func Encrypt(passphrase, salt, plaintext []byte, space, time int) []byte {
 	pbenc := initProtocol(passphrase, salt, space, time)
 	ciphertext := make([]byte, 0, len(plaintext)+internal.TagSize)
 	ciphertext = pbenc.SendENC(ciphertext, plaintext)
-	ciphertext = pbenc.SendMAC(ciphertext, internal.TagSize)
+	ciphertext = pbenc.SendMAC(ciphertext)
 
 	return ciphertext
 }
