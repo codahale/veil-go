@@ -71,8 +71,10 @@ func (p *Protocol) SendENCStream(dst io.Writer) io.Writer {
 	p.SendENC(nil, nil)
 
 	// Return a writer.
-	return &sendENCWriter{
-		p:   p,
+	return &callbackWriter{
+		callback: func(b []byte) []byte {
+			return p.MoreSendENC(nil, b)
+		},
 		dst: dst,
 	}
 }
@@ -93,8 +95,10 @@ func (p *Protocol) RecvENCStream(dst io.Writer) io.Writer {
 	p.RecvENC(nil, nil)
 
 	// Return a writer.
-	return &recvENCWriter{
-		p:   p,
+	return &callbackWriter{
+		callback: func(b []byte) []byte {
+			return p.MoreRecvENC(b[:0], b)
+		},
 		dst: dst,
 	}
 }
@@ -152,8 +156,12 @@ func (p *Protocol) RecvMAC(mac []byte) error {
 func (p *Protocol) RecvCLRStream(dst io.Writer) io.Writer {
 	p.RecvCLR(nil)
 
-	return &recvCLRWriter{
-		p:   p,
+	return &callbackWriter{
+		callback: func(b []byte) []byte {
+			p.MoreRecvCLR(b)
+
+			return b
+		},
 		dst: dst,
 	}
 }
@@ -161,8 +169,12 @@ func (p *Protocol) RecvCLRStream(dst io.Writer) io.Writer {
 func (p *Protocol) SendCLRStream(dst io.Writer) io.Writer {
 	p.SendCLR(nil)
 
-	return &sendCLRWriter{
-		p:   p,
+	return &callbackWriter{
+		callback: func(b []byte) []byte {
+			p.MoreSendCLR(b)
+
+			return b
+		},
 		dst: dst,
 	}
 }
@@ -200,48 +212,13 @@ func LittleEndianU32(n int) []byte {
 	return b[:]
 }
 
-type sendENCWriter struct {
-	p   *Protocol
-	dst io.Writer
+type callbackWriter struct {
+	callback func([]byte) []byte
+	dst      io.Writer
 }
 
-func (w *sendENCWriter) Write(p []byte) (n int, err error) {
-	p = w.p.MoreSendENC(nil, p)
-
-	return w.dst.Write(p)
-}
-
-type recvENCWriter struct {
-	p   *Protocol
-	dst io.Writer
-}
-
-func (w *recvENCWriter) Write(p []byte) (n int, err error) {
-	p = w.p.MoreRecvENC(p[:0], p)
-
-	return w.dst.Write(p)
-}
-
-type sendCLRWriter struct {
-	p   *Protocol
-	dst io.Writer
-}
-
-func (w *sendCLRWriter) Write(p []byte) (n int, err error) {
-	w.p.MoreSendCLR(p)
-
-	return w.dst.Write(p)
-}
-
-type recvCLRWriter struct {
-	p   *Protocol
-	dst io.Writer
-}
-
-func (w *recvCLRWriter) Write(p []byte) (n int, err error) {
-	w.p.MoreRecvCLR(p)
-
-	return w.dst.Write(p)
+func (w *callbackWriter) Write(p []byte) (n int, err error) {
+	return w.dst.Write(w.callback(p))
 }
 
 //nolint:gochecknoglobals // constants
