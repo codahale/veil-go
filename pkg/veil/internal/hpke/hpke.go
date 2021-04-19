@@ -71,14 +71,15 @@ import (
 	"github.com/gtank/ristretto255"
 )
 
+// Overhead is the number of bytes added to each veil.hpke ciphertext.
 const Overhead = internal.ElementSize + internal.TagSize
 
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
 func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte) ([]byte, error) {
-	ret, out := internal.SliceForAppend(dst, len(plaintext)+Overhead)
-
 	var buf [internal.UniformBytestringSize]byte
+
+	ret, out := internal.SliceForAppend(dst, len(plaintext)+Overhead)
 
 	// Initialize the protocol.
 	hpke := protocol.New("veil.hpke")
@@ -152,15 +153,10 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 	// Key the protocol with the static shared secret.
 	hpke.KEY(zzS.Encode(buf[:0]))
 
-	// Decrypt the ephemeral public key.
-	qEb := hpke.RecvENC(buf[:0], ciphertext[:internal.ElementSize])
-
-	ciphertext = ciphertext[internal.ElementSize:]
-
-	// Decode the ephemeral public key. N.B.: this value has only been decrypted and not
+	// Decrypt and decode the ephemeral public key. N.B.: this value has only been decrypted and not
 	// authenticated.
 	qE := ristretto255.NewElement()
-	if err := qE.Decode(qEb); err != nil {
+	if err := qE.Decode(hpke.RecvENC(buf[:0], ciphertext[:internal.ElementSize])); err != nil {
 		return nil, err
 	}
 
@@ -171,8 +167,8 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 	// Key the protocol with the ephemeral shared secret.
 	hpke.KEY(zzE.Encode(buf[:0]))
 
-	// Decrypt the plaintext. N.B.: This has not been authenticated yet.
-	plaintext := hpke.RecvENC(dst, ciphertext[:len(ciphertext)-internal.TagSize])
+	// Decrypt the plaintext. N.B.: this value has only been decrypted and not authenticated.
+	plaintext := hpke.RecvENC(dst, ciphertext[internal.ElementSize:len(ciphertext)-internal.TagSize])
 
 	// Verify the MAC. This establishes authentication for the previous operations in their
 	// entirety, since the sender and receiver's protocol states must be identical in order for the
