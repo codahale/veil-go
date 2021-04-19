@@ -11,7 +11,17 @@
 //     AD(Q_s)
 //     ZZ_s = d_sQ_r
 //     KEY(ZZ_s)
-//     d_e = rand_scalar()
+//
+// The protocol's state is then cloned, the clone is keyed with 64 bytes of random data, the
+// sender's private key, and the message, and finally an ephemeral scalar is derived from PRF output:
+//
+//     KEY(rand(64))
+//     KEY(d_s)
+//     KEY(M)
+//     PRF(64) -> d_e
+//
+// The clone's state is discarded, and d_e is returned to the parent:
+//
 //     Q_e = d_eG
 //     SEND_ENC(Q_e) -> E
 //     ZZ_e = d_eQ_r
@@ -64,8 +74,13 @@
 // can forge ciphertexts which appear to be from a sender, but the forgeries will only be
 // decryptable by the forger, which somewhat limits their utility.
 //
+// In deriving the ephemeral scalar from a cloned context, veil.hpke uses Aranha et al's hedging
+// technique to mitigate against both catastrophic randomness failures and differential fault
+// attacks against purely deterministic PKE schemes.
+//
 // See https://eprint.iacr.org/2020/1499.pdf
 // See https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar3.pdf
+// See https://eprint.iacr.org/2019/956.pdf
 package hpke
 
 import (
@@ -105,13 +120,25 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	// Key the protocol with the static shared secret.
 	hpke.KEY(zzS.Encode(buf[:0]))
 
+	// Clone the protocol.
+	clone := hpke.Clone()
+
 	// Generate a random nonce.
 	if _, err := rand.Read(buf[:]); err != nil {
 		return nil, err
 	}
 
-	// Derive an ephemeral key pair from the nonce.
-	dE := ristretto255.NewScalar().FromUniformBytes(buf[:])
+	// Key the clone with the nonce.
+	clone.KEY(buf[:internal.UniformBytestringSize])
+
+	// Key the clone with the sender's private key.
+	clone.KEY(dS.Encode(buf[:0]))
+
+	// Key the clone with the message.
+	clone.KEY(plaintext)
+
+	// Derive an ephemeral key pair from the clone.
+	dE := clone.PRFScalar()
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
 	// Encrypt the ephemeral public key.

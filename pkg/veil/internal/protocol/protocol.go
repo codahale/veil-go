@@ -166,6 +166,10 @@ func (p *Protocol) SendCLRStream(dst io.Writer) io.Writer {
 	}
 }
 
+func (p *Protocol) Clone() *Protocol {
+	return &Protocol{s: p.s.Clone()}
+}
+
 func (p *Protocol) moreSendENC(dst, plaintext []byte) []byte {
 	ret, out := internal.SliceForAppend(dst, len(plaintext))
 	copy(out, plaintext)

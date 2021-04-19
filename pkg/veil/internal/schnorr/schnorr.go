@@ -13,7 +13,16 @@
 //     SEND_CLR(M_1, more=true)
 //     ...
 //     SEND_CLR(M_n, more=true)
-//     r = rand_scalar()
+//
+// The protocol's state is then cloned, the clone is keyed with 64 bytes of random data and the
+// signer's private key, an ephemeral scalar is derived from PRF output:
+//
+//     KEY(rand(64))
+//     KEY(d)
+//     PRF(64) -> r
+//
+// The clone's state is discarded, and r is returned to the parent:
+//
 //     R = rG
 //     AD(R)
 //     PRF(64) -> c
@@ -43,7 +52,12 @@
 // key (i.e., via veil.mres), the construction is isomorphic to Fleischhacker et al's DRPC compiler
 // for producing pseudorandom signatures, which are indistinguishable from random.
 //
+// In deriving the ephemeral scalar from a cloned context, veil.schnorr uses Aranha et al's "hedged
+// signature" technique to mitigate against both catastrophic randomness failures and differential
+// fault attacks against purely deterministic signature schemes.
+//
 // See https://eprint.iacr.org/2011/673.pdf
+// See https://eprint.iacr.org/2019/956.pdf
 package schnorr
 
 import (
@@ -83,13 +97,22 @@ func NewSigner(d *ristretto255.Scalar, q *ristretto255.Element) *Signer {
 func (sn *Signer) Sign() ([]byte, error) {
 	var buf [SignatureSize]byte
 
+	// Clone the protocol.
+	clone := sn.schnorr.Clone()
+
 	// Generate a random nonce.
 	if _, err := rand.Read(buf[:internal.UniformBytestringSize]); err != nil {
 		return nil, err
 	}
 
-	// Derive an ephemeral key pair from the nonce.
-	r := ristretto255.NewScalar().FromUniformBytes(buf[:internal.UniformBytestringSize])
+	// Key the clone with the nonce.
+	clone.KEY(buf[:internal.UniformBytestringSize])
+
+	// Key the clone with the signer's private key.
+	clone.KEY(sn.d.Encode(buf[:0]))
+
+	// Derive an ephemeral key pair from the clone.
+	r := clone.PRFScalar()
 	R := ristretto255.NewElement().ScalarBaseMult(r)
 
 	// Hash the ephemeral public key.
