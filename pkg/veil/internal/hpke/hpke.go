@@ -16,6 +16,11 @@
 //     SEND_ENC(Q_e) -> E
 //     ZZ_e = d_eQ_r
 //     KEY(ZZ_e)
+//
+// This is effectively an authenticated ECDH KEM, but instead of returning PRF output for use in a
+// DEM, we use the keyed protocol to directly encrypt the ciphertext and create an authentication
+// tag:
+//
 //     SEND_ENC(M) -> C
 //     SEND_MAC(N) -> T
 //
