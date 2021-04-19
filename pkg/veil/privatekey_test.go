@@ -61,7 +61,7 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	dec := bytes.NewBuffer(nil)
 	publicKeys := []*PublicKey{a.PublicKey("b"), b.PublicKey("a")}
 
-	eb, err := a.PrivateKey("b").Encrypt(enc, bytes.NewReader(message), publicKeys, 1234)
+	eb, err := a.PrivateKey("b").Encrypt(enc, bytes.NewReader(message), publicKeys, 0, 1234)
 	if err != nil {
 		t.Fatal(err)
 	}

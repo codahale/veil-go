@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
-	"github.com/codahale/veil/pkg/veil"
 )
 
 type encryptCmd struct {
@@ -29,14 +28,6 @@ func (cmd *encryptCmd) Run(_ *kong.Context) error {
 		return err
 	}
 
-	// Add fakes, if requested.
-	if cmd.Fakes > 0 {
-		recipients, err = veil.AddFakes(recipients, cmd.Fakes)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Open the plaintext input.
 	src, err := openInput(cmd.Plaintext)
 	if err != nil {
@@ -54,7 +45,7 @@ func (cmd *encryptCmd) Run(_ *kong.Context) error {
 	defer func() { _ = dst.Close() }()
 
 	// Encrypt the plaintext.
-	_, err = sk.PrivateKey(cmd.KeyID).Encrypt(dst, src, recipients, cmd.Padding)
+	_, err = sk.PrivateKey(cmd.KeyID).Encrypt(dst, src, recipients, cmd.Fakes, cmd.Padding)
 
 	return err
 }

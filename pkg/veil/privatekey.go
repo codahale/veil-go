@@ -1,8 +1,10 @@
 package veil
 
 import (
+	"crypto/rand"
 	"io"
 
+	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/mres"
 	"github.com/codahale/veil/pkg/veil/internal/scaldf"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
@@ -23,11 +25,30 @@ func (pk *PrivateKey) PublicKey() *PublicKey {
 // Encrypt encrypts the data from src such that all recipients will be able to decrypt and
 // authenticate it and writes the results to dst. Returns the number of bytes copied and the first
 // error reported while encrypting, if any.
-func (pk *PrivateKey) Encrypt(dst io.Writer, src io.Reader, recipients []*PublicKey, padding int) (int64, error) {
-	qRs := make([]*ristretto255.Element, len(recipients))
+func (pk *PrivateKey) Encrypt(
+	dst io.Writer, src io.Reader, recipients []*PublicKey, fakes, padding int,
+) (int64, error) {
+	var buf [internal.UniformBytestringSize]byte
 
+	qRs := make([]*ristretto255.Element, len(recipients)+fakes)
+
+	// Copy recipients.
 	for i, pk := range recipients {
 		qRs[i] = pk.q
+	}
+
+	// Add fakes.
+	for i := len(recipients); i < len(qRs); i++ {
+		if _, err := rand.Read(buf[:]); err != nil {
+			return 0, err
+		}
+
+		qRs[i] = ristretto255.NewElement().FromUniformBytes(buf[:])
+	}
+
+	// Shuffle the recipients to disguise any ordering information.
+	if err := shuffle(qRs); err != nil {
+		return 0, err
 	}
 
 	return mres.Encrypt(dst, src, pk.d, pk.q, qRs, padding)
@@ -73,4 +94,20 @@ func (pk *PrivateKey) Sign(src io.Reader) (*Signature, error) {
 	}
 
 	return &Signature{b: sig}, nil
+}
+
+// shuffle performs an in-place Fisher-Yates shuffle, using crypto/rand to pick indexes.
+func shuffle(keys []*ristretto255.Element) error {
+	for i := len(keys) - 1; i > 0; i-- {
+		// Randomly pick a card from the unshuffled deck.
+		j, err := internal.IntN(i + 1)
+		if err != nil {
+			return err
+		}
+
+		// Swap it with the current card.
+		keys[i], keys[j] = keys[j], keys[i]
+	}
+
+	return nil
 }
