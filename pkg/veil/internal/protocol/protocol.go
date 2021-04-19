@@ -117,7 +117,6 @@ func (p *Protocol) RecvCLR(data []byte) {
 }
 
 func (p *Protocol) SendENCStream(dst io.Writer) io.Writer {
-	// Prep the protocol for streaming encryption.
 	p.SendENC(nil, nil)
 
 	// Return a writer.
@@ -130,7 +129,6 @@ func (p *Protocol) SendENCStream(dst io.Writer) io.Writer {
 }
 
 func (p *Protocol) RecvENCStream(dst io.Writer) io.Writer {
-	// Prep the protocol for streaming encryption.
 	p.RecvENC(nil, nil)
 
 	// Return a writer.
