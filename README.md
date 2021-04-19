@@ -43,11 +43,13 @@ a STROBE protocol's state in a cryptographically secure manner–makes for much 
 guarantees that are easier to understand.
 
 Instead of combining a hash function and a digital signature algorithm, we have a single digital
-signature construction. Instead of combining a key exchange, a KDF, and an AEAD, we have a single
-key encapsulation mechanism. This integration bakes in logical dependencies on sent and received
+signature protocol. Instead of combining a key exchange, a KDF, and an AEAD, we have a single hybrid
+public key encryption protocol. This integration bakes in logical dependencies on sent and received
 data in a feed-forward mechanism, which removes it from the attackable surface area of the protocol.
+Because STROBE operations are cryptographically dependent on prior operations, the need for domain
+separation identifiers, padding, and framing is eliminated.
 
-Further, the use of STROBE means all protocols which include `RECV_MAC` calls are [compactly
+Finally, the use of STROBE means all protocols which end in `RECV_MAC` calls are [compactly
 committing](https://eprint.iacr.org/2019/016.pdf).
 
 ### Indistinguishable From Random Noise
