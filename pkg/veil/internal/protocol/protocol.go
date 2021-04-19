@@ -98,10 +98,6 @@ func (p *Protocol) SendMAC(dst []byte) []byte {
 }
 
 func (p *Protocol) RecvMAC(mac []byte) error {
-	if len(mac) != internal.TagSize {
-		return strobe.ErrAuthenticationFailed
-	}
-
 	m := make([]byte, len(mac))
 	copy(m, mac)
 
