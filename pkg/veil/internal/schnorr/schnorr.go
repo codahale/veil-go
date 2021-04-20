@@ -1,6 +1,6 @@
 // Package schnorr provides the underlying STROBE protocol for Veil's Schnorr signatures.
 //
-// Signing is as follows, given a message in blocks M_0...M_n, a private scalar d, and a public
+// Signing is as follows, given a message in blocks M_0…M_n, a private scalar d, and a public
 // element Q:
 //
 //     INIT('veil.schnorr', level=256)
@@ -8,7 +8,7 @@
 //     SEND_CLR('',  more=false)
 //     SEND_CLR(M_0, more=true)
 //     SEND_CLR(M_1, more=true)
-//     ...
+//     …
 //     SEND_CLR(M_n, more=true)
 //
 // The protocol's state is then cloned, the clone is keyed with 64 bytes of random data and the
@@ -27,7 +27,7 @@
 //
 // The resulting signature consists of the two scalars, c and s.
 //
-// To verify, veil.schnorr is run with associated data D, message in blocks M_0...M_n, a public
+// To verify, veil.schnorr is run with associated data D, message in blocks M_0…M_n, a public
 // element Q:
 //
 //     INIT('veil.schnorr', level=256)
@@ -35,7 +35,7 @@
 //     RECV_CLR('',  more=false)
 //     RECV_CLR(M_0, more=true)
 //     RECV_CLR(M_1, more=true)
-//     ...
+//     …
 //     RECV_CLR(M_n, more=true)
 //     R' = Q^-c + G^s
 //     AD(R')
