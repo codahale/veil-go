@@ -4,8 +4,8 @@
 // Encryption
 //
 // Encrypting a message is as follows, given the sender's key pair, d_s and Q_s, a message in blocks
-// M_0...M_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data encryption
-// key, K, a DEK size N_dek, and a tag size N_tag:
+// M_0…M_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data encryption key,
+// K, a DEK size N_dek, and a tag size N_tag:
 //
 //     INIT('veil.mres', level=256)
 //     AD(LE_32(N_dek),  meta=true)
@@ -15,14 +15,14 @@
 //     SEND_ENC('')
 //     SEND_ENC(M_0,     more=true)
 //     SEND_ENC(M_1,     more=true)
-//     ...
+//     …
 //     SEND_ENC(M_n,     more=true)
 //
 // Having encrypted the plaintext, an authentication tag is generated but not written:
 //
 //     SEND_MAC(N) -> T
 //
-// Next, footers consisting of K, T, and LE_64(len(M)) are encrypted for all recipient public keys
+// Next, footers consisting of T, K, and LE_64(len(M)) are encrypted for all recipient public keys
 // using veil.hpke. Random padding is prepended to the concatenated encrypted footers, and the block
 // F is sent as cleartext:
 //
@@ -46,9 +46,9 @@
 // the end of C), then seeks backwards by the length of an encrypted footer, reading each encrypted
 // footer and attempting to decrypt it via veil.hpke.
 //
-// Once they find a footer which can be decrypted, they recover the DEK, the ciphertext
-// authentication tag T, and the message offset. They then seek to the beginning of C and run the
-// inverse of the encryption protocol:
+// Once they find a footer which can be decrypted, they recover the ciphertext authentication tag T,
+// the DEK, and the message offset. They then seek to the beginning of C and run the inverse of the
+// encryption protocol:
 //
 //     INIT('veil.mres', level=256)
 //     AD(LE_32(N_dek),  meta=true)
@@ -58,7 +58,7 @@
 //     RECV_ENC('')
 //     RECV_ENC(C_0,     more=true)
 //     RECV_ENC(C_1,     more=true)
-//     ...
+//     …
 //     RECV_ENC(C_n,     more=true)
 //     RECV_MAC(T)
 //     RECV_CLR(F)
@@ -146,11 +146,8 @@ func Encrypt(
 	dst io.Writer, src io.Reader, dS *ristretto255.Scalar, qS *ristretto255.Element,
 	qRs []*ristretto255.Element, padding int,
 ) (int64, error) {
-	// Create a buffer for the footer.
-	footer := make([]byte, footerSize)
-
-	// Generate a DEK at the start of the footer.
-	dek := footer[:dekSize]
+	// Generate a DEK.
+	dek := make([]byte, dekSize)
 	if _, err := rand.Read(dek); err != nil {
 		return 0, fmt.Errorf("error generating DEK: %w", err)
 	}
@@ -164,11 +161,12 @@ func Encrypt(
 		return written, err
 	}
 
-	// Send a MAC of the ciphertext and add it to the middle of the footer.
-	mres.SendMAC(footer[:dekSize])
+	// Create a MAC of the ciphertext.
+	mac := mres.SendMAC(nil)
 
-	// Add the message length to the end of the footer.
-	binary.LittleEndian.PutUint64(footer[dekSize+internal.TagSize:], uint64(written))
+	// Encode the message length as a 64-bit little endian integer.
+	msgSize := make([]byte, 8)
+	binary.LittleEndian.PutUint64(msgSize, uint64(written))
 
 	// Create a new signer for the encrypted footers.
 	signer := schnorr.NewSigner(dS, qS)
@@ -183,7 +181,8 @@ func Encrypt(
 	}
 
 	// Create a buffer for the encrypted footers.
-	encFooter := make([]byte, len(footer)+hpke.Overhead)
+	footer := [][]byte{mac, dek, msgSize}
+	encFooter := make([]byte, dekSize+internal.TagSize+8+hpke.Overhead)
 
 	// Encrypt, sign, and writes copies of the footer.
 	for _, qR := range qRs {
@@ -231,6 +230,11 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		dek, ctMac []byte
 		messageEnd int64
 		footer     = make([]byte, encryptedFooterSize)
+		footerDec  = [][]byte{
+			make([]byte, internal.TagSize),
+			make([]byte, dekSize),
+			make([]byte, 8),
+		}
 	)
 
 	for {
@@ -252,16 +256,16 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		}
 
 		// Try to decrypt the footer.
-		plaintext, err := hpke.Decrypt(footer[:0], dR, qR, qS, footer)
+		plaintext, err := hpke.Decrypt(footerDec, dR, qR, qS, footer)
 		if err != nil {
 			// If we can't, try the next possibility.
 			continue
 		}
 
-		// Decode the DEK and the message length.
-		dek = plaintext[:dekSize]
-		ctMac = plaintext[dekSize : dekSize+internal.TagSize]
-		messageEnd = int64(binary.LittleEndian.Uint64(plaintext[dekSize+internal.TagSize:]))
+		// Unpack the footer contents.
+		ctMac = plaintext[0]
+		dek = plaintext[1]
+		messageEnd = int64(binary.LittleEndian.Uint64(plaintext[2]))
 
 		// Go back the beginning of the input.
 		if _, err := src.Seek(0, io.SeekStart); err != nil {

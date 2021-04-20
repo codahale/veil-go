@@ -12,14 +12,12 @@ import (
 func TestRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	message := []byte("hello this is dog")
-
 	ciphertext, err := Encrypt(nil, dS, qS, qR, message)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	plaintext, err := Decrypt(nil, dR, qR, qS, ciphertext)
+	plaintext, err := Decrypt(newDst(), dR, qR, qS, ciphertext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,8 +28,6 @@ func TestRoundTrip(t *testing.T) {
 func TestWrongPrivateKey(t *testing.T) {
 	t.Parallel()
 
-	message := []byte("hello this is dog")
-
 	ciphertext, err := Encrypt(nil, dS, qS, qR, message)
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +35,7 @@ func TestWrongPrivateKey(t *testing.T) {
 
 	dX := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0x69}, internal.UniformBytestringSize))
 
-	if _, err := Decrypt(nil, dX, qR, qS, ciphertext); err == nil {
+	if _, err := Decrypt(newDst(), dX, qR, qS, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -47,8 +43,6 @@ func TestWrongPrivateKey(t *testing.T) {
 func TestWrongPublicKey(t *testing.T) {
 	t.Parallel()
 
-	message := []byte("hello this is dog")
-
 	ciphertext, err := Encrypt(nil, dS, qS, qR, message)
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +50,7 @@ func TestWrongPublicKey(t *testing.T) {
 
 	qX := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x69}, internal.UniformBytestringSize))
 
-	if _, err := Decrypt(nil, dR, qX, qS, ciphertext); err == nil {
+	if _, err := Decrypt(newDst(), dR, qX, qS, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -64,8 +58,6 @@ func TestWrongPublicKey(t *testing.T) {
 func TestWrongSenderKey(t *testing.T) {
 	t.Parallel()
 
-	message := []byte("hello this is dog")
-
 	ciphertext, err := Encrypt(nil, dS, qS, qR, message)
 	if err != nil {
 		t.Fatal(err)
@@ -73,15 +65,13 @@ func TestWrongSenderKey(t *testing.T) {
 
 	qX := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x69}, internal.UniformBytestringSize))
 
-	if _, err := Decrypt(nil, dR, qR, qX, ciphertext); err == nil {
+	if _, err := Decrypt(newDst(), dR, qR, qX, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
 
 func TestBadEphemeralKey(t *testing.T) {
 	t.Parallel()
-
-	message := []byte("hello this is dog")
 
 	ciphertext, err := Encrypt(nil, dS, qS, qR, message)
 	if err != nil {
@@ -90,15 +80,13 @@ func TestBadEphemeralKey(t *testing.T) {
 
 	ciphertext[0] ^= 1
 
-	if _, err := Decrypt(nil, dR, qR, qS, ciphertext); err == nil {
+	if _, err := Decrypt(newDst(), dR, qR, qS, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
 
 func TestBadCiphertext(t *testing.T) {
 	t.Parallel()
-
-	message := []byte("hello this is dog")
 
 	ciphertext, err := Encrypt(nil, dS, qS, qR, message)
 	if err != nil {
@@ -107,15 +95,13 @@ func TestBadCiphertext(t *testing.T) {
 
 	ciphertext[internal.ElementSize+5] ^= 1
 
-	if _, err := Decrypt(nil, dR, qR, qS, ciphertext); err == nil {
+	if _, err := Decrypt(newDst(), dR, qR, qS, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
 
 func TestBadMAC(t *testing.T) {
 	t.Parallel()
-
-	message := []byte("hello this is dog")
 
 	ciphertext, err := Encrypt(nil, dS, qS, qR, message)
 	if err != nil {
@@ -124,29 +110,34 @@ func TestBadMAC(t *testing.T) {
 
 	ciphertext[len(ciphertext)-4] ^= 1
 
-	if _, err := Decrypt(nil, dR, qR, qS, ciphertext); err == nil {
+	if _, err := Decrypt(newDst(), dR, qR, qS, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
 
 func BenchmarkEncrypt(b *testing.B) {
-	message := []byte("hello this is dog")
-
 	for i := 0; i < b.N; i++ {
 		_, _ = Encrypt(nil, dS, qS, qR, message)
 	}
 }
 
 func BenchmarkDecrypt(b *testing.B) {
-	message := []byte("hello this is dog")
-
 	ciphertext, err := Encrypt(nil, dS, qS, qR, message)
 	if err != nil {
 		b.Fatal(err)
 	}
 
+	dst := newDst()
+
 	for i := 0; i < b.N; i++ {
-		_, _ = Decrypt(nil, dR, qR, qS, ciphertext)
+		_, _ = Decrypt(dst, dR, qR, qS, ciphertext)
+	}
+}
+
+func newDst() [][]byte {
+	return [][]byte{
+		make([]byte, len(message[0])),
+		make([]byte, len(message[1])),
 	}
 }
 
@@ -156,4 +147,6 @@ var (
 	qS = ristretto255.NewElement().ScalarBaseMult(dS)
 	dR = ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0x22}, internal.UniformBytestringSize))
 	qR = ristretto255.NewElement().ScalarBaseMult(dR)
+
+	message = [][]byte{[]byte("hello this is dog"), []byte("ok then")}
 )
