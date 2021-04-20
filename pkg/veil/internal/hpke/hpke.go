@@ -86,6 +86,15 @@
 // In deriving the ephemeral scalar from a cloned context, veil.hpke uses Aranha et al.'s hedging
 // technique (https://eprint.iacr.org/2019/956.pdf) to mitigate against both catastrophic randomness
 // failures and differential fault attacks against purely deterministic PKE schemes.
+//
+// Anonymity
+//
+// veil.hpke is IK-CCA (per Bellare, https://iacr.org/archive/asiacrypt2001/22480568.pdf), in that
+// it is impossible for an attacker in possession of two public keys to determine which of the two
+// keys a given ciphertext was encrypted with in either chosen-plaintext or chosen-ciphertext
+// attacks. Informally, veil.hpke ciphertexts consist exclusively of STROBE ciphertext and PRF
+// output; an attacker being able to distinguish between ciphertexts based on keying material would
+// imply STROBE is not IND-CCA2.
 package hpke
 
 import (
