@@ -86,12 +86,16 @@ private key is compromised, the messages they sent remain confidential), as well
 property of sending no values in cleartext: the ephemeral public key is encrypted with the static
 shared secret before sending.
 
+Plaintexts are sequences of byte arrays, which allows `veil.hpke` to push message content boundaries
+into the STROBE protocol. If decryption is attempted with different message boundaries, it will fail
+to authenticate.
+
 #### `veil.mres`
 
 `veil.mres` implements the multi-recipient encryption system for encrypted Veil messages. Messages
-are encrypted with a random DEK, and copies of the DEK and a MAC of the ciphertext are encrypted in
-footers with `veil.hpke`. Random padding can be prepended to the footers to obscure the actual
-message length, and a `veil.schnorr` signature keyed with the DEK of the encrypted footers is
+are encrypted with a random DEK, and copies of the MAC, the DEK, and the message length are
+encrypted in footers with `veil.hpke`. Random padding can be prepended to the footers to obscure the
+actual message length, and a `veil.schnorr` signature keyed with the DEK of the encrypted footers is
 appended to the end.
 
 To decrypt, readers seek backwards in the ciphertext, looking for a decryptable footer. Having found
