@@ -55,7 +55,7 @@
 //
 // Ephemeral Scalar Hedging
 //
-// In deriving the ephemeral scalar from a cloned context, veil.schnorr uses Aranha et al.s "hedged
+// In deriving the ephemeral scalar from a cloned context, veil.schnorr uses Aranha et al.'s "hedged
 // signature" technique (https://eprint.iacr.org/2019/956.pdf) to mitigate against both catastrophic
 // randomness failures and differential fault attacks against purely deterministic signature
 // schemes.

@@ -66,6 +66,15 @@
 // passive adversary scanning for encoded elements would first need the parties' static
 // Diffie-Hellman secret in order to distinguish messages from random noise.
 //
+// IK-CCA Security
+//
+// veil.hpke is IK-CCA (per Bellare, https://iacr.org/archive/asiacrypt2001/22480568.pdf), in that
+// it is impossible for an attacker in possession of two public keys to determine which of the two
+// keys a given ciphertext was encrypted with in either chosen-plaintext or chosen-ciphertext
+// attacks. Informally, veil.hpke ciphertexts consist exclusively of STROBE ciphertext and PRF
+// output; an attacker being able to distinguish between ciphertexts based on keying material would
+// imply STROBE's AEAD construction is not IND-CCA2.
+//
 // Forward Sender Security
 //
 // Because the ephemeral private key is discarded after encryption, a compromise of the sender's
@@ -86,15 +95,6 @@
 // In deriving the ephemeral scalar from a cloned context, veil.hpke uses Aranha et al.'s hedging
 // technique (https://eprint.iacr.org/2019/956.pdf) to mitigate against both catastrophic randomness
 // failures and differential fault attacks against purely deterministic PKE schemes.
-//
-// Anonymity
-//
-// veil.hpke is IK-CCA (per Bellare, https://iacr.org/archive/asiacrypt2001/22480568.pdf), in that
-// it is impossible for an attacker in possession of two public keys to determine which of the two
-// keys a given ciphertext was encrypted with in either chosen-plaintext or chosen-ciphertext
-// attacks. Informally, veil.hpke ciphertexts consist exclusively of STROBE ciphertext and PRF
-// output; an attacker being able to distinguish between ciphertexts based on keying material would
-// imply STROBE is not IND-CCA2.
 package hpke
 
 import (

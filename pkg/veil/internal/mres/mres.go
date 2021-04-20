@@ -79,15 +79,16 @@
 //
 // Outsider Authenticity
 //
-// Per prior analysis of the proposed HPKE specification, veil.mres should be security against
+// Per prior analysis of the proposed HPKE specification, veil.mres should be secure against
 // outsider forgery attacks. Creating valid footers without the sender's private key would imply
 // veil.hpke is not IND-CCA2 secure, and creating valid message ciphertexts and MACs without the DEK
-// would imply STROBE is not IND-CCA2 secure (https://eprint.iacr.org/2017/003.pdf, section 5.1).
+// would imply STROBE's AEAD construction is not IND-CCA2 secure
+// (https://eprint.iacr.org/2017/003.pdf, section 5.1).
 //
 // Insider Authenticity
 //
 // In contrast to most HPKE constructions, veil.mres provides insider authenticity against the
-// DEM-reuse attack Alwen et. al detail in Section 5.4:
+// DEM-reuse attack Alwen et al. detail in Section 5.4:
 //
 //     We can show that for any AKEM, KS, and AEAD, the construction APKE[AKEM,KS, AEAD] given in
 //     Listing 8 is not (n,qe,qd)-Insider-Auth secure. The inherent reason for this construction to
@@ -118,7 +119,8 @@
 // signature, but cannot confirm that the encrypted footers contain the DEK or that the message is
 // from the sender, only that the sender created a message with those encrypted footers.
 // Technically, this is a looser guarantee of repudiability, but practically the sender is only
-// unable to repudiate a set of IND-CCA2 secure ciphertexts.
+// unable to repudiate a set of IND-CCA2 secure ciphertexts. Unlike the Sign-then-Encrypt
+// construction, a recipient is unable to present a decrypted, signed message to third parties.
 package mres
 
 import (
