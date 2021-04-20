@@ -2,6 +2,8 @@
 // encryption system. Unlike traditional HPKE constructions, this does not have separate KEM/DEM
 // components or a specific derived DEK.
 //
+// Encryption
+//
 // Encryption is as follows, given the sender's key pair, d_s and Q_s, the receiver's public key,
 // Q_r, a plaintext message M, and tag size N:
 //
@@ -34,6 +36,8 @@
 //     SEND_ENC(M) -> C
 //     SEND_MAC(N) -> T
 //
+// Decryption
+//
 // Decryption is then the inverse of encryption, given the recipient's key pair, d_r and Q_r, and
 // the sender's public key Q_s:
 //
@@ -51,36 +55,37 @@
 //
 // If the RECV_MAC call is successful, the plaintext message M is returned.
 //
-// As a One-Pass Unified Model C(1e, 2s, ECC CDH) key agreement scheme (per NIST SP 800-56A),
-// veil.hpke provides authenticity as well as confidentiality. XDH mutability issues are mitigated
-// by the inclusion of the ephemeral public key and the recipient's public key in the inputs, and
-// deriving the key from all data sent or received adds key-commitment with all public keys as
-// openers.
+// IND-CCA2 Security
 //
-// Unlike C(0e, 2s) schemes (e.g. NaCl's box construction), veil.hpke provides forward security for
-// the sender. If the sender's private key is compromised, the most an attacker can discover about
-// previously sent messages is the ephemeral public key, not the message itself.
+// This construction is, essentially, the AuthEncap construction from HPKE
+// (https://tools.ietf.org/html/draft-irtf-cfrg-hpke-08#section-4.1), with the ephemeral public key
+// being encrypted with the static shared key via AEAD, and the plaintext encrypted with both
+// ephemeral and static shared keys via AEAD. As a result, the analysis by Alwen et al.
+// (https://eprint.iacr.org/2020/1499.pdf) and Lipp (https://eprint.iacr.org/2020/243.pdf) indicates
+// this construction provides IND-CCA2 security in the multi-user setting. Unlike HPKE, however, a
+// passive adversary scanning for encoded elements would first need the parties' static
+// Diffie-Hellman secret in order to distinguish messages from random noise.
 //
-// Unlike C(1e, 1s) schemes (e.g. IES), veil.hpke is implicitly authenticated. This property is
-// useful, as it allows for readers to confirm the sender's identity before beginning to decrypt the
-// message or verify its signature. It also means the ciphertext is not decryptable without
-// knowledge of the sender's public key.
+// Forward Sender Security
 //
-// Unlike other C(1e, 2s) models (e.g. draft-barnes-cfrg-hpke-01's AuthEncap), veil.hpke does not
-// require the transmission of ephemeral elements in cleartext. A passive adversary scanning for
-// encoded elements would first need the parties' static Diffie-Hellman secret.
+// Because the ephemeral private key is discarded after encryption, a compromise of the sender's
+// private key will not compromise previously-created ciphertexts. If the sender's private key is
+// compromised, the most an attacker can discover about previously sent messages is the ephemeral
+// public key, not the message itself.
 //
-// This construction is not secure against insider attacks, nor is it intended to be. A recipient
-// can forge ciphertexts which appear to be from a sender, but the forgeries will only be
-// decryptable by the forger, which somewhat limits their utility.
+// Insider Authenticity
 //
-// In deriving the ephemeral scalar from a cloned context, veil.hpke uses Aranha et al's hedging
-// technique to mitigate against both catastrophic randomness failures and differential fault
-// attacks against purely deterministic PKE schemes.
+// This construction is not secure against insider attacks on authenticity, nor is it intended to
+// be. A recipient can forge ciphertexts which appear to be from a sender by re-using the ephemeral
+// public key and encrypting an alternate plaintext, but the forgeries will only be decryptable by
+// the forger, which limits their utility, and because this type of forgery is possible, veil.hpke
+// ciphertexts are therefore repudiable.
 //
-// See https://eprint.iacr.org/2020/1499.pdf
-// See https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar3.pdf
-// See https://eprint.iacr.org/2019/956.pdf
+// Ephemeral Key Hedging
+//
+// In deriving the ephemeral scalar from a cloned context, veil.hpke uses Aranha et al.'s hedging
+// technique (https://eprint.iacr.org/2019/956.pdf) to mitigate against both catastrophic randomness
+// failures and differential fault attacks against purely deterministic PKE schemes.
 package hpke
 
 import (

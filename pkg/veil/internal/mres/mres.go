@@ -1,11 +1,7 @@
 // Package mres provides the underlying STROBE protocol for Veil's multi-recipient encryption
-// system. This scheme provides streaming, authenticated, multi-recipient public key encryption with
-// the following benefits:
+// system.
 //
-// * Confidentiality and authenticity.
-// * Forward secrecy for the sender.
-// * Anonymity for recipients.
-// * Repudiability unless a recipient reveals their private key.
+// Encryption
 //
 // Encrypting a message is as follows, given the sender's key pair, d_s and Q_s, a message in blocks
 // M_0...M_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data encryption
@@ -43,6 +39,8 @@
 //    and the message length) with random padding prepended.
 // 3. An encrypted signature of the encrypted footers.
 //
+// Decryption
+//
 // Decryption is as follows, given the recipient's key pair, d_r and Q_r, the sender's public key,
 // Q_s, and a ciphertext in blocks C_0..C_n. First, the recipient seeks to the end of the ciphertext
 // and then backwards by N bytes. Second, they seek backwards and read each possible encrypted
@@ -66,16 +64,28 @@
 //
 // Finally, the signature S is verified against the received footers F.
 //
-// Borrowing Alwen et. al's analysis of the proposed HPKE specification, this construction is
-// intended to provide privacy and authenticity under both outsider and insider attacks. For a
-// single recipient, the construction is similar to the proposed HPKE specification, if the
-// authentication tag were sent in the clear as part of a traditional EtM AEAD design, and thus can
-// be assumed to have similar privacy properties for outsider and insider attacks. Similarly,
-// they show outsider authenticity to depend on the AKEM's Outsider-CCA/Outsider-Auth properties
-// combined with the AEAD's IND-CTXT property, which veil.mres also provides.
+// Insider And Outsider Privacy
 //
-// In contrast to the proposed HPKE specification, veil.mres protects against the DEM-reuse attack
-// Alwen et. al detail in Section 5.4:
+// Borrowing An et al.'s notions of outsider and insider security
+// (https://www.iacr.org/archive/eurocrypt2002/23320080/adr.pdf), this construction is intended to
+// provide both privacy under both outsider and insider attacks. For a single recipient, the
+// construction is similar to the proposed HPKE specification
+// (https://tools.ietf.org/html/draft-irtf-cfrg-hpke-08), if the authentication tag were sent in the
+// clear as part of a traditional EtM AEAD design, and thus can be assumed to have similar privacy
+// properties for outsider and insider attacks (see Alwen et al.,
+// https://eprint.iacr.org/2020/1499.pdf and Lipp https://eprint.iacr.org/2020/243.pdf).
+//
+// Outsider Authenticity
+//
+// Per prior analysis of the proposed HPKE specification, veil.mres should be security against
+// outsider forgery attacks. Creating valid footers without the sender's private key would imply
+// veil.hpke is not IND-CCA2 secure, and creating valid message ciphertexts and MACs without the DEK
+// would imply STROBE is not IND-CCA2 secure (https://eprint.iacr.org/2017/003.pdf, section 5.1).
+//
+// Insider Authenticity
+//
+// In contrast to most HPKE constructions, veil.mres provides insider authenticity against the
+// DEM-reuse attack Alwen et. al detail in Section 5.4:
 //
 //     We can show that for any AKEM, KS, and AEAD, the construction APKE[AKEM,KS, AEAD] given in
 //     Listing 8 is not (n,qe,qd)-Insider-Auth secure. The inherent reason for this construction to
@@ -84,29 +94,29 @@
 //     encryption of any other message.
 //
 // Veil's lack of framing data means that recipients don't know the actual ciphertext before they
-// begin attempting to decrypt footers, so an existing construction like Tag-AKEM can't be used.
-// Instead, veil.mres includes a MAC of the DEM ciphertext along with the DEK as plaintext for
-// veil.hpke. An insider attempting to re-use the encrypted footers with a forged DEM ciphertext
-// will be foiled by recipients checking the recovered MAC from the footer against the ersatz DEM
-// ciphertext.
+// begin attempting to decrypt footers, so an existing construction like Tag-AKEM (see
+// https://eprint.iacr.org/2005/027.pdf) can't be used. Instead, veil.mres includes a MAC of the DEM
+// ciphertext along with the DEK as plaintext for veil.hpke, thereby making the KEM ciphertexts
+// dependent on the message. An insider attempting to re-use the encrypted footers with a forged DEM
+// ciphertext will be foiled by recipients checking the recovered MAC from the footer against the
+// ersatz DEM ciphertext.
 //
-// The remaining piece of veil.mres ciphertext to protect are the footers encrypted for other
-// recipients. The signature of the encrypted footers assures their authenticity, the authenticity
-// of the DEK/MAC, and thus the authenticity of the message, but cannot be verified without the DEK,
-// or even distinguished from random noise.
-//
-// Further, if the DEK is revealed, third parties will be able to decrypt the message and verify the
-// signature, but cannot confirm that the encrypted footers contain the DEK or that the message is
-// from the sender, only that the sender created a message with those encrypted footers.
+// The remaining piece of veil.mres ciphertext to protect is the set of footers which are encrypted
+// for other recipients. The signature of the encrypted footers assures their authenticity, the
+// authenticity of the DEK/MAC, and thus the authenticity of the message, but cannot be verified
+// without the DEK, or even distinguished from random noise.
 //
 // In terms of logical dependencies, the DEM ciphertext depends on the message and the DEK, the
 // footer ciphertexts depend on the DEK and the DEM ciphertext, and the final signature depends on
 // the DEK and the footer ciphertexts.
 //
-// See https://eprint.iacr.org/2020/1499.pdf
-// See https://www.cc.gatech.edu/~aboldyre/papers/bbks.pdf
-// See http://www.cogentcryptography.com/papers/inner.pdf
-// See http://www.cogentcryptography.com/papers/outer.pdf
+// Repudiability
+//
+// If the DEK is revealed, third parties will be able to decrypt the message and verify the
+// signature, but cannot confirm that the encrypted footers contain the DEK or that the message is
+// from the sender, only that the sender created a message with those encrypted footers.
+// Technically, this is a looser guarantee of repudiability, but practically the sender is only
+// unable to repudiate a set of IND-CCA2 secure ciphertexts.
 package mres
 
 import (

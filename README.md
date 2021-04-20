@@ -116,7 +116,7 @@ non-uniform values. Veil uses them to derive private keys and label scalars.
 #### `veil.schnorr`
 
 `veil.schnorr` implements a fully integrated Schnorr signature algorithm over ristretto255, as
-described by [Fleischhacker et al](https://eprint.iacr.org/2011/673.pdf). It produces
+described by [Fleischhacker et al.](https://eprint.iacr.org/2011/673.pdf). It produces
 _indistinguishable_ signatures (i.e., signatures which do not reveal anything about the signing key
 or signed message) and when encrypted with an unrelated key (i.e. by `veil.mres`) are _pseudorandom_
 (i.e. indistinguishable from random noise).

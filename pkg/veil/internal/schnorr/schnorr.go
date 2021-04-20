@@ -1,8 +1,5 @@
 // Package schnorr provides the underlying STROBE protocol for Veil's Schnorr signatures.
 //
-// It creates signatures which are indistinguishable per Fleischhacker et al, which is to say that
-// no information about the signing key or message can be recovered from the signature.
-//
 // Signing is as follows, given a message in blocks M_0...M_n, a private scalar d, and a public
 // element Q:
 //
@@ -47,17 +44,21 @@
 // Finally, the verifier compares c' == c. If the two scalars are equivalent, the signature is
 // valid.
 //
+// Indistinguishability and Pseudorandomness
+//
 // This construction integrates message hashing with signature creation/validation, binds the
-// signer's identity, and produces indistinguishable signatures. When encrypted with an unrelated
-// key (i.e., via veil.mres), the construction is isomorphic to Fleischhacker et al's DRPC compiler
-// for producing pseudorandom signatures, which are indistinguishable from random.
+// signer's identity, and produces indistinguishable signatures (i.e., signatures which do not
+// reveal anything about the signing key or signed message). When encrypted with an unrelated key
+// (i.e., via veil.mres), the construction is isomorphic to Fleischhacker et al.'s DRPC compiler for
+// producing pseudorandom signatures (https://eprint.iacr.org/2011/673.pdf), which are
+// indistinguishable from random.
 //
-// In deriving the ephemeral scalar from a cloned context, veil.schnorr uses Aranha et al's "hedged
-// signature" technique to mitigate against both catastrophic randomness failures and differential
-// fault attacks against purely deterministic signature schemes.
+// Ephemeral Scalar Hedging
 //
-// See https://eprint.iacr.org/2011/673.pdf
-// See https://eprint.iacr.org/2019/956.pdf
+// In deriving the ephemeral scalar from a cloned context, veil.schnorr uses Aranha et al.s "hedged
+// signature" technique (https://eprint.iacr.org/2019/956.pdf) to mitigate against both catastrophic
+// randomness failures and differential fault attacks against purely deterministic signature
+// schemes.
 package schnorr
 
 import (
