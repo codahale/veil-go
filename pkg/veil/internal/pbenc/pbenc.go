@@ -3,38 +3,38 @@
 // The protocol is initialized as follows, given a passphrase P, salt S, delta constant D, space
 // parameter X, time parameter Y, block size N, and tag size T:
 //
-//     INIT('veil.kdf.balloon',  level=256)
-//     AD(LE_U32(D), meta=true)
-//     AD(LE_U32(N), meta=true)
-//     AD(LE_U32(T), meta=true)
-//     AD(LE_U32(X), meta=true)
-//     AD(LE_U32(Y), meta=true)
-//     KEY(P)
-//     AD(S)
+//  INIT('veil.kdf.balloon',  level=256)
+//  AD(LE_U32(D), meta=true)
+//  AD(LE_U32(N), meta=true)
+//  AD(LE_U32(T), meta=true)
+//  AD(LE_U32(X), meta=true)
+//  AD(LE_U32(Y), meta=true)
+//  KEY(P)
+//  AD(S)
 //
 // Then, for each iteration of the balloon hashing algorithm, given a counter C, a left block L, and
 // a right block R:
 //
-//     AD(LE_U64(C))
-//     AD(L)
-//     AD(R)
-//     PRF(N)
+//  AD(LE_U64(C))
+//  AD(L)
+//  AD(R)
+//  PRF(N)
 //
 // The final block B_n of the balloon hashing algorithm is then used to key the protocol:
 //
-//     KEY(B_n)
+//  KEY(B_n)
 //
 // Encryption of a message M is as follows:
 //
-//     SEND_ENC(M)
-//     SEND_MAC(T)
+//  SEND_ENC(M)
+//  SEND_MAC(T)
 //
 // The ciphertext C and tag T are returned.
 //
 // Decryption of a ciphertext C and tag T is as follows:
 //
-//     RECV_ENC(C)
-//     RECV_MAC(T)
+//  RECV_ENC(C)
+//  RECV_MAC(T)
 //
 // If the RECV_MAC call is successful, the plaintext is returned.
 //

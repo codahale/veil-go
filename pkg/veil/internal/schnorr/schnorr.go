@@ -3,43 +3,43 @@
 // Signing is as follows, given a message in blocks M_0…M_n, a private scalar d, and a public
 // element Q:
 //
-//     INIT('veil.schnorr', level=256)
-//     AD(Q)
-//     SEND_CLR('',  more=false)
-//     SEND_CLR(M_0, more=true)
-//     SEND_CLR(M_1, more=true)
-//     …
-//     SEND_CLR(M_n, more=true)
+//  INIT('veil.schnorr', level=256)
+//  AD(Q)
+//  SEND_CLR('',  more=false)
+//  SEND_CLR(M_0, more=true)
+//  SEND_CLR(M_1, more=true)
+//  …
+//  SEND_CLR(M_n, more=true)
 //
 // The protocol's state is then cloned, the clone is keyed with 64 bytes of random data and the
 // signer's private key, an ephemeral scalar is derived from PRF output:
 //
-//     KEY(rand(64))
-//     KEY(d)
-//     PRF(64) -> r
+//  KEY(rand(64))
+//  KEY(d)
+//  PRF(64) -> r
 //
 // The clone's state is discarded, and r is returned to the parent:
 //
-//     R = G^r
-//     AD(R)
-//     PRF(64) -> c
-//     s = d_s*c + r
+//  R = G^r
+//  AD(R)
+//  PRF(64) -> c
+//  s = d_s*c + r
 //
 // The resulting signature consists of the two scalars, c and s.
 //
 // To verify, veil.schnorr is run with associated data D, message in blocks M_0…M_n, a public
 // element Q:
 //
-//     INIT('veil.schnorr', level=256)
-//     AD(Q)
-//     RECV_CLR('',  more=false)
-//     RECV_CLR(M_0, more=true)
-//     RECV_CLR(M_1, more=true)
-//     …
-//     RECV_CLR(M_n, more=true)
-//     R' = Q^-c + G^s
-//     AD(R')
-//     PRF(64) -> c'
+//  INIT('veil.schnorr', level=256)
+//  AD(Q)
+//  RECV_CLR('',  more=false)
+//  RECV_CLR(M_0, more=true)
+//  RECV_CLR(M_1, more=true)
+//  …
+//  RECV_CLR(M_n, more=true)
+//  R' = Q^-c + G^s
+//  AD(R')
+//  PRF(64) -> c'
 //
 // Finally, the verifier compares c' == c. If the two scalars are equivalent, the signature is
 // valid.

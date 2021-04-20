@@ -8,40 +8,40 @@
 // Encryption is as follows, given the sender's key pair, d_s and Q_s, the receiver's public key,
 // Q_r, a plaintext message M_0…M_n, and tag size N:
 //
-//     INIT('veil.hpke', level=256)
-//     AD(LE_U32(N),     meta=true)
-//     AD(Q_r)
-//     AD(Q_s)
-//     ZZ_s = Q_r^d_s
-//     KEY(ZZ_s)
+//  INIT('veil.hpke', level=256)
+//  AD(LE_U32(N),     meta=true)
+//  AD(Q_r)
+//  AD(Q_s)
+//  ZZ_s = Q_r^d_s
+//  KEY(ZZ_s)
 //
 // The protocol's state is then cloned, the clone is keyed with 64 bytes of random data, the
 // sender's private key, and the message, and finally an ephemeral scalar is derived from PRF output:
 //
-//     KEY(rand(64))
-//     KEY(d_s)
-//     KEY(M_0)
-//     KEY(M_1)
-//     …
-//     KEY(M_n)
-//     PRF(64) -> d_e
+//  KEY(rand(64))
+//  KEY(d_s)
+//  KEY(M_0)
+//  KEY(M_1)
+//  …
+//  KEY(M_n)
+//  PRF(64) -> d_e
 //
 // The clone's state is discarded, and d_e is returned to the parent:
 //
-//     Q_e = G^d_e
-//     SEND_ENC(Q_e) -> E
-//     ZZ_e = Q_r^d_e
-//     KEY(ZZ_e)
+//  Q_e = G^d_e
+//  SEND_ENC(Q_e) -> E
+//  ZZ_e = Q_r^d_e
+//  KEY(ZZ_e)
 //
 // This is effectively an authenticated ECDH KEM, but instead of returning PRF output for use in a
 // DEM, we use the keyed protocol to directly encrypt the ciphertext and create an authentication
 // tag:
 //
-//     SEND_ENC(M_0) -> C_0
-//     SEND_ENC(M_1) -> C_1
-//     …
-//     SEND_ENC(M_n) -> C_n
-//     SEND_MAC(N) -> T
+//  SEND_ENC(M_0) -> C_0
+//  SEND_ENC(M_1) -> C_1
+//  …
+//  SEND_ENC(M_n) -> C_n
+//  SEND_MAC(N) -> T
 //
 // The resulting ciphertext is the concatenation of C_0…C_n and T.
 //
@@ -50,20 +50,20 @@
 // Decryption is then the inverse of encryption, given the recipient's key pair, d_r and Q_r, and
 // the sender's public key Q_s:
 //
-//     INIT('veil.hpke', level=256)
-//     AD(LE_U32(N),     meta=true)
-//     AD(Q_r)
-//     AD(Q_s)
-//     ZZ_s = Q_s^d_r
-//     KEY(ZZ_s)
-//     RECV_ENC(E) -> Q_e
-//     ZZ_e = Q_e^d_r
-//     KEY(ZZ_e)
-//     RECV_ENC(C_0) -> M_0
-//     RECV_ENC(C_1) -> M_1
-//     …
-//     RECV_ENC(C_n) -> M_n
-//     RECV_MAC(T)
+//  INIT('veil.hpke', level=256)
+//  AD(LE_U32(N),     meta=true)
+//  AD(Q_r)
+//  AD(Q_s)
+//  ZZ_s = Q_s^d_r
+//  KEY(ZZ_s)
+//  RECV_ENC(E) -> Q_e
+//  ZZ_e = Q_e^d_r
+//  KEY(ZZ_e)
+//  RECV_ENC(C_0) -> M_0
+//  RECV_ENC(C_1) -> M_1
+//  …
+//  RECV_ENC(C_n) -> M_n
+//  RECV_MAC(T)
 //
 // If the RECV_MAC call is successful, the plaintext message M_0…M_n is returned.
 //

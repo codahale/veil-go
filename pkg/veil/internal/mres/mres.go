@@ -7,37 +7,35 @@
 // M_0…M_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data encryption key,
 // K, a DEK size N_dek, and a tag size N_tag:
 //
-//     INIT('veil.mres', level=256)
-//     AD(LE_32(N_dek),  meta=true)
-//     AD(LE_32(N_tag),  meta=true)
-//     AD(Q_s)
-//     KEY(K)
-//     SEND_ENC('')
-//     SEND_ENC(M_0,     more=true)
-//     SEND_ENC(M_1,     more=true)
-//     …
-//     SEND_ENC(M_n,     more=true)
+//  INIT('veil.mres', level=256)
+//  AD(LE_32(N_dek),  meta=true)
+//  AD(LE_32(N_tag),  meta=true)
+//  AD(Q_s)
+//  KEY(K)
+//  SEND_ENC('')
+//  SEND_ENC(M_0,     more=true)
+//  SEND_ENC(M_1,     more=true)
+//  …
+//  SEND_ENC(M_n,     more=true)
 //
 // Having encrypted the plaintext, an authentication tag is generated but not written:
 //
-//     SEND_MAC(N) -> T
+//  SEND_MAC(N) -> T
 //
 // Next, footers consisting of T, K, and LE_64(len(M)) are encrypted for all recipient public keys
 // using veil.hpke. Random padding is prepended to the concatenated encrypted footers, and the block
 // F is sent as cleartext:
 //
-//     SEND_CLR(F)
+//  SEND_CLR(F)
 //
 // Finally, a veil.schnorr signature S of the encrypted footers F is encrypted and sent:
 //
-//     SEND_ENC(S)
+//  SEND_ENC(S)
 //
-// The resulting ciphertext then contains, in order:
-//
-// 1. The unauthenticated ciphertext of the message.
-// 2. A block of encrypted footers (each containing a copy of the DEK, an authentication tag of the
-//    message ciphertext and the message length) with random padding prepended.
-// 3. An encrypted signature of the encrypted footers.
+// The resulting ciphertext then contains, in order: the unauthenticated ciphertext of the message;
+// a block of encrypted footers (each containing a copy of the DEK, an authentication tag of the
+// message ciphertext and the message length) with random padding prepended; an encrypted signature
+// of the encrypted footers.
 //
 // Decryption
 //
@@ -50,19 +48,19 @@
 // the DEK, and the message offset. They then seek to the beginning of C and run the inverse of the
 // encryption protocol:
 //
-//     INIT('veil.mres', level=256)
-//     AD(LE_32(N_dek),  meta=true)
-//     AD(LE_32(N_tag),  meta=true)
-//     AD(Q_s)
-//     KEY(K)
-//     RECV_ENC('')
-//     RECV_ENC(C_0,     more=true)
-//     RECV_ENC(C_1,     more=true)
-//     …
-//     RECV_ENC(C_n,     more=true)
-//     RECV_MAC(T)
-//     RECV_CLR(F)
-//     RECV_ENC(S)
+//  INIT('veil.mres', level=256)
+//  AD(LE_32(N_dek),  meta=true)
+//  AD(LE_32(N_tag),  meta=true)
+//  AD(Q_s)
+//  KEY(K)
+//  RECV_ENC('')
+//  RECV_ENC(C_0,     more=true)
+//  RECV_ENC(C_1,     more=true)
+//  …
+//  RECV_ENC(C_n,     more=true)
+//  RECV_MAC(T)
+//  RECV_CLR(F)
+//  RECV_ENC(S)
 //
 // Finally, the signature S is verified against the received footers F.
 //
@@ -90,11 +88,11 @@
 // In contrast to most HPKE constructions, veil.mres provides insider authenticity against the
 // DEM-reuse attack Alwen et al. detail in Section 5.4:
 //
-//     We can show that for any AKEM, KS, and AEAD, the construction APKE[AKEM,KS, AEAD] given in
-//     Listing 8 is not (n,qe,qd)-Insider-Auth secure. The inherent reason for this construction to
-//     be vulnerable against this attack is that the KEM ciphertext does not depend on the message.
-//     Thus, the KEM ciphertext can be reused and the DEM ciphertext can be exchanged by the
-//     encryption of any other message.
+//  We can show that for any AKEM, KS, and AEAD, the construction APKE[AKEM,KS, AEAD] given in
+//  Listing 8 is not (n,qe,qd)-Insider-Auth secure. The inherent reason for this construction to be
+//  vulnerable against this attack is that the KEM ciphertext does not depend on the message. Thus,
+//  the KEM ciphertext can be reused and the DEM ciphertext can be exchanged by the encryption of
+//  any other message.
 //
 // Veil's lack of framing data means that recipients don't know the actual ciphertext before they
 // begin attempting to decrypt footers, so an existing construction like Tag-AKEM (see

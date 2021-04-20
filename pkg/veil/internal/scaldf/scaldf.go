@@ -3,14 +3,12 @@
 //
 // Scalars are generated as follows, given a protocol name P and datum D:
 //
-//     INIT(P, level=256)
-//     KEY(D)
-//     PRF(64)
+//  INIT(P, level=256)
+//  KEY(D)
+//  PRF(64)
 //
-// The two recognized protocol identifiers are:
-//
-// * `veil.scaldf.label`, used to derive delta scalars from labels
-// * `veil.scaldf.root`, used to derive root scalars from secret keys
+// The two recognized protocol identifiers are: veil.scaldf.label, used to derive delta scalars
+// from labels; veil.scaldf.root, used to derive root scalars from secret keys.
 package scaldf
 
 import (
