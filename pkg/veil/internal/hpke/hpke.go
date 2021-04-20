@@ -11,7 +11,7 @@
 //     AD(LE_U32(N),     meta=true)
 //     AD(Q_r)
 //     AD(Q_s)
-//     ZZ_s = d_sQ_r
+//     ZZ_s = Q_r^d_s
 //     KEY(ZZ_s)
 //
 // The protocol's state is then cloned, the clone is keyed with 64 bytes of random data, the
@@ -24,9 +24,9 @@
 //
 // The clone's state is discarded, and d_e is returned to the parent:
 //
-//     Q_e = d_eG
+//     Q_e = G^d_e
 //     SEND_ENC(Q_e) -> E
-//     ZZ_e = d_eQ_r
+//     ZZ_e = Q_r^d_e
 //     KEY(ZZ_e)
 //
 // This is effectively an authenticated ECDH KEM, but instead of returning PRF output for use in a
@@ -45,10 +45,10 @@
 //     AD(LE_U32(N),     meta=true)
 //     AD(Q_r)
 //     AD(Q_s)
-//     ZZ_s = d_rQ_s
+//     ZZ_s = Q_s^d_r
 //     KEY(ZZ_s)
 //     RECV_ENC(E) -> Q_e
-//     ZZ_e = d_rQ_e
+//     ZZ_e = Q_e^d_r
 //     KEY(ZZ_e)
 //     RECV_ENC(C) -> M
 //     RECV_MAC(T)

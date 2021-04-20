@@ -20,10 +20,10 @@
 //
 // The clone's state is discarded, and r is returned to the parent:
 //
-//     R = rG
+//     R = G^r
 //     AD(R)
 //     PRF(64) -> c
-//     s = d_sc + r
+//     s = d_s*c + r
 //
 // The resulting signature consists of the two scalars, c and s.
 //
@@ -37,7 +37,7 @@
 //     RECV_CLR(M_1, more=true)
 //     ...
 //     RECV_CLR(M_n, more=true)
-//     R' = -cQ + sG
+//     R' = Q^-c + G^s
 //     AD(R')
 //     PRF(64) -> c'
 //
