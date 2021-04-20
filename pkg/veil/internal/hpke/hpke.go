@@ -59,8 +59,8 @@
 //
 // This construction is, essentially, the AuthEncap construction from HPKE
 // (https://tools.ietf.org/html/draft-irtf-cfrg-hpke-08#section-4.1), with the ephemeral public key
-// being encrypted with the static shared key via AEAD, and the plaintext encrypted with both
-// ephemeral and static shared keys via AEAD. As a result, the analysis by Alwen et al.
+// being encrypted with the static shared key, and the plaintext encrypted with both ephemeral and
+// static shared keys via AEAD. Consequently, the analysis by Alwen et al.
 // (https://eprint.iacr.org/2020/1499.pdf) and Lipp (https://eprint.iacr.org/2020/243.pdf) indicates
 // this construction provides IND-CCA2 security in the multi-user setting. Unlike HPKE, however, a
 // passive adversary scanning for encoded elements would first need the parties' static
@@ -78,8 +78,8 @@
 // This construction is not secure against insider attacks on authenticity, nor is it intended to
 // be. A recipient can forge ciphertexts which appear to be from a sender by re-using the ephemeral
 // public key and encrypting an alternate plaintext, but the forgeries will only be decryptable by
-// the forger, which limits their utility, and because this type of forgery is possible, veil.hpke
-// ciphertexts are therefore repudiable.
+// the forger. Because this type of forgery is possible, veil.hpke ciphertexts are therefore
+// repudiable.
 //
 // Ephemeral Key Hedging
 //

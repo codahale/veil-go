@@ -35,18 +35,20 @@
 // The resulting ciphertext then contains, in order:
 //
 // 1. The unauthenticated ciphertext of the message.
-// 2. A block of encrypted footers (each containing a copy of the DEK, the message ciphertext tag,
-//    and the message length) with random padding prepended.
+// 2. A block of encrypted footers (each containing a copy of the DEK, an authentication tag of the
+//    message ciphertext and the message length) with random padding prepended.
 // 3. An encrypted signature of the encrypted footers.
 //
 // Decryption
 //
 // Decryption is as follows, given the recipient's key pair, d_r and Q_r, the sender's public key,
-// Q_s, and a ciphertext in blocks C_0..C_n. First, the recipient seeks to the end of the ciphertext
-// and then backwards by N bytes. Second, they seek backwards and read each possible encrypted
-// footer, attempting to decrypt it via veil.hpke. Once they find a footer which can be decrypted,
-// they recover the DEK, the ciphertext MAC T, and the message offset. They they run the inverse of
-// the encryption protocol:
+// Q_s, and a ciphertext C: the recipient seeks to the end of the encrypted footers (64 bytes from
+// the end of C), then seeks backwards by the length of an encrypted footer, reading each encrypted
+// footer and attempting to decrypt it via veil.hpke.
+//
+// Once they find a footer which can be decrypted, they recover the DEK, the ciphertext
+// authentication tag T, and the message offset. They then seek to the beginning of C and run the
+// inverse of the encryption protocol:
 //
 //     INIT('veil.mres', level=256)
 //     AD(LE_32(N_dek),  meta=true)
