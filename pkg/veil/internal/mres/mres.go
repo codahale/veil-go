@@ -94,16 +94,16 @@
 //  the KEM ciphertext can be reused and the DEM ciphertext can be exchanged by the encryption of
 //  any other message.
 //
-// Veil's lack of framing data means that recipients don't know the actual ciphertext before they
-// begin attempting to decrypt footers, so an existing construction like Tag-AKEM (see
-// https://eprint.iacr.org/2005/027.pdf) can't be used. Instead, veil.mres begins the footers with a
-// MAC of the DEM ciphertext along with the DEK and message length as plaintext for veil.hpke,
-// thereby making the KEM ciphertexts entirely dependent on the message. An insider attempting to
-// re-use the encrypted footers with a forged DEM ciphertext will be foiled by recipients checking
-// the recovered MAC from the footer against the ersatz DEM ciphertext. In this way it resembles an
-// instance of Abe et al.'s Tag-KEM (https://www.shoup.net/papers/tagkemdem.pdf) where the tag (τ)
-// is recovered from the KEM ciphertext and compared post-hoc instead of being calculated pre-hoc
-// and passed as an argument.
+// In order to make the KEM ciphertext entirely dependent on the message, veil.mres begins each
+// footer plaintext with the MAC of the DEM ciphertext along with the DEK and the length of the
+// message. These three components are modeled as distinct STROBE operations within veil.hpke,
+// making the encryption of the DEK and the message length cryptographically dependent on the MAC.
+// This construction can be considered a variant of Abe et al.'s Tag-KEM
+// (https://www.shoup.net/papers/tagkemdem.pdf), where the tag (τ) is recovered from the KEM
+// ciphertext and compared post-hoc instead of being calculated pre-hoc and passed as an argument.
+// Consequently, an insider attempting to re-use the encrypted footers with a forged DEM ciphertext
+// will be foiled by recipients checking the recovered MAC from the footer against the ersatz DEM
+// ciphertext.
 //
 // The remaining piece of veil.mres ciphertext to protect is the set of footers which are encrypted
 // for other recipients. The signature of the encrypted footers assures their authenticity, the
