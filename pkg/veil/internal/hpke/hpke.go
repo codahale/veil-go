@@ -81,9 +81,10 @@
 // STROBE's KEY/SEND_ENC/SEND_MAC construction is IND-CCA2 secure, and that STROBE's KEY operation
 // is sufficiently close to a random oracle.
 //
-// Given the analysis of sponge and duplex functions (e.g. https://keccak.team/files/CSF-0.1.pdf),
-// the latter two assumptions seem to reduce to Keccak 𝑓-[1600]'s indistinguishability from an
-// ideal random permutation.
+// Unlike HPKE, Veil uses ristretto255, a properly cyclic group, and as such the proof is much
+// simpler. Given prior analysis of sponge and duplex functions (e.g.
+// https://keccak.team/files/CSF-0.1.pdf), the latter two assumptions about STROBE seem to reduce to
+// Keccak 𝑓-[1600]'s indistinguishability from an ideal random permutation.
 //
 // IK-CCA Security
 //
