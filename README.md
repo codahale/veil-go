@@ -36,8 +36,8 @@ Langley](https://www.imperialviolet.org/2016/05/16/agility.html):
 > complexity, concentrate all extensibility in a single place and _actively defend it_.
 
 As a result, the constructions in Veil depend primarily on two relatively stable cryptographic
-assumptions: the computational Diffie-Hellman assumption for ristretto255 and that Keccak
-𝑓-\[1600\] is suitably close to a random permutation.
+assumptions: the Gap Diffie-Hellman assumption for ristretto255 and that Keccak 𝑓-\[1600\] is
+suitably close to a random permutation.
 
 ### Integrated Constructions
 

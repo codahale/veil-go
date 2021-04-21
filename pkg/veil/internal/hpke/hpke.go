@@ -72,14 +72,18 @@
 //
 // IND-CCA2 Security
 //
-// This construction is, essentially, the AuthEncap construction from HPKE
-// (https://tools.ietf.org/html/draft-irtf-cfrg-hpke-08#section-4.1), with the ephemeral public key
-// being encrypted with the static shared key, and the plaintext encrypted with both ephemeral and
-// static shared keys via AEAD. Consequently, the analysis by Alwen et al.
-// (https://eprint.iacr.org/2020/1499.pdf) and Lipp (https://eprint.iacr.org/2020/243.pdf) indicates
-// this construction provides IND-CCA2 security in the multi-user setting. Unlike HPKE, however, a
-// passive adversary scanning for encoded elements would first need the parties' static
-// Diffie-Hellman secret in order to distinguish messages from random noise.
+// This construction is, essentially, the HPKE_Auth construction from HPKE
+// (https://tools.ietf.org/html/draft-irtf-cfrg-hpke-08#section-5.1.3), with the ephemeral public
+// key being encrypted with the static shared key via AEAD before transmission. Consequently, the
+// analysis by Alwen et al. (https://eprint.iacr.org/2020/1499.pdf) and Lipp
+// (https://eprint.iacr.org/2020/243.pdf) indicates this construction provides IND-CCA2 security in
+// the multi-user setting, provided the Gap Diffie-Hellman assumption holds for ristretto255,
+// STROBE's KEY/SEND_ENC/SEND_MAC construction is IND-CCA2 secure, and that STROBE's KEY operation
+// is sufficiently close to a random oracle.
+//
+// Given the analysis of sponge and duplex functions (e.g. https://keccak.team/files/CSF-0.1.pdf),
+// the latter two assumptions seem to reduce to Keccak 𝑓-[1600]'s indistinguishability from an
+// ideal random permutation.
 //
 // IK-CCA Security
 //
@@ -89,6 +93,9 @@
 // attacks. Informally, veil.hpke ciphertexts consist exclusively of STROBE ciphertext and PRF
 // output; an attacker being able to distinguish between ciphertexts based on keying material would
 // imply STROBE's AEAD construction is not IND-CCA2.
+//
+// Consequently, a passive adversary scanning for encoded elements would first need the parties'
+// static Diffie-Hellman secret in order to distinguish messages from random noise.
 //
 // Forward Sender Security
 //
