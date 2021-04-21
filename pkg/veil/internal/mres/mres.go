@@ -100,7 +100,10 @@
 // MAC of the DEM ciphertext along with the DEK and message length as plaintext for veil.hpke,
 // thereby making the KEM ciphertexts entirely dependent on the message. An insider attempting to
 // re-use the encrypted footers with a forged DEM ciphertext will be foiled by recipients checking
-// the recovered MAC from the footer against the ersatz DEM ciphertext.
+// the recovered MAC from the footer against the ersatz DEM ciphertext. In this way it resembles an
+// instance of Abe et al.'s Tag-KEM (https://www.shoup.net/papers/tagkemdem.pdf) where the tag (τ)
+// is recovered from the KEM ciphertext and compared post-hoc instead of being calculated pre-hoc
+// and passed as an argument.
 //
 // The remaining piece of veil.mres ciphertext to protect is the set of footers which are encrypted
 // for other recipients. The signature of the encrypted footers assures their authenticity, the
