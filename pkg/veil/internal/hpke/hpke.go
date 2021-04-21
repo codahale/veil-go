@@ -72,19 +72,21 @@
 //
 // IND-CCA2 Security
 //
-// This construction is, essentially, the HPKE_Auth construction from HPKE
-// (https://tools.ietf.org/html/draft-irtf-cfrg-hpke-08#section-5.1.3), with the ephemeral public
-// key being encrypted with the static shared key via AEAD before transmission. Consequently, the
-// analysis by Alwen et al. (https://eprint.iacr.org/2020/1499.pdf) and Lipp
-// (https://eprint.iacr.org/2020/243.pdf) indicates this construction provides IND-CCA2 security in
-// the multi-user setting, provided the Gap Diffie-Hellman assumption holds for ristretto255,
-// STROBE's KEY/SEND_ENC/SEND_MAC construction is IND-CCA2 secure, and that STROBE's KEY operation
-// is sufficiently close to a random oracle.
+// This construction combines two overlapping KEM/DEM constructions: a "El Gamal-like" KEM combined
+// with a STROBE-based AEAD, and an ephemeral ECIES-style KEM combined with a STROBE-based AEAD.
 //
-// Unlike HPKE, Veil uses ristretto255, a properly cyclic group, and as such the proof is much
-// simpler. Given prior analysis of sponge and duplex functions (e.g.
-// https://keccak.team/files/CSF-0.1.pdf), the latter two assumptions about STROBE seem to reduce to
-// Keccak 𝑓-[1600]'s indistinguishability from an ideal random permutation.
+// The STROBE-based AEAD is equivalent to Construction 5.6 of Modern Cryptography 3e and is
+// CCA-secure per Theorem 5.7, provided STROBE's encryption is CPA-secure. STROBE's SEND_ENC is
+// equivalent to Construction 3.31 and is CPA-secure per Theorem 3.29, provided STROBE is a
+// sufficiently strong pseudorandom function.
+//
+// The first KEM/DEM construction is equivalent to Construction 12.19 of Modern Cryptography 3e, and
+// is CCA-secure per Theorem 12.22, provided the gap-CDH problem is hard relative to ristretto255
+// and STROBE is modeled as a random oracle.
+//
+// The second KEM/DEM construction is equivalent to Construction 12.23 of Modern Cryptography 3e,
+// and is CCA-secure per Corollary 12.24, again provided that the gap-CDH problem is hard relative
+// to ristretto255 and STROBE is modeled as a random oracle.
 //
 // IK-CCA Security
 //
