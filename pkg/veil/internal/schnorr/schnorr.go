@@ -44,14 +44,24 @@
 // Finally, the verifier compares c' == c. If the two scalars are equivalent, the signature is
 // valid.
 //
+// Security, Forgeability, and Malleability
+//
+// This construction is equivalent to Construction 13.12 of Modern Cryptography 3e, and is the
+// combination of the Fiat-Shamir transform applied to the Schnorr identification scheme, and per
+// Theorem 13.11, secure if the discrete-logarithm problem is hard relative to ristretto255.
+//
+// The Schnorr signature scheme is strongly unforgeable under chosen message attack (SUF-CMA) in the
+// random oracle model (https://www.di.ens.fr/david.pointcheval/Documents/Papers/2000_joc.pdf) and
+// even with practical cryptographic hash functions (http://www.neven.org/papers/schnorr.pdf). As a
+// consequence, the signatures are non-malleable.
+//
 // Indistinguishability and Pseudorandomness
 //
-// This construction integrates message hashing with signature creation/validation, binds the
-// signer's identity, and produces indistinguishable signatures (i.e., signatures which do not
-// reveal anything about the signing key or signed message). When encrypted with an unrelated key
-// (i.e., via veil.mres), the construction is isomorphic to Fleischhacker et al.'s DRPC compiler for
-// producing pseudorandom signatures (https://eprint.iacr.org/2011/673.pdf), which are
-// indistinguishable from random.
+// Per Fleischhacker et al. (https://eprint.iacr.org/2011/673.pdf), this construction produces
+// indistinguishable signatures (i.e., signatures which do not reveal anything about the signing key
+// or signed message). When encrypted with an unrelated key (i.e., via veil.mres), the construction
+// is isomorphic to Fleischhacker et al.'s DRPC compiler for producing pseudorandom signatures,
+// which are indistinguishable from random.
 //
 // Ephemeral Scalar Hedging
 //
