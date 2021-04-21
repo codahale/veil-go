@@ -101,6 +101,8 @@
 // This construction can be considered a variant of Abe et al.'s Tag-KEM
 // (https://www.shoup.net/papers/tagkemdem.pdf), where the tag (τ) is recovered from the KEM
 // ciphertext and compared post-hoc instead of being calculated pre-hoc and passed as an argument.
+// (This is analogous to AES-SIV comparing the resulting plaintext on decryption to the synthetic IV
+// vs. AES-GCM comparing the received MAC to a re-calculated MAC of the received ciphertext.)
 // Consequently, an insider attempting to re-use the encrypted footers with a forged DEM ciphertext
 // will be foiled by recipients checking the recovered MAC from the footer against the ersatz DEM
 // ciphertext.
