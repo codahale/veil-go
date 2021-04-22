@@ -211,7 +211,9 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 
 // Decrypt decrypts the ciphertext iff it was encrypted by the owner of qS for the owner of qR and
 // no bit of the ciphertext has been modified.
-func Decrypt(dst [][]byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext []byte) ([][]byte, error) {
+func Decrypt(
+	dst [][]byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext []byte, sizes []int,
+) ([][]byte, error) {
 	var buf [internal.ElementSize]byte
 
 	// Initialize the protocol.
@@ -252,8 +254,8 @@ func Decrypt(dst [][]byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element
 
 	// Decrypt the plaintext. N.B.: this value has only been decrypted and not authenticated.
 	for i, b := range dst {
-		plaintext[i] = hpke.RecvENC(b[:0], ciphertext[:len(b)])
-		ciphertext = ciphertext[len(b):]
+		plaintext[i] = hpke.RecvENC(b, ciphertext[:sizes[i]])
+		ciphertext = ciphertext[sizes[i]:]
 	}
 
 	// Verify the MAC. This establishes authentication for the previous operations in their

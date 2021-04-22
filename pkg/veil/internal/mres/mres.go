@@ -249,10 +249,11 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		encFooter  = make([]byte, encryptedFooterSize)
 		footerBuf  = make([]byte, footerSize)
 		footer     = [][]byte{
-			footerBuf[:internal.TagSize],
-			footerBuf[internal.TagSize : internal.TagSize+dekSize],
-			footerBuf[internal.TagSize+dekSize:],
+			footerBuf[:internal.TagSize][:0],
+			footerBuf[internal.TagSize : internal.TagSize+dekSize][:0],
+			footerBuf[internal.TagSize+dekSize:][:0],
 		}
+		sizes = []int{internal.TagSize, dekSize, 8}
 	)
 
 	for {
@@ -274,7 +275,7 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		}
 
 		// Try to decrypt the footer.
-		plaintext, err := hpke.Decrypt(footer, dR, qR, qS, encFooter)
+		plaintext, err := hpke.Decrypt(footer, dR, qR, qS, encFooter, sizes)
 		if err != nil {
 			// If we can't, try the next possibility.
 			continue
