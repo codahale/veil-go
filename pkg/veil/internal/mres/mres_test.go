@@ -181,10 +181,12 @@ func BenchmarkDecrypt(b *testing.B) {
 	plaintext := make([]byte, 1024*1024)
 	recipients := []*ristretto255.Element{qR, qS, qR, qS, qR, qS}
 	out := bytes.NewBuffer(nil)
+
 	_, err := Encrypt(out, bytes.NewReader(plaintext), dS, qS, recipients, 0)
 	if err != nil {
 		b.Fatal(err)
 	}
+
 	ciphertext := out.Bytes()
 
 	for i := 0; i < b.N; i++ {
