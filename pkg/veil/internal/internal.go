@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	// TagSize is the authentication tag size in bytes.
-	TagSize = 16
+	// MACSize is the MAC size in bytes.
+	MACSize = 16
 
 	// ElementSize is the length of an encoded ristretto255 element.
 	ElementSize = 32

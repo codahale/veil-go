@@ -1,7 +1,7 @@
 // Package pbenc implements memory-hard password-based encryption via STROBE using balloon hashing.
 //
 // The protocol is initialized as follows, given a passphrase P, salt S, delta constant D, space
-// parameter X, time parameter Y, block size N, and tag size T:
+// parameter X, time parameter Y, block size N, and MAC size T:
 //
 //  INIT('veil.kdf.balloon',  level=256)
 //  AD(LE_U32(D), meta=true)
@@ -29,9 +29,9 @@
 //  SEND_ENC(M)
 //  SEND_MAC(T)
 //
-// The ciphertext C and tag T are returned.
+// The ciphertext C and MAC T are returned.
 //
-// Decryption of a ciphertext C and tag T is as follows:
+// Decryption of a ciphertext C and MAC T is as follows:
 //
 //  RECV_ENC(C)
 //  RECV_MAC(T)
@@ -51,12 +51,12 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
 )
 
-const Overhead = internal.TagSize
+const Overhead = internal.MACSize
 
 // Encrypt encrypts the plaintext with the passphrase and salt.
 func Encrypt(passphrase, salt, plaintext []byte, space, time int) []byte {
 	pbenc := initProtocol(passphrase, salt, space, time)
-	ciphertext := make([]byte, 0, len(plaintext)+internal.TagSize)
+	ciphertext := make([]byte, 0, len(plaintext)+internal.MACSize)
 	ciphertext = pbenc.SendENC(ciphertext, plaintext)
 	ciphertext = pbenc.SendMAC(ciphertext)
 
@@ -67,9 +67,9 @@ func Encrypt(passphrase, salt, plaintext []byte, space, time int) []byte {
 func Decrypt(passphrase, salt, ciphertext []byte, space, time int) ([]byte, error) {
 	pbenc := initProtocol(passphrase, salt, space, time)
 
-	plaintext := pbenc.RecvENC(nil, ciphertext[:len(ciphertext)-internal.TagSize])
+	plaintext := pbenc.RecvENC(nil, ciphertext[:len(ciphertext)-internal.MACSize])
 
-	if err := pbenc.RecvMAC(ciphertext[len(ciphertext)-internal.TagSize:]); err != nil {
+	if err := pbenc.RecvMAC(ciphertext[len(ciphertext)-internal.MACSize:]); err != nil {
 		return nil, err
 	}
 
@@ -88,8 +88,8 @@ func initProtocol(passphrase, salt []byte, space, time int) *protocol.Protocol {
 	// Include the block size constant as associated data.
 	pbenc.MetaAD(protocol.LittleEndianU32(n))
 
-	// Include the tag size constant as associated data.
-	pbenc.MetaAD(protocol.LittleEndianU32(internal.TagSize))
+	// Include the MAC size constant as associated data.
+	pbenc.MetaAD(protocol.LittleEndianU32(internal.MACSize))
 
 	// Include the space parameter as associated data.
 	pbenc.MetaAD(protocol.LittleEndianU32(space))

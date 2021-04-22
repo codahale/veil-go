@@ -5,11 +5,11 @@
 //
 // Encrypting a message is as follows, given the sender's key pair, d_s and Q_s, a message in blocks
 // M_0…M_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data encryption key,
-// K, a DEK size N_dek, and a tag size N_tag:
+// K, a DEK size N_dek, and a MAC size N_mac:
 //
 //  INIT('veil.mres', level=256)
 //  AD(LE_32(N_dek),  meta=true)
-//  AD(LE_32(N_tag),  meta=true)
+//  AD(LE_32(N_mac),  meta=true)
 //  AD(Q_s)
 //  KEY(K)
 //  SEND_ENC('')
@@ -18,7 +18,7 @@
 //  …
 //  SEND_ENC(M_n,     more=true)
 //
-// Having encrypted the plaintext, an authentication tag is generated but not written:
+// Having encrypted the plaintext, a MAC is generated but not written:
 //
 //  SEND_MAC(N) -> T
 //
@@ -33,9 +33,9 @@
 //  SEND_ENC(S)
 //
 // The resulting ciphertext then contains, in order: the unauthenticated ciphertext of the message;
-// a block of encrypted footers (each containing a copy of the DEK, an authentication tag of the
-// message ciphertext and the message length) with random padding prepended; an encrypted signature
-// of the encrypted footers.
+// a block of encrypted footers (each containing a copy of the DEK, a MAC of the message ciphertext
+// and the message length) with random padding prepended; an encrypted signature of the encrypted
+// footers.
 //
 // Decryption
 //
@@ -44,13 +44,13 @@
 // the end of C), then seeks backwards by the length of an encrypted footer, reading each encrypted
 // footer and attempting to decrypt it via veil.hpke.
 //
-// Once they find a footer which can be decrypted, they recover the ciphertext authentication tag T,
-// the DEK, and the message offset. They then seek to the beginning of C and run the inverse of the
-// encryption protocol:
+// Once they find a footer which can be decrypted, they recover the ciphertext MAC T, the DEK, and
+// the message offset. They then seek to the beginning of C and run the inverse of the encryption
+// protocol:
 //
 //  INIT('veil.mres', level=256)
 //  AD(LE_32(N_dek),  meta=true)
-//  AD(LE_32(N_tag),  meta=true)
+//  AD(LE_32(N_mac),  meta=true)
 //  AD(Q_s)
 //  KEY(K)
 //  RECV_ENC('')
@@ -161,9 +161,9 @@ func Encrypt(
 	qRs []*ristretto255.Element, padding int,
 ) (int64, error) {
 	buf := make([]byte, footerSize)
-	mac := buf[:internal.TagSize]
-	dek := buf[internal.TagSize : internal.TagSize+dekSize]
-	msgSize := buf[internal.TagSize+dekSize:]
+	mac := buf[:internal.MACSize]
+	dek := buf[internal.MACSize : internal.MACSize+dekSize]
+	msgSize := buf[internal.MACSize+dekSize:]
 
 	// Generate a DEK.
 	if _, err := rand.Read(dek); err != nil {
@@ -249,11 +249,11 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		encFooter  = make([]byte, encryptedFooterSize)
 		footerBuf  = make([]byte, footerSize)
 		footer     = [][]byte{
-			footerBuf[:internal.TagSize][:0],
-			footerBuf[internal.TagSize : internal.TagSize+dekSize][:0],
-			footerBuf[internal.TagSize+dekSize:][:0],
+			footerBuf[:internal.MACSize][:0],
+			footerBuf[internal.MACSize : internal.MACSize+dekSize][:0],
+			footerBuf[internal.MACSize+dekSize:][:0],
 		}
-		sizes = []int{internal.TagSize, dekSize, 8}
+		sizes = []int{internal.MACSize, dekSize, 8}
 	)
 
 	for {
@@ -341,8 +341,8 @@ func initProtocol(qS *ristretto255.Element, dek []byte) *protocol.Protocol {
 	// Add the DEK size as associated metadata.
 	mres.MetaAD(protocol.LittleEndianU32(dekSize))
 
-	// Add the tag size as associated metadata.
-	mres.MetaAD(protocol.LittleEndianU32(internal.TagSize))
+	// Add the MAC size as associated metadata.
+	mres.MetaAD(protocol.LittleEndianU32(internal.MACSize))
 
 	// Key the protocol with the DEK.
 	mres.KEY(dek)
@@ -355,6 +355,6 @@ func initProtocol(qS *ristretto255.Element, dek []byte) *protocol.Protocol {
 
 const (
 	dekSize             = 32
-	footerSize          = dekSize + internal.TagSize + 8
+	footerSize          = dekSize + internal.MACSize + 8
 	encryptedFooterSize = footerSize + hpke.Overhead
 )

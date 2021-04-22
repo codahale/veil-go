@@ -6,7 +6,7 @@
 // Encryption
 //
 // Encryption is as follows, given the sender's key pair, d_s and Q_s, the receiver's public key,
-// Q_r, a plaintext message M_0…M_n, and tag size N:
+// Q_r, a plaintext message M_0…M_n, and MAC size N:
 //
 //  INIT('veil.hpke', level=256)
 //  AD(LE_U32(N),     meta=true)
@@ -34,8 +34,7 @@
 //  KEY(ZZ_e)
 //
 // This is effectively an authenticated ECDH KEM, but instead of returning PRF output for use in a
-// DEM, we use the keyed protocol to directly encrypt the ciphertext and create an authentication
-// tag:
+// DEM, we use the keyed protocol to directly encrypt the ciphertext and create a MAC:
 //
 //  SEND_ENC(M_0) -> C_0
 //  SEND_ENC(M_1) -> C_1
@@ -131,7 +130,7 @@ import (
 )
 
 // Overhead is the number of bytes added to each veil.hpke ciphertext.
-const Overhead = internal.ElementSize + internal.TagSize
+const Overhead = internal.ElementSize + internal.MACSize
 
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
@@ -148,8 +147,8 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	// Initialize the protocol.
 	hpke := protocol.New("veil.hpke")
 
-	// Add the tag size to the protocol.
-	hpke.MetaAD(protocol.LittleEndianU32(internal.TagSize))
+	// Add the MAC size to the protocol.
+	hpke.MetaAD(protocol.LittleEndianU32(internal.MACSize))
 
 	// Add the recipient's public key as associated data.
 	hpke.AD(qR.Encode(buf[:0]))
@@ -219,8 +218,8 @@ func Decrypt(
 	// Initialize the protocol.
 	hpke := protocol.New("veil.hpke")
 
-	// Add the tag size to the protocol.
-	hpke.MetaAD(protocol.LittleEndianU32(internal.TagSize))
+	// Add the MAC size to the protocol.
+	hpke.MetaAD(protocol.LittleEndianU32(internal.MACSize))
 
 	// Add the recipient's public key as associated data.
 	hpke.AD(qR.Encode(buf[:0]))
@@ -261,7 +260,7 @@ func Decrypt(
 	// Verify the MAC. This establishes authentication for the previous operations in their
 	// entirety, since the sender and receiver's protocol states must be identical in order for the
 	// MACs to agree.
-	if err := hpke.RecvMAC(ciphertext[len(ciphertext)-internal.TagSize:]); err != nil {
+	if err := hpke.RecvMAC(ciphertext[len(ciphertext)-internal.MACSize:]); err != nil {
 		return nil, err
 	}
 

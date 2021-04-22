@@ -88,7 +88,7 @@ func (p *Protocol) RecvENC(dst, ciphertext []byte) []byte {
 }
 
 func (p *Protocol) SendMAC(dst []byte) []byte {
-	ret, out := internal.SliceForAppend(dst, internal.TagSize)
+	ret, out := internal.SliceForAppend(dst, internal.MACSize)
 
 	if err := p.s.SendMAC(out, defaultOpts); err != nil {
 		panic(err)

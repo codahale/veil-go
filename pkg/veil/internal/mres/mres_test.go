@@ -103,7 +103,7 @@ func TestBadFooter(t *testing.T) {
 
 	// Poison the footer.
 	ct := dst.Bytes()
-	ct[len(ct)-internal.TagSize-3] ^= 1
+	ct[len(ct)-internal.MACSize-3] ^= 1
 
 	src = bytes.NewReader(ct)
 	dst = bytes.NewBuffer(nil)
@@ -113,7 +113,7 @@ func TestBadFooter(t *testing.T) {
 	assert.Equal(t, "error", ErrInvalidCiphertext, err, cmpopts.EquateErrors())
 }
 
-func TestBadTag(t *testing.T) {
+func TestBadMAC(t *testing.T) {
 	t.Parallel()
 
 	plaintext := []byte("this is a welcome change from previous events")
