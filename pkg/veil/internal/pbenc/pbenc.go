@@ -1,14 +1,14 @@
 // Package pbenc implements memory-hard password-based encryption via STROBE using balloon hashing.
 //
 // The protocol is initialized as follows, given a passphrase P, salt S, delta constant D, space
-// parameter X, time parameter Y, block size N, and MAC size T:
+// parameter N_space, time parameter N_time, block size N_block, and MAC size N_mac:
 //
-//  INIT('veil.kdf.balloon',  level=256)
-//  AD(LE_U32(D), meta=true)
-//  AD(LE_U32(N), meta=true)
-//  AD(LE_U32(T), meta=true)
-//  AD(LE_U32(X), meta=true)
-//  AD(LE_U32(Y), meta=true)
+//  INIT('veil.kdf.balloon', level=256)
+//  AD(LE_U32(D),            meta=true)
+//  AD(LE_U32(N_block),      meta=true)
+//  AD(LE_U32(N_mac),        meta=true)
+//  AD(LE_U32(N_time),       meta=true)
+//  AD(LE_U32(N_space),      meta=true)
 //  KEY(P)
 //  AD(S)
 //

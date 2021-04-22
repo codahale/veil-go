@@ -6,10 +6,10 @@
 // Encryption
 //
 // Encryption is as follows, given the sender's key pair, d_s and Q_s, the receiver's public key,
-// Q_r, a plaintext message M_0…M_n, and MAC size N:
+// Q_r, a plaintext message P_0…P_n, and MAC size N_mac:
 //
 //  INIT('veil.hpke', level=256)
-//  AD(LE_U32(N),     meta=true)
+//  AD(LE_U32(N_mac), meta=true)
 //  AD(Q_r)
 //  AD(Q_s)
 //  ZZ_s = Q_r^d_s
@@ -36,13 +36,13 @@
 // This is effectively an authenticated ECDH KEM, but instead of returning PRF output for use in a
 // DEM, we use the keyed protocol to directly encrypt the ciphertext and create a MAC:
 //
-//  SEND_ENC(M_0) -> C_0
-//  SEND_ENC(M_1) -> C_1
+//  SEND_ENC(P_0)   -> C_0
+//  SEND_ENC(P_1)   -> C_1
 //  …
-//  SEND_ENC(M_n) -> C_n
-//  SEND_MAC(N) -> T
+//  SEND_ENC(P_n)   -> C_n
+//  SEND_MAC(N_mac) -> M
 //
-// The resulting ciphertext is the concatenation of C_0…C_n and T.
+// The resulting ciphertext is the concatenation of C_0…C_n and M.
 //
 // Decryption
 //
@@ -50,7 +50,7 @@
 // the sender's public key Q_s:
 //
 //  INIT('veil.hpke', level=256)
-//  AD(LE_U32(N),     meta=true)
+//  AD(LE_U32(N_max), meta=true)
 //  AD(Q_r)
 //  AD(Q_s)
 //  ZZ_s = Q_s^d_r
@@ -58,13 +58,13 @@
 //  RECV_ENC(E) -> Q_e
 //  ZZ_e = Q_e^d_r
 //  KEY(ZZ_e)
-//  RECV_ENC(C_0) -> M_0
-//  RECV_ENC(C_1) -> M_1
+//  RECV_ENC(C_0) -> P_0
+//  RECV_ENC(C_1) -> P_1
 //  …
-//  RECV_ENC(C_n) -> M_n
-//  RECV_MAC(T)
+//  RECV_ENC(C_n) -> P_n
+//  RECV_MAC(M)
 //
-// If the RECV_MAC call is successful, the plaintext message M_0…M_n is returned.
+// If the RECV_MAC call is successful, the plaintext message P_0…P_n is returned.
 //
 // N.B.: the boundaries of C_0…C_n within the ciphertext C returned by the encryption process must
 // be known a priori.

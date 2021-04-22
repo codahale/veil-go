@@ -3,9 +3,9 @@
 //
 // Encryption
 //
-// Encrypting a message is as follows, given the sender's key pair, d_s and Q_s, a message in blocks
-// M_0…M_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data encryption key,
-// K, a DEK size N_dek, and a MAC size N_mac:
+// Encrypting a message is as follows, given the sender's key pair, d_s and Q_s, a plaintext message
+// in blocks P_0…P_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data
+// encryption key, K, a DEK size N_dek, and a MAC size N_mac:
 //
 //  INIT('veil.mres', level=256)
 //  AD(LE_32(N_dek),  meta=true)
@@ -13,29 +13,28 @@
 //  AD(Q_s)
 //  KEY(K)
 //  SEND_ENC('')
-//  SEND_ENC(M_0,     more=true)
-//  SEND_ENC(M_1,     more=true)
+//  SEND_ENC(P_0,     more=true)
+//  SEND_ENC(P_1,     more=true)
 //  …
-//  SEND_ENC(M_n,     more=true)
+//  SEND_ENC(P_n,     more=true)
 //
 // Having encrypted the plaintext, a MAC is generated but not written:
 //
-//  SEND_MAC(N) -> T
+//  SEND_MAC(N_dek) -> M
 //
-// Next, footers consisting of T, K, and LE_64(len(M)) are encrypted for all recipient public keys
-// using veil.hpke. Random padding is prepended to the concatenated encrypted footers, and the block
-// F is sent as cleartext:
+// Next, footers consisting of M, K, and N_msg=LE_64(len(P)) are encrypted for all recipient public
+// keys using veil.hpke. Random padding is prepended to the concatenated encrypted footers, and the
+// resulting block F is sent as cleartext:
 //
 //  SEND_CLR(F)
 //
 // Finally, a veil.schnorr signature S of the encrypted footers F is encrypted and sent:
 //
-//  SEND_ENC(S)
+//  SEND_ENC(S) -> C_s
 //
 // The resulting ciphertext then contains, in order: the unauthenticated ciphertext of the message;
-// a block of encrypted footers (each containing a copy of the DEK, a MAC of the message ciphertext
-// and the message length) with random padding prepended; an encrypted signature of the encrypted
-// footers.
+// a block of encrypted footers (each containing a copy of K, M, and N_msg) with random padding
+// prepended; an encrypted signature of the encrypted footers.
 //
 // Decryption
 //
@@ -44,9 +43,8 @@
 // the end of C), then seeks backwards by the length of an encrypted footer, reading each encrypted
 // footer and attempting to decrypt it via veil.hpke.
 //
-// Once they find a footer which can be decrypted, they recover the ciphertext MAC T, the DEK, and
-// the message offset. They then seek to the beginning of C and run the inverse of the encryption
-// protocol:
+// Once they find a footer which can be decrypted, they recover M, K, and N_msg. They then seek to
+// the beginning of C and run the inverse of the encryption protocol:
 //
 //  INIT('veil.mres', level=256)
 //  AD(LE_32(N_dek),  meta=true)
@@ -58,9 +56,9 @@
 //  RECV_ENC(C_1,     more=true)
 //  …
 //  RECV_ENC(C_n,     more=true)
-//  RECV_MAC(T)
+//  RECV_MAC(M)
 //  RECV_CLR(F)
-//  RECV_ENC(S)
+//  RECV_ENC(C_s) -> S
 //
 // Finally, the signature S is verified against the received footers F.
 //
