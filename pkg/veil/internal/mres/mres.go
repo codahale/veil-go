@@ -64,29 +64,21 @@
 //
 // Finally, the signature S is verified against the received footers F.
 //
-// Insider And Outsider Privacy
+// Security
 //
-// Borrowing An et al.'s notions of outsider and insider security
-// (https://www.iacr.org/archive/eurocrypt2002/23320080/adr.pdf), this construction is intended to
-// provide both privacy under both outsider and insider attacks. For a single recipient, the
-// construction is similar to the proposed HPKE specification
-// (https://tools.ietf.org/html/draft-irtf-cfrg-hpke-08), if the authentication tag were sent in the
-// clear as part of a traditional EtM AEAD design, and thus can be assumed to have similar privacy
-// properties for outsider and insider attacks (see Alwen et al.,
-// https://eprint.iacr.org/2020/1499.pdf and Lipp https://eprint.iacr.org/2020/243.pdf).
+// In the single-recipient setting, this construction is equivalent to Construction 12.10 of Modern
+// Cryptography 3e. Per Theorem 12.14, it is CCA-secure if the KEM and underlying private-key
+// encryption system are CCA-secure. As veil.hpke is CCA-secure, it can be inferred that veil.mres
+// is CCA-secure in the single-recipient setting.
 //
-// Outsider Authenticity
-//
-// Per prior analysis of the proposed HPKE specification, veil.mres should be secure against
-// outsider forgery attacks. Creating valid footers without the sender's private key would imply
-// veil.hpke is not IND-CCA2 secure, and creating valid message ciphertexts and MACs without the DEK
-// would imply STROBE's AEAD construction is not IND-CCA2 secure
-// (https://eprint.iacr.org/2017/003.pdf, section 5.1).
+// Phan et al. (https://www.di.ens.fr/users/phan/2011_acns.pdf) lay out a set of security notions in
+// the broadcast (i.e. multi-recipient) setting and describe a similar construction as
+// IND-Dyn2-Ad2-CCA2-secure.
 //
 // Insider Authenticity
 //
 // In contrast to most HPKE constructions, veil.mres provides insider authenticity against the
-// DEM-reuse attack Alwen et al. detail in Section 5.4:
+// DEM-reuse attack Alwen et al. (https://eprint.iacr.org/2020/1499.pdf) detail in Section 5.4:
 //
 //  We can show that for any AKEM, KS, and AEAD, the construction APKE[AKEM,KS, AEAD] given in
 //  Listing 8 is not (n,qe,qd)-Insider-Auth secure. The inherent reason for this construction to be
@@ -108,13 +100,16 @@
 // ciphertext.
 //
 // The remaining piece of veil.mres ciphertext to protect is the set of footers which are encrypted
-// for other recipients. The signature of the encrypted footers assures their authenticity, the
-// authenticity of the DEK/MAC, and thus the authenticity of the message, but cannot be verified
-// without the DEK, or even distinguished from random noise.
+// for other recipients. If we consider the IND-CCA2 game to be played in parallel, with a
+// decryption oracle for each ciphertext recipient, an attacker could modify bits of unauthenticated
+// footers for other recipients, at which point an oracle would return the original plaintext for a
+// modified message. Such a construction would not be IND-CCA2 secure.
 //
-// In terms of logical dependencies, the DEM ciphertext depends on the message and the DEK, the
-// footer ciphertexts depend on the DEK and the DEM ciphertext, and the final signature depends on
-// the DEK and the footer ciphertexts.
+// The signature of the encrypted footers assures their authenticity, the authenticity of the
+// DEK/MAC, and thus the authenticity of the message, but cannot be verified without the DEK, or
+// even distinguished from random noise. veil.schnorr is a strong signature scheme, veil.mres is
+// CCA-secure, and both protocols strongly bind sender identity. As a result, the encrypt-then-sign
+// scheme is secure.
 //
 // Repudiability
 //
