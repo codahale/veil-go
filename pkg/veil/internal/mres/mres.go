@@ -115,41 +115,76 @@
 // contain a MAC of the message ciphertext, this implies that an active attacker would be unable to
 // inject a forged message.
 //
-// As a result (and in contrast to most constructions), veil.mres protects against the DEM-reuse
-// attack Alwen et al. (https://eprint.iacr.org/2020/1499.pdf) detail against the proposed HPKE
-// standard:
+// DEM-Reuse Attacks
 //
-//  We can show that for any AKEM, KS, and AEAD, the construction APKE[AKEM,KS, AEAD] given in
-//  Listing 8 is not (n,qe,qd)-Insider-Auth secure. The inherent reason for this construction to be
-//  vulnerable against this attack is that the KEM ciphertext does not depend on the message. Thus,
-//  the KEM ciphertext can be reused and the DEM ciphertext can be exchanged by the encryption of
-//  any other message.
+// The standard KEM/DEM hybrid construction (i.e. Construction 12.20 from Modern Cryptography 3e)
+// provides strong confidentiality (per Theorem 12.14), but no authenticity. A compromised recipient
+// can replace the DEM component of the ciphertext with an arbitrary message encrypted with the same
+// DEK. Even if the KEM provides strong authenticity against insider attacks, the KEM/DEM
+// construction does not. Alwen et al. (https://eprint.iacr.org/2020/1499.pdf) detail this attack
+// against the proposed HPKE standard.
+//
+// In the single-recipient setting, the practical advantages of this attack are limited: the
+// attacker can forge messages which appear to be from a sender but are only decryptable by the
+// attacker. In the multi-recipient setting, however, the practical advantage is much greater: the
+// attacker can present forged messages which appear to be from a sender to other, honest
+// recipients.
+//
+// Encrypt-Then-Sign, Sign-Then-Encrypt, and Repudiability
+//
+// One solution is to sign messages before encryption (e.g. OpenPGP), which eliminates an attacker's
+// ability to forge messages. Sign-then-encrypt schemes are vulnerable to replay attacks, however,
+// where Bea, having received a signed message from Alice, can re-send the message to Carol without
+// Carol knowing. Further, sign-then-encrypt provides non-repudiability of the message outside of
+// the encrypted context, allowing a compromised recipient to prove to third parties the
+// authenticity of a message. Inverting the order of operations—encrypt-then-sign—eliminates these
+// attacks, provided the signature scheme is non-malleable, at the expensive of allowing passive
+// adversaries to determine the authenticity of messages. Given that Veil is intended to be
+// indistinguishable from random noise to passive adversaries, an encrypt-then-sign construction is
+// not viable.
+//
+// KEM Dependency via Tag-KEMs
+//
+// A less common solution is to make KEM ciphertexts cryptographically dependent on the DEM
+// ciphertext. Abe et al.'s Tag-KEM (https://www.shoup.net/papers/tagkemdem.pdf), which strongly
+// binds KEM ciphertexts to DEM ciphertexts, is an example, but this does not map cleanly to the
+// multi-recipient setting. If an attacker is engaged in the IND-CCA game with the decryption oracle
+// for one recipient of many, they could modify the KEM ciphertexts for the other recipients and
+// still receive a plaintext. Providing a MAC of the KEM ciphertexts, as with Phan et al.'s
+// IND-Dyn2-Ad2-CCA2-secure broadcast encryption scheme
+// (https://www.di.ens.fr/users/phan/2011_acns.pdf), protects confidentiality against outsider
+// attacks, but remains vulnerable to insider attacks: an insider playing the IND-CCA game with the
+// decryption oracle for another recipient has access to the MAC key and can forge the MAC of the
+// KEM ciphertexts.
+//
+// Inverted Tag-KEM And Signature
+//
+// veil.mres solves indistinguishability from random noise, outsider attacks, insider attacks, and
+// repudiability by linking the KEM-dependency of the Tag-KEM construction to the unforgeability of
+// the encrypt-then-sign construction while limiting the scope of non-repudiability.
 //
 // In order to make the KEM ciphertext entirely dependent on the message, veil.mres begins each
 // footer plaintext with the MAC of the DEM ciphertext along with the DEK and the length of the
 // message. These three components are modeled as distinct STROBE operations within veil.hpke,
 // making the encryption of the DEK and the message length cryptographically dependent on the MAC.
+// This construction can be considered a variant of a Tag-KEM, where the tag (τ) is recovered from
+// the KEM ciphertext and compared post-hoc instead of being calculated pre-hoc and passed as an
+// argument. (This is analogous to AES-SIV comparing the resulting plaintext on decryption to the
+// synthetic IV vs. AES-GCM comparing the received MAC to a re-calculated MAC of the received
+// ciphertext.)
 //
-// This construction can be considered a variant of Abe et al.'s Tag-KEM
-// (https://www.shoup.net/papers/tagkemdem.pdf), where the tag (τ) is recovered from the KEM
-// ciphertext and compared post-hoc instead of being calculated pre-hoc and passed as an argument.
-// (This is analogous to AES-SIV comparing the resulting plaintext on decryption to the synthetic IV
-// vs. AES-GCM comparing the received MAC to a re-calculated MAC of the received ciphertext.)
-//
-// Consequently, an insider attempting to re-use the encrypted footers with a forged DEM ciphertext
-// will be foiled by recipients checking the recovered MAC from the footer against the ersatz DEM
-// ciphertext. Because the signature covers the entirety of the footers, including padding, any
-// recipient will be able to detect any ciphertext manipulations, making it strongly non-malleable
-// in the multi-user setting.
-//
-// Encrypt-Then-Sign Security and Repudiability
-//
-// veil.schnorr is a strong signature scheme, veil.mres is CCA-secure, and both protocols strongly
-// bind sender identity. These meet the criteria for an encrypt-then-sign construction to be secure.
+// To solve the IND-CCA2 game in the multi-user setting, veil.mres ends each message with an
+// encrypted signature of the footers. Because the signature covers the entirety of the footers,
+// including padding, any recipient will be able to detect any ciphertext manipulations, making it
+// strongly non-malleable in the multi-user setting. veil.schnorr is a strong signature scheme,
+// veil.mres is CCA-secure, and both protocols strongly bind sender identity. These meet the
+// criteria for an encrypt-then-sign construction to be secure. Being encrypted with the DEK, a
+// passive adversary is unable to verify the signature or even distinguish the signature from random
+// noise.
 //
 // The signature of the encrypted footers assures their authenticity, the authenticity of the
-// DEK/MAC, and thus the authenticity of the message, but cannot be verified without the DEK, or
-// even distinguished from random noise.
+// DEK/MAC, and thus the authenticity of the message, but cannot be decrypted or verified without
+// the DEK, or even distinguished from random noise.
 //
 // If the DEK is revealed, third parties will be able to decrypt the message and verify the
 // signature, but cannot confirm that the encrypted footers contain the DEK or that the message is
@@ -157,6 +192,9 @@
 // Technically, this is a looser guarantee of repudiability, but practically the sender is only
 // unable to repudiate a set of IND-CCA2 secure ciphertexts. Unlike the Sign-then-Encrypt
 // construction, a recipient is unable to present a decrypted, signed message to third parties.
+//
+// As a result (and in contrast to most constructions), veil.mres protects against the DEM-reuse
+// attack while also limiting the scope of non-repudiability.
 package mres
 
 import (
