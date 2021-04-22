@@ -64,19 +64,33 @@
 //
 // Finally, the signature S is verified against the received footers F.
 //
-// IND-CCA2 Security
+// Multi-User Security
+//
+// In analyzing signcryption in the multi-user setting, Badertscher et al. lay out an informal set
+// of desired behavior for multi-user signcryption (https://eprint.iacr.org/2018/050.pdf):
+//
+//  1. If two uncompromised legitimate users communicate, then the secure network guarantees that
+//     the network attacker learns at most the length of the messages and the attacker cannot inject
+//     any message into this communication: the communication between them can be called secure.
+//  2. If, however, the legitimate sender is compromised, but not the receiver, then the network
+//     allows the attacker to inject messages in the name of this sender. Still, Eve does not learn
+//     the contents of the messages to the receiver: the communication is thus only confidential.
+//  3. If, on the other hand, the legitimate receiver is compromised, but not the sender, the secure
+//     network allows Eve to read the contents of the messages sent to this compromised user. Still,
+//     no messages can be injected into this communication: the communication is only authentic.
+//  4. If both, sender and receiver, are compromised, then the network does not give any guarantee
+//     on their communication, Eve can read every message and inject anything at will.
+//
+// They factor this into two formal notions of security to capture these four criteria: multi-user
+// outsider security and multi-user insider security, which effectively capture the IND-CCA2 and
+// SUF-CMA security notions in their respective contexts.
+//
+// Multi-User Outsider Security
 //
 // In the single-recipient setting, this construction is equivalent to Construction 12.10 of Modern
 // Cryptography 3e. Per Theorem 12.14, it is CCA-secure if the KEM and underlying private-key
 // encryption system are CCA-secure. As veil.hpke is CCA-secure, it can be inferred that veil.mres
 // is CCA-secure in the single-recipient setting.
-//
-// Phan et al. (https://www.di.ens.fr/users/phan/2011_acns.pdf) lay out a set of security notions in
-// the broadcast (i.e. multi-recipient) setting and describe a similar construction as
-// IND-Dyn2-Ad2-CCA2-secure, with an SUF-CMA MAC and encapsulated MAC key instead of veil.mres's
-// SUF-CMA Schnorr signature.
-//
-// Outsider SUF-CMA Security
 //
 // For attackers not included in the list of message recipients, veil.mres is strongly unforgeable
 // under chosen message attack. veil.schnorr is SUF-CMA over the encrypted footers, which contain a
@@ -84,13 +98,26 @@
 // Theorem 13.4, its security is that of the underlying hash function's collision resistance, which
 // for STROBE is very high.
 //
-// Insider SUF-CMA Security
+// From this we can informally infer that veil.mres is outsider-secure in the multi-user setting,
+// meeting the first criterion.
 //
-// For attackers that are included in the list of message recipients, veil.mres is still strongly
-// unforgeable under chosen mesage attack.
+// Multi-User Insider Security
 //
-// In contrast to most HPKE constructions, veil.mres provides insider authenticity against the
-// DEM-reuse attack Alwen et al. (https://eprint.iacr.org/2020/1499.pdf) detail in Section 5.4:
+// Badertscher et al.'s notion of multi-user insider security combines FSO/FUO-IND-CCA2 security
+// with FSO/FUO-SUF-CMA security, as captured by the second and third criteria.
+//
+// In the event of a compromised sender, veil.hpke's sender forward security prevents a passive
+// adversary from learning the contents of a message without additional collusion (e.g. leaking the
+// DEK, or adding themselves as a recipient).
+//
+// In the event of a compromised sender, veil.schnorr's strong unforgeability prevents an active
+// attacker from injecting forged encrypted footers into the network. Because the encrypted footers
+// contain a MAC of the message ciphertext, this implies that an active attacker would be unable to
+// inject a forged message.
+//
+// As a result (and in contrast to most constructions), veil.mres protects against the DEM-reuse
+// attack Alwen et al. (https://eprint.iacr.org/2020/1499.pdf) detail against the proposed HPKE
+// standard:
 //
 //  We can show that for any AKEM, KS, and AEAD, the construction APKE[AKEM,KS, AEAD] given in
 //  Listing 8 is not (n,qe,qd)-Insider-Auth secure. The inherent reason for this construction to be
@@ -111,23 +138,18 @@
 //
 // Consequently, an insider attempting to re-use the encrypted footers with a forged DEM ciphertext
 // will be foiled by recipients checking the recovered MAC from the footer against the ersatz DEM
-// ciphertext.
+// ciphertext. Because the signature covers the entirety of the footers, including padding, any
+// recipient will be able to detect any ciphertext manipulations, making it strongly non-malleable
+// in the multi-user setting.
 //
-// Non-malleability In The Broadcast Setting
+// Encrypt-Then-Sign Security and Repudiability
 //
-// The remaining piece of veil.mres ciphertext to protect is the set of footers which are encrypted
-// for other recipients. If we consider the IND-CCA2 game to be played in parallel, with a
-// decryption oracle for each ciphertext recipient, an attacker could modify bits of unauthenticated
-// footers for other recipients, at which point an oracle would return the original plaintext for a
-// modified message. Such a construction would not be IND-CCA2 secure.
+// veil.schnorr is a strong signature scheme, veil.mres is CCA-secure, and both protocols strongly
+// bind sender identity. These meet the criteria for an encrypt-then-sign construction to be secure.
 //
 // The signature of the encrypted footers assures their authenticity, the authenticity of the
 // DEK/MAC, and thus the authenticity of the message, but cannot be verified without the DEK, or
-// even distinguished from random noise. veil.schnorr is a strong signature scheme, veil.mres is
-// CCA-secure, and both protocols strongly bind sender identity. These meet the criteria for an
-// encrypt-then-sign construction to be secure.
-//
-// Repudiability
+// even distinguished from random noise.
 //
 // If the DEK is revealed, third parties will be able to decrypt the message and verify the
 // signature, but cannot confirm that the encrypted footers contain the DEK or that the message is
