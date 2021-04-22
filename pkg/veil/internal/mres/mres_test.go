@@ -177,6 +177,24 @@ func BenchmarkEncrypt(b *testing.B) {
 	}
 }
 
+func BenchmarkDecrypt(b *testing.B) {
+	plaintext := make([]byte, 1024*1024)
+	recipients := []*ristretto255.Element{qR, qS, qR, qS, qR, qS}
+	out := bytes.NewBuffer(nil)
+	_, err := Encrypt(out, bytes.NewReader(plaintext), dS, qS, recipients, 0)
+	if err != nil {
+		b.Fatal(err)
+	}
+	ciphertext := out.Bytes()
+
+	for i := 0; i < b.N; i++ {
+		_, err := Decrypt(io.Discard, bytes.NewReader(ciphertext), dR, qR, qS)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 //nolint:gochecknoglobals // constants
 var (
 	dS = ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0x4f}, internal.UniformBytestringSize))

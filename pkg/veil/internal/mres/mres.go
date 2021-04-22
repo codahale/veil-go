@@ -149,8 +149,12 @@ func Encrypt(
 	dst io.Writer, src io.Reader, dS *ristretto255.Scalar, qS *ristretto255.Element,
 	qRs []*ristretto255.Element, padding int,
 ) (int64, error) {
+	buf := make([]byte, footerSize)
+	mac := buf[:internal.TagSize]
+	dek := buf[internal.TagSize : internal.TagSize+dekSize]
+	msgSize := buf[internal.TagSize+dekSize:]
+
 	// Generate a DEK.
-	dek := make([]byte, dekSize)
 	if _, err := rand.Read(dek); err != nil {
 		return 0, fmt.Errorf("error generating DEK: %w", err)
 	}
@@ -165,10 +169,9 @@ func Encrypt(
 	}
 
 	// Create a MAC of the ciphertext.
-	mac := mres.SendMAC(nil)
+	mac = mres.SendMAC(mac[:0])
 
 	// Encode the message length as a 64-bit little endian integer.
-	msgSize := make([]byte, 8)
 	binary.LittleEndian.PutUint64(msgSize, uint64(written))
 
 	// Create a new signer for the encrypted footers.
@@ -185,7 +188,7 @@ func Encrypt(
 
 	// Create a buffer for the encrypted footers.
 	footer := [][]byte{mac, dek, msgSize}
-	encFooter := make([]byte, dekSize+internal.TagSize+8+hpke.Overhead)
+	encFooter := make([]byte, footerSize+hpke.Overhead)
 
 	// Encrypt, sign, and writes copies of the footer.
 	for _, qR := range qRs {
@@ -232,11 +235,12 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		footerEnd  = offset
 		dek, ctMac []byte
 		messageEnd int64
-		footer     = make([]byte, encryptedFooterSize)
-		footerDec  = [][]byte{
-			make([]byte, internal.TagSize),
-			make([]byte, dekSize),
-			make([]byte, 8),
+		encFooter  = make([]byte, encryptedFooterSize)
+		footerBuf  = make([]byte, footerSize)
+		footer     = [][]byte{
+			footerBuf[:internal.TagSize],
+			footerBuf[internal.TagSize : internal.TagSize+dekSize],
+			footerBuf[internal.TagSize+dekSize:],
 		}
 	)
 
@@ -254,12 +258,12 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		}
 
 		// Read the possible footer.
-		if _, err := io.ReadFull(src, footer); err != nil {
+		if _, err := io.ReadFull(src, encFooter); err != nil {
 			return 0, fmt.Errorf("error reading footer: %w", err)
 		}
 
 		// Try to decrypt the footer.
-		plaintext, err := hpke.Decrypt(footerDec, dR, qR, qS, footer)
+		plaintext, err := hpke.Decrypt(footer, dR, qR, qS, encFooter)
 		if err != nil {
 			// If we can't, try the next possibility.
 			continue
