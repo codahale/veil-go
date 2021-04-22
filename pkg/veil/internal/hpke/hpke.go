@@ -238,7 +238,7 @@ func Decrypt(
 	// authenticated.
 	qE := ristretto255.NewElement()
 	if err := qE.Decode(hpke.RecvENC(buf[:0], ciphertext[:internal.ElementSize])); err != nil {
-		return nil, err
+		return nil, internal.ErrInvalidCiphertext
 	}
 
 	// Calculate the ephemeral shared secret between the recipient's private key and the ephemeral
@@ -261,7 +261,7 @@ func Decrypt(
 	// entirety, since the sender and receiver's protocol states must be identical in order for the
 	// MACs to agree.
 	if err := hpke.RecvMAC(ciphertext[len(ciphertext)-internal.MACSize:]); err != nil {
-		return nil, err
+		return nil, internal.ErrInvalidCiphertext
 	}
 
 	// Return the authenticated plaintext.

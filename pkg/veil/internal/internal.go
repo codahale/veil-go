@@ -5,10 +5,14 @@ package internal
 
 import (
 	"crypto/rand"
+	"errors"
 	"math/big"
 
 	"github.com/mr-tron/base58"
 )
+
+// ErrInvalidCiphertext is returned when the ciphertext cannot be decrypted.
+var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 
 const (
 	// MACSize is the MAC size in bytes.

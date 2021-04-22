@@ -15,13 +15,13 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/codahale/veil/pkg/veil/internal/mres"
+	"github.com/codahale/veil/pkg/veil/internal"
 )
 
 var (
 	// ErrInvalidCiphertext is returned when a ciphertext cannot be decrypted, either due to an
 	// incorrect key or tampering.
-	ErrInvalidCiphertext = mres.ErrInvalidCiphertext
+	ErrInvalidCiphertext = internal.ErrInvalidCiphertext
 
 	// ErrInvalidSignature is returned when a signature, public key, and message do not match.
 	ErrInvalidSignature = errors.New("invalid signature")

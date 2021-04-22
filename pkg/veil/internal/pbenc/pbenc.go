@@ -70,7 +70,7 @@ func Decrypt(passphrase, salt, ciphertext []byte, space, time int) ([]byte, erro
 	plaintext := pbenc.RecvENC(nil, ciphertext[:len(ciphertext)-internal.MACSize])
 
 	if err := pbenc.RecvMAC(ciphertext[len(ciphertext)-internal.MACSize:]); err != nil {
-		return nil, err
+		return nil, internal.ErrInvalidCiphertext
 	}
 
 	return plaintext, nil

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
+	"github.com/codahale/veil/pkg/veil/internal"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestRoundTrip(t *testing.T) {
@@ -32,9 +34,9 @@ func TestBadPassphrase(t *testing.T) {
 	message := []byte("this is a real message")
 
 	ciphertext := Encrypt(passphrase, salt, message, 256, 64)
-	if _, err := Decrypt([]byte("boop"), salt, ciphertext, 256, 64); err == nil {
-		t.Fatal("should not have decrypted")
-	}
+	_, err := Decrypt([]byte("boop"), salt, ciphertext, 256, 64)
+
+	assert.Equal(t, "error", internal.ErrInvalidCiphertext, err, cmpopts.EquateErrors())
 }
 
 func TestBadSalt(t *testing.T) {
@@ -45,9 +47,9 @@ func TestBadSalt(t *testing.T) {
 	message := []byte("this is a real message")
 
 	ciphertext := Encrypt(passphrase, salt, message, 256, 64)
-	if _, err := Decrypt(passphrase, []byte("boop"), ciphertext, 256, 64); err == nil {
-		t.Fatal("should not have decrypted")
-	}
+	_, err := Decrypt(passphrase, []byte("boop"), ciphertext, 256, 64)
+
+	assert.Equal(t, "error", internal.ErrInvalidCiphertext, err, cmpopts.EquateErrors())
 }
 
 func TestBadSpace(t *testing.T) {
@@ -58,9 +60,9 @@ func TestBadSpace(t *testing.T) {
 	message := []byte("this is a real message")
 
 	ciphertext := Encrypt(passphrase, salt, message, 256, 64)
-	if _, err := Decrypt(passphrase, salt, ciphertext, 128, 64); err == nil {
-		t.Fatal("should not have decrypted")
-	}
+	_, err := Decrypt(passphrase, salt, ciphertext, 128, 64)
+
+	assert.Equal(t, "error", internal.ErrInvalidCiphertext, err, cmpopts.EquateErrors())
 }
 
 func TestBadTime(t *testing.T) {
@@ -71,9 +73,9 @@ func TestBadTime(t *testing.T) {
 	message := []byte("this is a real message")
 
 	ciphertext := Encrypt(passphrase, salt, message, 256, 64)
-	if _, err := Decrypt(passphrase, salt, ciphertext, 256, 32); err == nil {
-		t.Fatal("should not have decrypted")
-	}
+	_, err := Decrypt(passphrase, salt, ciphertext, 256, 32)
+
+	assert.Equal(t, "error", internal.ErrInvalidCiphertext, err, cmpopts.EquateErrors())
 }
 
 func BenchmarkEncrypt(b *testing.B) {

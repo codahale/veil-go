@@ -198,7 +198,6 @@ package mres
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 
@@ -208,9 +207,6 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/gtank/ristretto255"
 )
-
-// ErrInvalidCiphertext is returned when the ciphertext cannot be decrypted.
-var ErrInvalidCiphertext = errors.New("invalid ciphertext")
 
 // Encrypt reads the contents of src, encrypts them such that all members of qRs will be able to
 // decrypt and authenticate them, and writes the encrypted contents to dst.
@@ -319,7 +315,7 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 		offset -= encryptedFooterSize
 		if offset < 0 {
 			// If we're at the beginning of the file, we're done looking.
-			return 0, ErrInvalidCiphertext
+			return 0, internal.ErrInvalidCiphertext
 		}
 
 		// Seek to where the footer might be.
@@ -363,7 +359,7 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 
 	// Verify the MAC of the ciphertext with that recovered from the footer.
 	if err := mres.RecvMAC(ctMac); err != nil {
-		return written, ErrInvalidCiphertext
+		return written, internal.ErrInvalidCiphertext
 	}
 
 	// Create a verifier for the encrypted footers.
@@ -386,7 +382,7 @@ func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *
 
 	// Verify the signature of the encrypted footers.
 	if !verifier.Verify(sig) {
-		return written, ErrInvalidCiphertext
+		return written, internal.ErrInvalidCiphertext
 	}
 
 	return written, nil

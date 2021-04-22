@@ -61,7 +61,7 @@ func TestBadSender(t *testing.T) {
 	n, err = Decrypt(dst, src, dR, qR, qR)
 
 	assert.Equal(t, "written bytes", int64(0), n)
-	assert.Equal(t, "error", ErrInvalidCiphertext, err, cmpopts.EquateErrors())
+	assert.Equal(t, "error", internal.ErrInvalidCiphertext, err, cmpopts.EquateErrors())
 }
 
 func TestBadRecipient(t *testing.T) {
@@ -84,7 +84,7 @@ func TestBadRecipient(t *testing.T) {
 	n, err = Decrypt(dst, src, dS, qS, qS)
 
 	assert.Equal(t, "written bytes", int64(0), n)
-	assert.Equal(t, "error", ErrInvalidCiphertext, err, cmpopts.EquateErrors())
+	assert.Equal(t, "error", internal.ErrInvalidCiphertext, err, cmpopts.EquateErrors())
 }
 
 func TestBadFooter(t *testing.T) {
@@ -110,7 +110,7 @@ func TestBadFooter(t *testing.T) {
 
 	_, err = Decrypt(dst, src, dR, qR, qS)
 
-	assert.Equal(t, "error", ErrInvalidCiphertext, err, cmpopts.EquateErrors())
+	assert.Equal(t, "error", internal.ErrInvalidCiphertext, err, cmpopts.EquateErrors())
 }
 
 func TestBadMAC(t *testing.T) {
@@ -136,7 +136,7 @@ func TestBadMAC(t *testing.T) {
 
 	_, err = Decrypt(dst, src, dR, qR, qS)
 
-	assert.Equal(t, "error", ErrInvalidCiphertext, err, cmpopts.EquateErrors())
+	assert.Equal(t, "error", internal.ErrInvalidCiphertext, err, cmpopts.EquateErrors())
 }
 
 func TestBadCiphertext(t *testing.T) {
@@ -162,7 +162,7 @@ func TestBadCiphertext(t *testing.T) {
 
 	_, err = Decrypt(dst, src, dR, qR, qS)
 
-	assert.Equal(t, "error", ErrInvalidCiphertext, err, cmpopts.EquateErrors())
+	assert.Equal(t, "error", internal.ErrInvalidCiphertext, err, cmpopts.EquateErrors())
 }
 
 func BenchmarkEncrypt(b *testing.B) {
