@@ -64,7 +64,7 @@
 //
 // Finally, the signature S is verified against the received footers F.
 //
-// Security
+// IND-CCA2 Security
 //
 // In the single-recipient setting, this construction is equivalent to Construction 12.10 of Modern
 // Cryptography 3e. Per Theorem 12.14, it is CCA-secure if the KEM and underlying private-key
@@ -73,9 +73,21 @@
 //
 // Phan et al. (https://www.di.ens.fr/users/phan/2011_acns.pdf) lay out a set of security notions in
 // the broadcast (i.e. multi-recipient) setting and describe a similar construction as
-// IND-Dyn2-Ad2-CCA2-secure.
+// IND-Dyn2-Ad2-CCA2-secure, with an SUF-CMA MAC and encapsulated MAC key instead of veil.mres's
+// SUF-CMA Schnorr signature.
 //
-// Insider Authenticity
+// Outsider SUF-CMA Security
+//
+// For attackers not included in the list of message recipients, veil.mres is strongly unforgeable
+// under chosen message attack. veil.schnorr is SUF-CMA over the encrypted footers, which contain a
+// MAC of the ciphertext, making it equivalent to Construction 13.3 of Modern Cryptography 3e. Per
+// Theorem 13.4, its security is that of the underlying hash function's collision resistance, which
+// for STROBE is very high.
+//
+// Insider SUF-CMA Security
+//
+// For attackers that are included in the list of message recipients, veil.mres is still strongly
+// unforgeable under chosen mesage attack.
 //
 // In contrast to most HPKE constructions, veil.mres provides insider authenticity against the
 // DEM-reuse attack Alwen et al. (https://eprint.iacr.org/2020/1499.pdf) detail in Section 5.4:
@@ -90,14 +102,18 @@
 // footer plaintext with the MAC of the DEM ciphertext along with the DEK and the length of the
 // message. These three components are modeled as distinct STROBE operations within veil.hpke,
 // making the encryption of the DEK and the message length cryptographically dependent on the MAC.
+//
 // This construction can be considered a variant of Abe et al.'s Tag-KEM
 // (https://www.shoup.net/papers/tagkemdem.pdf), where the tag (τ) is recovered from the KEM
 // ciphertext and compared post-hoc instead of being calculated pre-hoc and passed as an argument.
 // (This is analogous to AES-SIV comparing the resulting plaintext on decryption to the synthetic IV
 // vs. AES-GCM comparing the received MAC to a re-calculated MAC of the received ciphertext.)
+//
 // Consequently, an insider attempting to re-use the encrypted footers with a forged DEM ciphertext
 // will be foiled by recipients checking the recovered MAC from the footer against the ersatz DEM
 // ciphertext.
+//
+// Non-malleability In The Broadcast Setting
 //
 // The remaining piece of veil.mres ciphertext to protect is the set of footers which are encrypted
 // for other recipients. If we consider the IND-CCA2 game to be played in parallel, with a
@@ -108,8 +124,8 @@
 // The signature of the encrypted footers assures their authenticity, the authenticity of the
 // DEK/MAC, and thus the authenticity of the message, but cannot be verified without the DEK, or
 // even distinguished from random noise. veil.schnorr is a strong signature scheme, veil.mres is
-// CCA-secure, and both protocols strongly bind sender identity. As a result, the encrypt-then-sign
-// scheme is secure.
+// CCA-secure, and both protocols strongly bind sender identity. These meet the criteria for an
+// encrypt-then-sign construction to be secure.
 //
 // Repudiability
 //
