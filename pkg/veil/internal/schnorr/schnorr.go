@@ -116,10 +116,13 @@ func (sn *Signer) Sign() ([]byte, error) {
 		return nil, err
 	}
 
-	// Key the clone with the nonce.
+	// Key the clone with the nonce. This hedges against differential attacks against purely
+	// deterministic signature algorithms.
 	clone.KEY(buf[:internal.UniformBytestringSize])
 
-	// Key the clone with the signer's private key.
+	// Key the clone with the sender's private key. This hedges against randomness failures. The
+	// protocol's state is already dependent on the message, making the reuse of ephemeral values
+	// across messages impossible.
 	clone.KEY(sn.d.Encode(buf[:0]))
 
 	// Derive an ephemeral key pair from the clone.

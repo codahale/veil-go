@@ -171,13 +171,15 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 		return nil, err
 	}
 
-	// Key the clone with the nonce.
+	// Key the clone with the nonce. This hedges against differential attacks against purely
+	// deterministic PKE algorithms.
 	clone.KEY(buf[:internal.UniformBytestringSize])
 
-	// Key the clone with the sender's private key.
+	// Key the clone with the sender's private key. This hedges against randomness failures.
 	clone.KEY(dS.Encode(buf[:0]))
 
-	// Key the clone with the plaintext.
+	// Key the clone with the plaintext. This hedges against the reuse of ephemeral values across
+	// multiple messages.
 	for _, b := range plaintext {
 		clone.KEY(b)
 	}
