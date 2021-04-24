@@ -199,7 +199,9 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 
 // Decrypt decrypts the ciphertext iff it was encrypted by the owner of qS for the owner of qR and
 // no bit of the ciphertext has been modified.
-func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, tag, ciphertext []byte) ([]byte, error) {
+func Decrypt(
+	dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, tag, ciphertext []byte,
+) ([]byte, error) {
 	var buf [internal.ElementSize]byte
 
 	// Initialize the protocol.
