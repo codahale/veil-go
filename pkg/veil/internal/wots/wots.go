@@ -23,7 +23,7 @@
 //  INIT('veil.wots.block', level=256)
 //  AD(LE_32(256))
 //  AD(LE_32(8))
-//  AD(b)
+//  KEY(b)
 //  PRF(32) -> b
 //
 // Finally, messages M_0…M_n are converted to blocks as follows, given a public key Q:
@@ -197,7 +197,7 @@ func block(in []byte, iterations int) []byte {
 
 	for i := 0; i < iterations; i++ {
 		b := h.Clone()
-		b.AD(out)
+		b.KEY(out)
 		b.PRF(out)
 	}
 
