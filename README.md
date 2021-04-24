@@ -82,29 +82,26 @@ key `friends`, which is in turn used to derive the private key `alice`.
 Full details and documentation for all the Veil protocols can be found in the
 [`pkg/veil/internal`](https://github.com/codahale/veil/tree/main/pkg/veil/internal) directory.
 
-#### `veil.hpke`
+#### `veil.atkem`
 
-`veil.hpke` implements an authenticated `C(1e, 2s, ECC DH)` hybrid public key encryption system with
+`veil.atkem` implements an authenticated `C(1e, 2s, ECC DH)` tagged key encapsulation mechanism with
 ristretto255 and STROBE. It provides authentication, sender forward security (i.e. if the sender's
 private key is compromised, the messages they sent remain confidential), as well as the novel
 property of sending no values in cleartext: the ephemeral public key is encrypted with the static
-shared secret before sending.
-
-Plaintexts are sequences of byte arrays, which allows `veil.hpke` to push message content boundaries
-into the STROBE protocol. If decryption is attempted with different message boundaries, it will fail
-to authenticate.
+shared secret before sending. In addition, it includes a tag input which is used as authenticated 
+data.
 
 #### `veil.mres`
 
-`veil.mres` implements the multi-recipient encryption system for encrypted Veil messages. Messages
-are encrypted with a random DEK, and copies of the MAC, the DEK, and the message length are
-encrypted in footers with `veil.hpke`. Random padding can be prepended to the footers to obscure the
-actual message length, and a `veil.schnorr` signature keyed with the DEK of the encrypted footers is
-appended to the end.
+`veil.mres` implements the multi-recipient encryption system for encrypted Veil messages.
 
-To decrypt, readers seek backwards in the ciphertext, looking for a decryptable footer. Having found
-one, they then seek to the beginning of the ciphertext, decrypt it, verify the encrypted MAC, hash
-the encrypted footers and any padding, and verify the signature.
+Messages begin with a W-OTS verification key, then a set of `veil.atkem`-encrypted headers
+containing copies of the data encryption key and message length, using the verification key as a
+tag. Next, the message is encrypted with STROBE using the data encryption key. Finally, a W-OTS
+signature of the entire ciphertext is appended.
+
+To decrypt, readers read the verification key, search for a decryptable header, recover the DEK and
+message length, decrypt the message, and finally verify the W-OTS signature.
 
 This provides strong confidentiality and authenticity guarantees while still providing repudiability
 (no recipient can prove a message's contents and origin without revealing their private key) and
@@ -128,6 +125,11 @@ described by [Fleischhacker et al.](https://eprint.iacr.org/2011/673.pdf). It pr
 _indistinguishable_ signatures (i.e., signatures which do not reveal anything about the signing key
 or signed message) and when encrypted with an unrelated key (i.e. by `veil.mres`) are _pseudorandom_
 (i.e. indistinguishable from random noise).
+
+#### `veil.wots`
+
+`veil.wots` implements a Winternitz one-time signature scheme. It creates keys and signatures with a
+cost/size tradeoff of 8 bits and a block size of 256 bits.
 
 ## License
 
