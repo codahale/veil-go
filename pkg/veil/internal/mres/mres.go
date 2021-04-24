@@ -71,12 +71,12 @@
 // Multi-Recipient Confidentiality
 //
 // This construction is a simplification of Wei et al.'s heterogeneous MRES
-// (https://cpb-us-w2.wpmucdn.com/sites.uab.edu/dist/a/68/files/2020/01/ispec14_in_proceedings.pdf),
-// in that it standardizes on a common KEM, and as such inherits Wei's proof of IND-CCA2 security,
-// provided the KEM is IND-CCA2-secure, the DEM is IND-OPA-secure, and the one-time signature scheme
-// is SUF-CMA-secure. veil.atkem, STROBE's SEND/RECV_ENC operations, and veil.wots meet those
-// requirements. As such, an attacker with a sender's encryption oracle and a per-recipient
-// decryption oracle has negligible advantage in any IND-CCA game across any recipient.
+// (https://sites.uab.edu/yzheng/files/2020/01/ispec14_in_proceedings.pdf), in that it standardizes
+// on a common KEM, and as such inherits Wei's proof of IND-CCA2 security, provided the KEM is
+// IND-CCA2-secure, the DEM is IND-OPA-secure, and the one-time signature scheme is SUF-CMA-secure.
+// veil.atkem, STROBE's SEND/RECV_ENC operations, and veil.wots meet those requirements. As such, an
+// attacker with a sender's encryption oracle and a per-recipient decryption oracle has negligible
+// advantage in any IND-CCA game across any recipient.
 //
 // Multi-Recipient Authenticity
 //
