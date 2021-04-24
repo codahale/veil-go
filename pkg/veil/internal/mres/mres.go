@@ -3,117 +3,86 @@
 //
 // Encryption
 //
-// Encrypting a message is as follows, given the sender's key pair, d_s and Q_s, a plaintext message
-// in blocks P_0…P_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data
-// encryption key, K, a DEK size N_dek, and a MAC size N_mac:
+// Encrypting a message begins as follows, given the sender's key pair, d_s and Q_s, a plaintext
+// message in blocks P_0…P_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data
+// encryption key, K_dek, a randomly generated W-OTS key pair, K_s and K_v, and a DEK size N_dek:
 //
 //  INIT('veil.mres', level=256)
 //  AD(LE_32(N_dek),  meta=true)
-//  AD(LE_32(N_mac),  meta=true)
 //  AD(Q_s)
-//  KEY(K)
+//  SEND_CLR(K_v)
+//
+// The data encryption key and the length of the encrypted headers (plus padding) are encoded into a
+// fixed-length header and copies of it are encrypted with veil.atkem for each recipient, using the
+// W-OTS verification key as the tag. Optional random padding is added to the end, and the resulting
+// block H is written:
+//
+//  SEND_CLR(H)
+//
+// The protocol is keyed with the DEK and the encrypted message is written:
+//
+//  KEY(K_dek)
 //  SEND_ENC('')
 //  SEND_ENC(P_0,     more=true)
-//  SEND_ENC(P_1,     more=true)
 //  …
 //  SEND_ENC(P_n,     more=true)
 //
-// Having encrypted the plaintext, a MAC is generated but not written:
+// Finally, a W-OTS signature S of the entire ciphertext (headers, padding, and DEM ciphertext) is
+// created and written:
 //
-//  SEND_MAC(N_dek) -> M
+//  SEND_CLR(S)
 //
-// Next, footers consisting of M, K, and N_msg=LE_64(len(P)) are encrypted for all recipient public
-// keys using veil.hpke. Random padding is prepended to the concatenated encrypted footers, and the
-// resulting block F is sent as cleartext:
-//
-//  SEND_CLR(F)
-//
-// Finally, a veil.schnorr signature S of the encrypted footers F is encrypted and sent:
-//
-//  SEND_ENC(S) -> C_s
-//
-// The resulting ciphertext then contains, in order: the unauthenticated ciphertext of the message;
-// a block of encrypted footers (each containing a copy of K, M, and N_msg) with random padding
-// prepended; an encrypted signature of the encrypted footers.
+// The resulting ciphertext then contains, in order: the W-OTS verification key,
+// veil.atkem-encrypted headers, random padding, message ciphertext, and a W-OTS signature of the
+// headers, padding, and ciphertext.
 //
 // Decryption
 //
-// Decryption is as follows, given the recipient's key pair, d_r and Q_r, the sender's public key,
-// Q_s, and a ciphertext C: the recipient seeks to the end of the encrypted footers (64 bytes from
-// the end of C), then seeks backwards by the length of an encrypted footer, reading each encrypted
-// footer and attempting to decrypt it via veil.hpke.
-//
-// Once they find a footer which can be decrypted, they recover M, K, and N_msg. They then seek to
-// the beginning of C and run the inverse of the encryption protocol:
+// Decryption begins as follows, given the recipient's key pair, d_r and Q_r, the sender's public
+// key, Q_s:
 //
 //  INIT('veil.mres', level=256)
 //  AD(LE_32(N_dek),  meta=true)
-//  AD(LE_32(N_mac),  meta=true)
 //  AD(Q_s)
-//  KEY(K)
+//
+// The W-OTS verification key is read:
+//
+//  RECV_CLR(V_k)
+//
+// The recipient then reads through the ciphertext in header-sized blocks, looking for one which is
+// decryptable given their key pair, the sender's public key, and the W-OTS verification key as the
+// tag. Having found one, they recover the data encryption key K_dek and the message length and read
+// the remainder of the block of encrypted headers and padding H:
+//
+//  RECV_CLR(H)
+//
+// The protocol is keyed with the DEK and the plaintext decrypted:
+//
+//  KEY(K_dek)
 //  RECV_ENC('')
 //  RECV_ENC(C_0,     more=true)
-//  RECV_ENC(C_1,     more=true)
 //  …
 //  RECV_ENC(C_n,     more=true)
-//  RECV_MAC(M)
-//  RECV_CLR(F)
-//  RECV_ENC(C_s) -> S
 //
-// Finally, the signature S is verified against the received footers F.
+// Finally, the signature S is read and verified against the entire ciphertext:
 //
-// Multi-User Security
+//  RECV_CLR(S)
 //
-// In analyzing signcryption in the multi-user setting, Badertscher et al. lay out an informal set
-// of desired behavior for multi-user signcryption (https://eprint.iacr.org/2018/050.pdf):
+// Multi-Recipient Confidentiality
 //
-//  1. If two uncompromised legitimate users communicate, then the secure network guarantees that
-//     the network attacker learns at most the length of the messages and the attacker cannot inject
-//     any message into this communication: the communication between them can be called secure.
-//  2. If, however, the legitimate sender is compromised, but not the receiver, then the network
-//     allows the attacker to inject messages in the name of this sender. Still, Eve does not learn
-//     the contents of the messages to the receiver: the communication is thus only confidential.
-//  3. If, on the other hand, the legitimate receiver is compromised, but not the sender, the secure
-//     network allows Eve to read the contents of the messages sent to this compromised user. Still,
-//     no messages can be injected into this communication: the communication is only authentic.
-//  4. If both, sender and receiver, are compromised, then the network does not give any guarantee
-//     on their communication, Eve can read every message and inject anything at will.
+// This construction is a simplification of Wei et al.'s heterogeneous MRES
+// (https://cpb-us-w2.wpmucdn.com/sites.uab.edu/dist/a/68/files/2020/01/ispec14_in_proceedings.pdf),
+// in that it standardizes on a common KEM, and as such inherits Wei's proof of IND-CCA2 security,
+// provided the KEM is IND-CCA2-secure, the DEM is IND-OPA-secure, and the one-time signature scheme
+// is SUF-CMA-secure. veil.atkem, STROBE's SEND/RECV_ENC operations, and veil.wots meet those
+// requirements. As such, an attacker with a sender's encryption oracle and a per-recipient
+// decryption oracle has negligible advantage in any IND-CCA game across any recipient.
 //
-// They factor this into two formal notions of security to capture these four criteria: multi-user
-// outsider security and multi-user insider security, which effectively capture the IND-CCA2 and
-// SUF-CMA security notions in their respective contexts.
+// Multi-Recipient Authenticity
 //
-// Multi-User Outsider Security
-//
-// In the single-recipient setting, this construction is equivalent to Construction 12.10 of Modern
-// Cryptography 3e. Per Theorem 12.14, it is CCA-secure if the KEM and underlying private-key
-// encryption system are CCA-secure. As veil.hpke is CCA-secure, it can be inferred that veil.mres
-// is CCA-secure in the single-recipient setting.
-//
-// For attackers not included in the list of message recipients, veil.mres is strongly unforgeable
-// under chosen message attack. veil.schnorr is SUF-CMA over the encrypted footers, which contain a
-// MAC of the ciphertext, making it equivalent to Construction 13.3 of Modern Cryptography 3e. Per
-// Theorem 13.4, its security is that of the underlying hash function's collision resistance, which
-// for STROBE is very high.
-//
-// From this we can informally infer that veil.mres is outsider-secure in the multi-user setting,
-// meeting the first criterion.
-//
-// Multi-User Insider Security
-//
-// Badertscher et al.'s notion of multi-user insider security combines FSO/FUO-IND-CCA2 security
-// with FSO/FUO-SUF-CMA security, as captured by the second and third criteria.
-//
-// In the event of a compromised sender, veil.hpke's sender forward security prevents a passive
-// adversary from learning the contents of a message without additional collusion (e.g. leaking the
-// DEK, or adding themselves as a recipient).
-//
-// In the event of a compromised sender, veil.schnorr's strong unforgeability prevents an active
-// attacker from injecting forged encrypted footers into the network. Because the encrypted footers
-// contain a MAC of the message ciphertext, this implies that an active attacker would be unable to
-// inject a forged message.
-//
-// DEM-Reuse Attacks
+// Similarly, an attacker engaged in parallel CMA games with recipients has negligible advantage in
+// forging messages. The W-OTS signature covers the entirety of the ciphertext except for the W-OTS
+// verification key, but the header ciphertexts are cryptographically dependent on that same key.
 //
 // The standard KEM/DEM hybrid construction (i.e. Construction 12.20 from Modern Cryptography 3e)
 // provides strong confidentiality (per Theorem 12.14), but no authenticity. A compromised recipient
@@ -128,83 +97,35 @@
 // attacker can present forged messages which appear to be from a sender to other, honest
 // recipients.
 //
-// Encrypt-Then-Sign, Sign-Then-Encrypt, and Repudiability
+// veil.mres eliminates this attack by binding the KEM ciphertext to the W-OTS verification key and
+// including a W-OTS signature of the entire ciphertext. Re-using the KEM ciphertexts with a new
+// message requires forging a new signature for a SUF-CMA-secure scheme. The use of an authenticated
+// KEM serves to authenticate both the headers and the message: only the possessor of the sender's
+// private key can calculate the static shared secret used to encrypt the ephemeral public key, and
+// the recipient's ability to forge KEM ciphertexts is rendered moot by the KEM ciphertext's
+// dependency on the W-OTS verification key.
 //
-// One solution is to sign messages before encryption (e.g. OpenPGP), which eliminates an attacker's
-// ability to forge messages. Sign-then-encrypt schemes are vulnerable to replay attacks, however,
-// where Bea, having received a signed message from Alice, can re-send the message to Carol without
-// Carol knowing. Further, sign-then-encrypt provides non-repudiability of the message outside of
-// the encrypted context, allowing a compromised recipient to prove to third parties the
-// authenticity of a message. Inverting the order of operations—encrypt-then-sign—eliminates these
-// attacks, provided the signature scheme is non-malleable, at the expensive of allowing passive
-// adversaries to determine the authenticity of messages. Given that Veil is intended to be
-// indistinguishable from random noise to passive adversaries, an encrypt-then-sign construction is
-// not viable.
+// Repudiability
 //
-// KEM Dependency via Tag-KEMs
+// Because the sender's private key is only used to calculate shared secrets, a veil.mres ciphertext
+// is entirely repudiable unless a recipient reveals their public key. The W-OTS keys are randomly
+// generated for each message and all other forms of sender identity which are transmitted are only
+// binding on public information.
 //
-// A less common solution is to make KEM ciphertexts cryptographically dependent on the DEM
-// ciphertext. Abe et al.'s Tag-KEM (https://www.shoup.net/papers/tagkemdem.pdf), which strongly
-// binds KEM ciphertexts to DEM ciphertexts, is an example, but this does not map cleanly to the
-// multi-recipient setting. If an attacker is engaged in the IND-CCA game with the decryption oracle
-// for one recipient of many, they could modify the KEM ciphertexts for the other recipients and
-// still receive a plaintext. Providing a MAC of the KEM ciphertexts, as with Phan et al.'s
-// IND-Dyn2-Ad2-CCA2-secure broadcast encryption scheme
-// (https://www.di.ens.fr/users/phan/2011_acns.pdf), protects confidentiality against outsider
-// attacks, but remains vulnerable to insider attacks: an insider playing the IND-CCA game with the
-// decryption oracle for another recipient has access to the MAC key and can forge the MAC of the
-// KEM ciphertexts.
-//
-// Inverted Tag-KEM And Signature
-//
-// veil.mres solves indistinguishability from random noise, outsider attacks, insider attacks, and
-// repudiability by linking the KEM-dependency of the Tag-KEM construction to the unforgeability of
-// the encrypt-then-sign construction while limiting the scope of non-repudiability.
-//
-// In order to make the KEM ciphertext entirely dependent on the message, veil.mres begins each
-// footer plaintext with the MAC of the DEM ciphertext along with the DEK and the length of the
-// message. These three components are modeled as distinct STROBE operations within veil.hpke,
-// making the encryption of the DEK and the message length cryptographically dependent on the MAC.
-// This construction can be considered a variant of a Tag-KEM, where the tag (τ) is recovered from
-// the KEM ciphertext and compared post-hoc instead of being calculated pre-hoc and passed as an
-// argument. (This is analogous to AES-SIV comparing the resulting plaintext on decryption to the
-// synthetic IV vs. AES-GCM comparing the received MAC to a re-calculated MAC of the received
-// ciphertext.)
-//
-// To solve the IND-CCA2 game in the multi-user setting, veil.mres ends each message with an
-// encrypted signature of the footers. Because the signature covers the entirety of the footers,
-// including padding, any recipient will be able to detect any ciphertext manipulations, making it
-// strongly non-malleable in the multi-user setting. veil.schnorr is a strong signature scheme,
-// veil.mres is CCA-secure, and both protocols strongly bind sender identity. These meet the
-// criteria for an encrypt-then-sign construction to be secure. Being encrypted with the DEK, a
-// passive adversary is unable to verify the signature or even distinguish the signature from random
-// noise.
-//
-// The signature of the encrypted footers assures their authenticity, the authenticity of the
-// DEK/MAC, and thus the authenticity of the message, but cannot be decrypted or verified without
-// the DEK, or even distinguished from random noise.
-//
-// If the DEK is revealed, third parties will be able to decrypt the message and verify the
-// signature, but cannot confirm that the encrypted footers contain the DEK or that the message is
-// from the sender, only that the sender created a message with those encrypted footers.
-// Technically, this is a looser guarantee of repudiability, but practically the sender is only
-// unable to repudiate a set of IND-CCA2 secure ciphertexts. Unlike the Sign-then-Encrypt
-// construction, a recipient is unable to present a decrypted, signed message to third parties.
-//
-// As a result (and in contrast to most constructions), veil.mres protects against the DEM-reuse
-// attack while also limiting the scope of non-repudiability.
 package mres
 
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/hpke"
+	"github.com/codahale/veil/pkg/veil/internal/atkem"
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
-	"github.com/codahale/veil/pkg/veil/internal/schnorr"
+	"github.com/codahale/veil/pkg/veil/internal/sigio"
+	"github.com/codahale/veil/pkg/veil/internal/wots"
 	"github.com/gtank/ristretto255"
 )
 
@@ -213,56 +134,52 @@ import (
 func Encrypt(
 	dst io.Writer, src io.Reader, dS *ristretto255.Scalar, qS *ristretto255.Element,
 	qRs []*ristretto255.Element, padding int,
-) (int64, error) {
-	buf := make([]byte, footerSize)
-	mac := buf[:internal.MACSize]
-	dek := buf[internal.MACSize : internal.MACSize+dekSize]
-	msgSize := buf[internal.MACSize+dekSize:]
+) (written int64, err error) {
+	// Initialize the protocol.
+	mres := initProtocol(qS)
 
 	// Generate a DEK.
+	dek := make([]byte, dekSize)
 	if _, err := rand.Read(dek); err != nil {
 		return 0, fmt.Errorf("error generating DEK: %w", err)
 	}
 
-	// Initialize the protocol.
-	mres := initProtocol(qS, dek)
-
-	// Encrypt and send the plaintext.
-	written, err := io.Copy(mres.SendENCStream(dst), src)
+	// Create a new W-OTS signer.
+	signer, err := wots.NewSigner(dst)
 	if err != nil {
-		return written, err
+		return 0, err
 	}
 
-	// Create a MAC of the ciphertext.
-	mac = mres.SendMAC(mac[:0])
+	// Send the W-OTS public key.
+	mres.SendCLR(signer.PublicKey)
 
-	// Encode the message length as a 64-bit little endian integer.
-	binary.LittleEndian.PutUint64(msgSize, uint64(written))
-
-	// Create a new signer for the encrypted footers.
-	signer := schnorr.NewSigner(dS, qS)
-	sdst := io.MultiWriter(signer, mres.SendCLRStream(dst))
-
-	// Add random padding to the beginning of the encrypted footers.
-	pn, err := io.CopyN(sdst, rand.Reader, int64(padding))
-	written += pn
+	// Write the W-OTS public key.
+	n, err := dst.Write(signer.PublicKey)
+	written += int64(n)
 
 	if err != nil {
 		return written, err
 	}
 
-	// Create a buffer for the encrypted footers.
-	footer := [][]byte{mac, dek, msgSize}
-	encFooter := make([]byte, footerSize+hpke.Overhead)
+	// Allocate buffers for the headers.
+	header := make([]byte, headerSize)
+	encHeader := make([]byte, encryptedHeaderSize)
 
-	// Encrypt, sign, and writes copies of the footer.
+	// Encode the DEK and the total size of the encrypted headers as a header.
+	copy(header, dek)
+	binary.LittleEndian.PutUint64(header[dekSize:], encryptedHeaderSize*uint64(len(qRs))+uint64(padding))
+
+	// Ensure all headers are signed and recorded in the protocol.
+	headers := mres.SendCLRStream(signer)
+
+	// Encrypt, and write copies of the header using the W-OTS public key as a tag.
 	for _, qR := range qRs {
-		encFooter, err = hpke.Encrypt(encFooter[:0], dS, qS, qR, footer)
+		encHeader, err = atkem.Encrypt(encHeader[:0], dS, qS, qR, signer.PublicKey, header)
 		if err != nil {
 			return written, err
 		}
 
-		n, err := sdst.Write(encFooter)
+		n, err := headers.Write(encHeader)
 		written += int64(n)
 
 		if err != nil {
@@ -270,17 +187,30 @@ func Encrypt(
 		}
 	}
 
-	// Create a signature of the footers.
-	sig, err := signer.Sign()
+	// Add padding to the end of the headers.
+	pn, err := io.CopyN(headers, rand.Reader, int64(padding))
+	written += pn
+
 	if err != nil {
 		return written, err
 	}
 
-	// Encrypt and send the signature.
-	sig = mres.SendENC(sig[:0], sig)
+	// Key the protocol with the DEK.
+	mres.KEY(dek)
 
-	// Write the signature.
-	n, err := dst.Write(sig)
+	// Encrypt the plaintext and send the ciphertext.
+	pn, err = io.Copy(mres.SendENCStream(signer), src)
+	written += pn
+
+	if err != nil {
+		return written, err
+	}
+
+	// Create a W-OTS signature.
+	sig := signer.Sign()
+
+	// Write the signature
+	n, err = dst.Write(sig)
 	written += int64(n)
 
 	return written, err
@@ -288,118 +218,91 @@ func Encrypt(
 
 // Decrypt reads the contents of src, decrypts them iff the owner of qS encrypted them for
 // decryption by dR, and writes the decrypted contents to dst.
-//nolint:gocognit,gocyclo,cyclop // This gets worse if split up into functions.
-func Decrypt(dst io.Writer, src io.ReadSeeker, dR *ristretto255.Scalar, qR, qS *ristretto255.Element) (int64, error) {
-	// Go to the very end of the ciphertext.
-	offset, err := src.Seek(-schnorr.SignatureSize, io.SeekEnd)
-	if err != nil {
-		return 0, fmt.Errorf("error seeking in src: %w", err)
+//nolint:gocognit // This gets worse if split up into functions.
+func Decrypt(dst io.Writer, src io.Reader, dR *ristretto255.Scalar, qR, qS *ristretto255.Element) (int64, error) {
+	mres := initProtocol(qS)
+
+	// Read the W-OTS public key.
+	verifyingKey := make([]byte, wots.PublicKeySize)
+	if _, err := io.ReadFull(src, verifyingKey); err != nil {
+		return 0, err
 	}
 
+	// Receive the W-OTS public key.
+	mres.RecvCLR(verifyingKey)
+
+	// Create a verifier with the W-OTS public key.
+	verifier := wots.NewVerifier(verifyingKey)
+
+	// Pass the headers through the protocol and the verifier.
+	headers := mres.RecvCLRStream(verifier)
+
 	var (
-		footerEnd  = offset
-		dek, ctMac []byte
-		messageEnd int64
-		encFooter  = make([]byte, encryptedFooterSize)
-		footerBuf  = make([]byte, footerSize)
-		footer     = [][]byte{
-			footerBuf[:internal.MACSize][:0],
-			footerBuf[internal.MACSize : internal.MACSize+dekSize][:0],
-			footerBuf[internal.MACSize+dekSize:][:0],
-		}
-		sizes = []int{internal.MACSize, dekSize, 8}
+		dek        []byte
+		headerRead int64
+		headerLen  int64
+
+		encHeader = make([]byte, encryptedHeaderSize)
 	)
 
+	// Iterate through the possible headers, attempting to decrypt each of them.
 	for {
-		// Back up a spot.
-		offset -= encryptedFooterSize
-		if offset < 0 {
-			// If we're at the beginning of the file, we're done looking.
+		// Read a possible header. If we hit the end of the file, we didn't find a header we could
+		// decrypt, so the ciphertext is invalid.
+		_, err := io.ReadFull(src, encHeader)
+		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
 			return 0, internal.ErrInvalidCiphertext
+		} else if err != nil {
+			return 0, err
 		}
 
-		// Seek to where the footer might be.
-		if _, err := src.Seek(offset, io.SeekStart); err != nil {
-			return 0, fmt.Errorf("error seeking in src: %w", err)
-		}
+		// Record the encrypted headers in the STROBE protocol and the W-OTS verifier.
+		_, _ = headers.Write(encHeader)
+		headerRead += encryptedHeaderSize
 
-		// Read the possible footer.
-		if _, err := io.ReadFull(src, encFooter); err != nil {
-			return 0, fmt.Errorf("error reading footer: %w", err)
-		}
-
-		// Try to decrypt the footer.
-		plaintext, err := hpke.Decrypt(footer, dR, qR, qS, encFooter, sizes)
+		// Try to decrypt the header.
+		plaintext, err := atkem.Decrypt(encHeader[:0], dR, qR, qS, verifyingKey, encHeader)
 		if err != nil {
-			// If we can't, try the next possibility.
+			// If we can't decrypt it, try the next one.
 			continue
 		}
 
-		// Unpack the footer contents.
-		ctMac = plaintext[0]
-		dek = plaintext[1]
-		messageEnd = int64(binary.LittleEndian.Uint64(plaintext[2]))
+		// If we can decrypt the header, recover the DEK and the length of the headers.
+		dek = plaintext[:dekSize]
+		headerLen = int64(binary.LittleEndian.Uint64(plaintext[dekSize:]))
 
-		// Go back the beginning of the input.
-		if _, err := src.Seek(0, io.SeekStart); err != nil {
-			return 0, fmt.Errorf("error seeking in src: %w", err)
-		}
-
+		// Break out to decrypt the full message.
 		break
 	}
 
-	// Initialize a new protocol.
-	mres := initProtocol(qS, dek)
+	// Read the remaining headers and any padding.
+	if _, err := io.CopyN(headers, src, headerLen-headerRead); err != nil {
+		return 0, err
+	}
 
-	// Receive and decrypt the ciphertext.
-	written, err := io.Copy(mres.RecvENCStream(dst), io.LimitReader(src, messageEnd))
+	// Key the protocol with the DEK.
+	mres.KEY(dek)
+
+	sigr := sigio.NewReader(src, wots.SignatureSize)
+
+	pn, err := io.Copy(io.MultiWriter(mres.RecvENCStream(dst), verifier), sigr)
 	if err != nil {
-		return written, err
+		return pn, err
 	}
 
-	// Verify the MAC of the ciphertext with that recovered from the footer.
-	if err := mres.RecvMAC(ctMac); err != nil {
-		return written, internal.ErrInvalidCiphertext
+	if !verifier.Verify(sigr.Signature) {
+		return pn, internal.ErrInvalidCiphertext
 	}
 
-	// Create a verifier for the encrypted footers.
-	verifier := schnorr.NewVerifier(qS)
-	vdst := mres.RecvCLRStream(verifier)
-
-	// Read the encrypted footers, adding them to the verifier and the protocol.
-	if _, err := io.CopyN(vdst, src, footerEnd-messageEnd); err != nil {
-		return written, err
-	}
-
-	// Read the signature of the encrypted footers.
-	sig := make([]byte, schnorr.SignatureSize)
-	if _, err = io.ReadFull(src, sig); err != nil {
-		return written, err
-	}
-
-	// Decrypt the signature.
-	sig = mres.RecvENC(sig[:0], sig)
-
-	// Verify the signature of the encrypted footers.
-	if !verifier.Verify(sig) {
-		return written, internal.ErrInvalidCiphertext
-	}
-
-	return written, nil
+	return pn, nil
 }
 
-func initProtocol(qS *ristretto255.Element, dek []byte) *protocol.Protocol {
+func initProtocol(qS *ristretto255.Element) *protocol.Protocol {
 	// Initialize a new protocol.
 	mres := protocol.New("veil.mres")
 
 	// Add the DEK size as associated metadata.
 	mres.MetaAD(protocol.LittleEndianU32(dekSize))
-
-	// Add the MAC size as associated metadata.
-	mres.MetaAD(protocol.LittleEndianU32(internal.MACSize))
-
-	// Key the protocol with the DEK.
-	mres.KEY(dek)
 
 	// Add the sender's public key as associated data.
 	mres.AD(qS.Encode(nil))
@@ -409,6 +312,6 @@ func initProtocol(qS *ristretto255.Element, dek []byte) *protocol.Protocol {
 
 const (
 	dekSize             = 32
-	footerSize          = dekSize + internal.MACSize + 8
-	encryptedFooterSize = footerSize + hpke.Overhead
+	headerSize          = dekSize + 8 + 8
+	encryptedHeaderSize = headerSize + atkem.Overhead
 )
