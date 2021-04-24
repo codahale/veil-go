@@ -121,8 +121,9 @@ func (p *Protocol) SendENCStream(dst io.Writer) io.Writer {
 
 	// Return a writer.
 	return &callbackWriter{
-		callback: func(b []byte) []byte {
-			return p.moreSendENC(nil, b)
+		buf: make([]byte, 1024),
+		callback: func(dst, b []byte) []byte {
+			return p.moreSendENC(dst, b)
 		},
 		dst: dst,
 	}
@@ -133,8 +134,9 @@ func (p *Protocol) RecvENCStream(dst io.Writer) io.Writer {
 
 	// Return a writer.
 	return &callbackWriter{
-		callback: func(b []byte) []byte {
-			return p.moreRecvENC(b[:0], b)
+		buf: make([]byte, 1024),
+		callback: func(dst, b []byte) []byte {
+			return p.moreRecvENC(dst, b)
 		},
 		dst: dst,
 	}
@@ -144,7 +146,7 @@ func (p *Protocol) RecvCLRStream(dst io.Writer) io.Writer {
 	p.RecvCLR(nil)
 
 	return &callbackWriter{
-		callback: func(b []byte) []byte {
+		callback: func(_, b []byte) []byte {
 			p.moreRecvCLR(b)
 
 			return b
@@ -157,7 +159,7 @@ func (p *Protocol) SendCLRStream(dst io.Writer) io.Writer {
 	p.SendCLR(nil)
 
 	return &callbackWriter{
-		callback: func(b []byte) []byte {
+		callback: func(_, b []byte) []byte {
 			p.moreSendCLR(b)
 
 			return b
@@ -214,12 +216,14 @@ func LittleEndianU32(n int) []byte {
 }
 
 type callbackWriter struct {
-	callback func([]byte) []byte
+	buf      []byte
+	callback func([]byte, []byte) []byte
 	dst      io.Writer
 }
 
 func (w *callbackWriter) Write(p []byte) (n int, err error) {
-	return w.dst.Write(w.callback(p))
+	w.buf = w.callback(w.buf[:0], p)
+	return w.dst.Write(w.buf)
 }
 
 //nolint:gochecknoglobals // constants
