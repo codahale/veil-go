@@ -62,12 +62,12 @@ import (
 )
 
 const (
-	PublicKeySize = n       // PublicKeySize is the size of a W-OTS public key, in bytes.
-	SignatureSize = (n) * n // SignatureSize is the size of a W-OTS signature, in bytes.
+	PublicKeySize = n           // PublicKeySize is the size of a W-OTS public key, in bytes.
+	SignatureSize = (n + 2) * n // SignatureSize is the size of a W-OTS signature, in bytes.
 
 	n              = 32
 	w              = 8
-	privateKeySize = (n) * n
+	privateKeySize = (n + 2) * n
 )
 
 type Signer struct {
@@ -116,6 +116,7 @@ func (s *Signer) Sign() []byte {
 	// Create a digest of the signed message.
 	d := make([]byte, n)
 	s.p.PRF(d)
+	d = checksum(d)
 
 	// Create a signature by revealing the initial iterated hashes of the private key blocks based
 	// on each byte of the message digest.
@@ -156,6 +157,7 @@ func (v *Verifier) Verify(sig []byte) bool {
 	// Create a digest of the signed message.
 	d := make([]byte, n)
 	v.p.PRF(d)
+	d = checksum(d)
 
 	// Verify the signature by using the message digest bytes to reconstitute the missing pieces
 	// of the private key.
@@ -174,6 +176,15 @@ func (v *Verifier) Verify(sig []byte) bool {
 	// If the re-created public key matches, the signature was created of the message with the
 	// public key's private key.
 	return bytes.Equal(publicKey, v.publicKey)
+}
+
+func checksum(d []byte) []byte {
+	var sum uint16
+	for _, v := range d {
+		sum += 256 - uint16(v)
+	}
+
+	return append(d, uint8(sum>>8), uint8(sum))
 }
 
 func block(in []byte, iterations int) []byte {
