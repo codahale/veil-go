@@ -27,7 +27,9 @@
 //  SEND_ENC(P_n,     more=true)
 //
 // Finally, a Schnorr signature S of the entire ciphertext (headers, padding, and DEM ciphertext) is
-// created with d_e and written.
+// created with d_e and encrypted:
+//
+//  SEND_ENC(S)
 //
 // The resulting ciphertext then contains, in order: the veil.hpke-encrypted headers, random
 // padding, message ciphertext, and a Schnorr signature of the headers, padding, and ciphertext.
@@ -56,7 +58,9 @@
 //  …
 //  RECV_ENC(C_n,     more=true)
 //
-// Finally, the signature S is read and verified against the entire ciphertext.
+// Finally, the signature S is decrypted and verified against the entire ciphertext:
+//
+//  RECV_ENC(S)
 //
 // Multi-Recipient Confidentiality
 //
@@ -205,8 +209,8 @@ func Encrypt(
 		return written, err
 	}
 
-	// Write the signature
-	n, err := dst.Write(sig)
+	// Encrypt and write the signature
+	n, err := dst.Write(mres.SendENC(sig[:0], sig))
 	written += int64(n)
 
 	return written, err
@@ -276,14 +280,17 @@ func Decrypt(dst io.Writer, src io.Reader, dR *ristretto255.Scalar, qR, qS *rist
 	// Key the protocol with the DEK.
 	mres.KEY(dek)
 
+	// Detach the signature from the end of the ciphertext.
 	sigr := sigio.NewReader(src, schnorr.SignatureSize)
 
+	// Decrypt the message ciphertext and write it to dst.
 	pn, err := io.Copy(io.MultiWriter(mres.RecvENCStream(dst), verifier), sigr)
 	if err != nil {
 		return pn, err
 	}
 
-	if !verifier.Verify(qE, sigr.Signature) {
+	// Decrypt and verify the signature.
+	if !verifier.Verify(qE, mres.RecvENC(sigr.Signature[:0], sigr.Signature)) {
 		return pn, internal.ErrInvalidCiphertext
 	}
 
