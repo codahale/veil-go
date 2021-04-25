@@ -126,11 +126,6 @@ _indistinguishable_ signatures (i.e., signatures which do not reveal anything ab
 or signed message) and when encrypted with an unrelated key (i.e. by `veil.mres`) are _pseudorandom_
 (i.e. indistinguishable from random noise).
 
-#### `veil.wots`
-
-`veil.wots` implements a Winternitz one-time signature scheme. It creates keys and signatures with a
-cost/size tradeoff of 8 bits and a block size of 256 bits.
-
 ## License
 
 Copyright © 2021 Coda Hale
