@@ -19,25 +19,25 @@ func TestSignAndVerify(t *testing.T) {
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
 	// Write a message to a signer.
-	signer := NewSigner(d, q)
+	signer := NewSigner()
 	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
 	// Sign it.
-	sig, err := signer.Sign()
+	sig, err := signer.Sign(d, q)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Write a message to a verifier.
-	verifier := NewVerifier(q)
+	verifier := NewVerifier()
 	if _, err := io.Copy(verifier, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
 	// Verify the signature.
-	if !verifier.Verify(sig) {
+	if !verifier.Verify(q, sig) {
 		t.Error("didn't verify")
 	}
 }
@@ -55,25 +55,25 @@ func TestSignAndVerify_BadPublicKey(t *testing.T) {
 	qP := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 
 	// Write a message to a signer.
-	signer := NewSigner(d, q)
+	signer := NewSigner()
 	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
 	// Sign it.
-	sig, err := signer.Sign()
+	sig, err := signer.Sign(d, q)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Write a message to a verifier.
-	verifier := NewVerifier(qP)
+	verifier := NewVerifier()
 	if _, err := io.Copy(verifier, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
 	// Verify the signature.
-	if verifier.Verify(sig) {
+	if verifier.Verify(qP, sig) {
 		t.Error("didn't verify")
 	}
 }
@@ -88,25 +88,25 @@ func TestSignAndVerify_BadMessage(t *testing.T) {
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
 	// Write a message to a signer.
-	signer := NewSigner(d, q)
+	signer := NewSigner()
 	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
 	// Sign it.
-	sig, err := signer.Sign()
+	sig, err := signer.Sign(d, q)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Write a different message to a verifier.
-	verifier := NewVerifier(q)
+	verifier := NewVerifier()
 	if _, err := io.Copy(verifier, bytes.NewBufferString("this is not great")); err != nil {
 		t.Fatal(err)
 	}
 
 	// Verify the signature.
-	if verifier.Verify(sig) {
+	if verifier.Verify(q, sig) {
 		t.Error("did verify")
 	}
 }
@@ -121,13 +121,13 @@ func TestSignAndVerify_BadSig(t *testing.T) {
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 
 	// Write a message to a signer.
-	signer := NewSigner(d, q)
+	signer := NewSigner()
 	if _, err := io.Copy(signer, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
 	// Sign it.
-	sig, err := signer.Sign()
+	sig, err := signer.Sign(d, q)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,13 +136,13 @@ func TestSignAndVerify_BadSig(t *testing.T) {
 	sig[0] ^= 1
 
 	// Write a message to a verifier.
-	verifier := NewVerifier(q)
+	verifier := NewVerifier()
 	if _, err := io.Copy(verifier, bytes.NewBufferString("this is great")); err != nil {
 		t.Fatal(err)
 	}
 
 	// Verify the signature.
-	if verifier.Verify(sig) {
+	if verifier.Verify(q, sig) {
 		t.Error("did verify")
 	}
 }
@@ -155,9 +155,9 @@ func BenchmarkSigner(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		signer := NewSigner(d, q)
+		signer := NewSigner()
 		_, _ = signer.Write(message)
-		_, _ = signer.Sign()
+		_, _ = signer.Sign(d, q)
 	}
 }
 
@@ -165,10 +165,10 @@ func BenchmarkVerifier(b *testing.B) {
 	d := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0xf2}, internal.UniformBytestringSize))
 	q := ristretto255.NewElement().ScalarBaseMult(d)
 	message := make([]byte, 1024)
-	signer := NewSigner(d, q)
+	signer := NewSigner()
 	_, _ = signer.Write(message)
 
-	sig, err := signer.Sign()
+	sig, err := signer.Sign(d, q)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -176,10 +176,10 @@ func BenchmarkVerifier(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		verifier := NewVerifier(q)
+		verifier := NewVerifier()
 		_, _ = verifier.Write(message)
 
-		if !verifier.Verify(sig) {
+		if !verifier.Verify(q, sig) {
 			b.Fatal("should have verified")
 		}
 	}

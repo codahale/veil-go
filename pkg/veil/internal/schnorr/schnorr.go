@@ -4,12 +4,12 @@
 // element Q:
 //
 //  INIT('veil.schnorr', level=256)
-//  AD(Q)
 //  SEND_CLR('',  more=false)
 //  SEND_CLR(M_0, more=true)
 //  SEND_CLR(M_1, more=true)
 //  …
 //  SEND_CLR(M_n, more=true)
+//  AD(Q)
 //
 // The protocol's state is then cloned, the clone is keyed with 64 bytes of random data and the
 // signer's private key, an ephemeral scalar is derived from PRF output:
@@ -31,12 +31,12 @@
 // element Q:
 //
 //  INIT('veil.schnorr', level=256)
-//  AD(Q)
 //  RECV_CLR('',  more=false)
 //  RECV_CLR(M_0, more=true)
 //  RECV_CLR(M_1, more=true)
 //  …
 //  RECV_CLR(M_n, more=true)
+//  AD(Q)
 //  R' = Q^-c + G^s
 //  AD(R')
 //  PRF(64) -> c'
@@ -88,25 +88,24 @@ const (
 // Signer is an io.Writer which adds written data to a STROBE protocol for signing.
 type Signer struct {
 	schnorr *protocol.Protocol
-	d       *ristretto255.Scalar
 
 	io.Writer
 }
 
 // NewSigner returns a Signer instance with the signer's key pair.
-func NewSigner(d *ristretto255.Scalar, q *ristretto255.Element) *Signer {
+func NewSigner() *Signer {
 	// Initialize a new protocol.
 	schnorr := protocol.New("veil.schnorr")
 
-	// Add the signer's public key to the protocol.
-	schnorr.AD(q.Encode(nil))
-
-	return &Signer{schnorr: schnorr, d: d, Writer: schnorr.SendCLRStream(io.Discard)}
+	return &Signer{schnorr: schnorr, Writer: schnorr.SendCLRStream(io.Discard)}
 }
 
 // Sign uses the given key pair to construct a Schnorr signature of the previously written data.
-func (sn *Signer) Sign() ([]byte, error) {
+func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) ([]byte, error) {
 	var buf [SignatureSize]byte
+
+	// Add the signer's public key to the protocol.
+	sn.schnorr.AD(q.Encode(nil))
 
 	// Clone the protocol.
 	clone := sn.schnorr.Clone()
@@ -123,7 +122,7 @@ func (sn *Signer) Sign() ([]byte, error) {
 	// Key the clone with the sender's private key. This hedges against randomness failures. The
 	// protocol's state is already dependent on the message, making the reuse of ephemeral values
 	// across messages impossible.
-	clone.KEY(sn.d.Encode(buf[:0]))
+	clone.KEY(d.Encode(buf[:0]))
 
 	// Derive an ephemeral key pair from the clone.
 	r := clone.PRFScalar()
@@ -136,7 +135,7 @@ func (sn *Signer) Sign() ([]byte, error) {
 	c := sn.schnorr.PRFScalar()
 
 	// Calculate the signature scalar.
-	s := ristretto255.NewScalar().Multiply(sn.d, c)
+	s := ristretto255.NewScalar().Multiply(d, c)
 	s = s.Add(s, r)
 
 	// Return the challenge and signature scalars.
@@ -146,24 +145,20 @@ func (sn *Signer) Sign() ([]byte, error) {
 // Verifier is an io.Writer which adds written data to a STROBE protocol for verification.
 type Verifier struct {
 	schnorr *protocol.Protocol
-	q       *ristretto255.Element
 
 	io.Writer
 }
 
-// NewVerifier returns a Verifier instance with a signer's public key.
-func NewVerifier(q *ristretto255.Element) *Verifier {
+// NewVerifier returns a new Verifier instance.
+func NewVerifier() *Verifier {
 	// Initialize a new protocol.
 	schnorr := protocol.New("veil.schnorr")
 
-	// Add the signer's public key to the protocol.
-	schnorr.AD(q.Encode(nil))
-
-	return &Verifier{schnorr: schnorr, q: q, Writer: schnorr.RecvCLRStream(io.Discard)}
+	return &Verifier{schnorr: schnorr, Writer: schnorr.RecvCLRStream(io.Discard)}
 }
 
 // Verify uses the given public key to verify the signature of the previously read data.
-func (vr *Verifier) Verify(sig []byte) bool {
+func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
 	var buf [internal.ElementSize]byte
 
 	// Check signature length.
@@ -185,8 +180,11 @@ func (vr *Verifier) Verify(sig []byte) bool {
 
 	// Re-calculate the ephemeral public key.
 	S := ristretto255.NewElement().ScalarBaseMult(s)
-	Qc := ristretto255.NewElement().ScalarMult(ristretto255.NewScalar().Negate(c), vr.q)
+	Qc := ristretto255.NewElement().ScalarMult(ristretto255.NewScalar().Negate(c), q)
 	Rp := ristretto255.NewElement().Add(S, Qc)
+
+	// Add the signer's public key to the protocol.
+	vr.schnorr.AD(q.Encode(nil))
 
 	// Hash the ephemeral public key.
 	vr.schnorr.AD(Rp.Encode(buf[:0]))

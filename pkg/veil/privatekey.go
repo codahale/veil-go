@@ -82,13 +82,13 @@ func (pk *PrivateKey) Derive(subKeyID string) *PrivateKey {
 // Sign returns a signature of the contents of src.
 func (pk *PrivateKey) Sign(src io.Reader) (*Signature, error) {
 	// Write the message contents to the veil.schnorr STROBE protocol.
-	signer := schnorr.NewSigner(pk.d, pk.q)
+	signer := schnorr.NewSigner()
 	if _, err := io.Copy(signer, src); err != nil {
 		return nil, err
 	}
 
 	// Create a signature of the message.
-	sig, err := signer.Sign()
+	sig, err := signer.Sign(pk.d, pk.q)
 	if err != nil {
 		return nil, err
 	}
