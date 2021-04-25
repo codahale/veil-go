@@ -95,13 +95,13 @@ data.
 
 `veil.mres` implements the multi-recipient encryption system for encrypted Veil messages.
 
-Messages begin with a W-OTS verification key, then a set of `veil.atkem`-encrypted headers
-containing copies of the data encryption key and message length, using the verification key as a
-tag. Next, the message is encrypted with STROBE using the data encryption key. Finally, a W-OTS
-signature of the entire ciphertext is appended.
+Messages begin with a set of `veil.atkem`-encrypted headers containing copies of the data encryption
+key, the length of the encrypted headers, and an ephemeral verification key. Next, the message is
+encrypted with STROBE using the data encryption key. Finally, a `veil.schnorr` signature of the
+entire ciphertext created with the ephemeral signing key is appended.
 
-To decrypt, readers read the verification key, search for a decryptable header, recover the DEK and
-message length, decrypt the message, and finally verify the W-OTS signature.
+To decrypt, readers search for a decryptable header, recover the DEK, the verification key, and
+message length, decrypt the message, and finally verify the signature.
 
 This provides strong confidentiality and authenticity guarantees while still providing repudiability
 (no recipient can prove a message's contents and origin without revealing their private key) and
