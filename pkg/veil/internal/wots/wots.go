@@ -1,8 +1,8 @@
 // Package wots provides the underlying STROBE protocol for Veil's Winternitz one-time signatures
 // (W-OTS).
 //
-// This implementation of W-OTS creates keys and signatures with a cost/size tradeoff of 8 bits and
-// a block size of 256 bits.
+// This implementation of W-OTS creates keys and signatures with a cost/size tradeoff of 8 bits, a
+// chain block size of 128 bits, and a hash size of 256 bits.
 //
 // Public Keys
 //
@@ -24,7 +24,7 @@
 //  AD(LE_32(256))
 //  AD(LE_32(8))
 //  KEY(b)
-//  PRF(32) -> b
+//  PRF(16) -> b
 //
 // Finally, messages M_0…M_n are converted to blocks as follows, given a public key Q:
 //
@@ -47,10 +47,17 @@
 // assuming the underlying hash function is a PRF. This implementation is based on STROBE, which is
 // constructed as a PRF.
 //
-// There have been additional improvements to W-OTS by Hülsing et al. which reduce signature size
-// (https://eprint.iacr.org/2017/965.pdf) and mitigate against multi-user attacks
+// This construction adopts some of the improvements in W-OTS+ from Hülsing et al.
+// (https://eprint.iacr.org/2017/965.pdf) by using families of key collision resistant PRFs (e.g.
+// STROBE), allowing for a smaller chain block size (128 bits) while still preserving security.
+//
+// There have been additional improvements to mitigate against multi-user attacks
 // (https://eprint.iacr.org/2015/1256.pdf), but given the context in which this construction is used
-// (i.e. not within a post-quantum signature scheme), the simpler, original W-OTS is implemented.
+// (i.e. not within a post-quantum signature scheme), the simpler variant is implemented.
+//
+// The final variation in this implementation is the removal of an explicit message randomization
+// parameter. The digest produced by veil.wots.message is dependent on the public key, which
+// provides it with sufficient domain separation and misuse resistance.
 package wots
 
 import (
@@ -62,10 +69,10 @@ import (
 )
 
 const (
-	PublicKeySize = n           // PublicKeySize is the size of a W-OTS public key, in bytes.
+	PublicKeySize = 32          // PublicKeySize is the size of a W-OTS public key, in bytes.
 	SignatureSize = (n + 2) * n // SignatureSize is the size of a W-OTS signature, in bytes.
 
-	n              = 32
+	n              = 16
 	w              = 8
 	privateKeySize = (n + 2) * n
 )
@@ -170,7 +177,7 @@ func (v *Verifier) Verify(sig []byte) bool {
 	}
 
 	// Re-create the public key from the re-created private key.
-	publicKey := make([]byte, n)
+	publicKey := make([]byte, PublicKeySize)
 	h.PRF(publicKey)
 
 	// If the re-created public key matches, the signature was created of the message with the
