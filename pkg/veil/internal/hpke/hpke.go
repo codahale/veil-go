@@ -1,12 +1,11 @@
 // Package hpke provides the underlying STROBE protocol for Veil's authenticated hybrid public key
 // encryption system. Unlike traditional HPKE constructions, this does not have separate KEM/DEM
-// components or a specific derived DEK. It also encrypts plaintexts which are sequences of
-// blocks. This is used by veil.mres to cryptographically set footer boundaries.
+// components or a specific derived DEK.
 //
 // Encryption
 //
 // Encryption is as follows, given the sender's key pair, d_s and Q_s, the receiver's public key,
-// Q_r, a plaintext message P_0…P_n, and MAC size N_mac:
+// Q_r, a plaintext message P, and MAC size N_mac:
 //
 //  INIT('veil.hpke', level=256)
 //  AD(LE_U32(N_mac), meta=true)
@@ -20,10 +19,7 @@
 //
 //  KEY(rand(64))
 //  KEY(d_s)
-//  KEY(M_0)
-//  KEY(M_1)
-//  …
-//  KEY(M_n)
+//  KEY(P)
 //  PRF(64) -> d_e
 //
 // The clone's state is discarded, and d_e is returned to the parent:
@@ -36,13 +32,10 @@
 // This is effectively an authenticated ECDH KEM, but instead of returning PRF output for use in a
 // DEM, we use the keyed protocol to directly encrypt the ciphertext and create a MAC:
 //
-//  SEND_ENC(P_0)   -> C_0
-//  SEND_ENC(P_1)   -> C_1
-//  …
-//  SEND_ENC(P_n)   -> C_n
+//  SEND_ENC(P)     -> C
 //  SEND_MAC(N_mac) -> M
 //
-// The resulting ciphertext is the concatenation of C_0…C_n and M.
+// The resulting ciphertext is the concatenation of E, C, and M.
 //
 // Decryption
 //
@@ -58,16 +51,10 @@
 //  RECV_ENC(E) -> Q_e
 //  ZZ_e = Q_e^d_r
 //  KEY(ZZ_e)
-//  RECV_ENC(C_0) -> P_0
-//  RECV_ENC(C_1) -> P_1
-//  …
-//  RECV_ENC(C_n) -> P_n
+//  RECV_ENC(C) -> P
 //  RECV_MAC(M)
 //
-// If the RECV_MAC call is successful, the plaintext message P_0…P_n is returned.
-//
-// N.B.: the boundaries of C_0…C_n within the ciphertext C returned by the encryption process must
-// be known a priori.
+// If the RECV_MAC call is successful, the plaintext message P is returned.
 //
 // IND-CCA2 Security
 //
@@ -134,15 +121,10 @@ const Overhead = internal.ElementSize + internal.MACSize
 
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
-func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext [][]byte) ([]byte, error) {
+func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte) ([]byte, error) {
 	var buf [internal.UniformBytestringSize]byte
 
-	outSize := 0
-	for _, v := range plaintext {
-		outSize += len(v)
-	}
-
-	ret, out := internal.SliceForAppend(dst, outSize+Overhead)
+	ret, out := internal.SliceForAppend(dst, len(plaintext)+Overhead)
 
 	// Initialize the protocol.
 	hpke := protocol.New("veil.hpke")
@@ -180,9 +162,7 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 
 	// Key the clone with the plaintext. This hedges against the reuse of ephemeral values across
 	// multiple messages.
-	for _, b := range plaintext {
-		clone.KEY(b)
-	}
+	clone.KEY(plaintext)
 
 	// Derive an ephemeral key pair from the clone.
 	dE := clone.PRFScalar()
@@ -199,9 +179,7 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	hpke.KEY(zzE.Encode(buf[:0]))
 
 	// Encrypt the plaintext.
-	for _, b := range plaintext {
-		out = hpke.SendENC(out, b)
-	}
+	out = hpke.SendENC(out, plaintext)
 
 	// Create a MAC.
 	_ = hpke.SendMAC(out)
@@ -212,10 +190,10 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 
 // Decrypt decrypts the ciphertext iff it was encrypted by the owner of qS for the owner of qR and
 // no bit of the ciphertext has been modified.
-func Decrypt(
-	dst [][]byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext []byte, sizes []int,
-) ([][]byte, error) {
+func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext []byte) ([]byte, error) {
 	var buf [internal.ElementSize]byte
+
+	ret, out := internal.SliceForAppend(dst, len(ciphertext)-Overhead)
 
 	// Initialize the protocol.
 	hpke := protocol.New("veil.hpke")
@@ -250,14 +228,10 @@ func Decrypt(
 	// Key the protocol with the ephemeral shared secret.
 	hpke.KEY(zzE.Encode(buf[:0]))
 
-	plaintext := make([][]byte, len(dst))
 	ciphertext = ciphertext[internal.ElementSize:]
 
 	// Decrypt the plaintext. N.B.: this value has only been decrypted and not authenticated.
-	for i, b := range dst {
-		plaintext[i] = hpke.RecvENC(b, ciphertext[:sizes[i]])
-		ciphertext = ciphertext[sizes[i]:]
-	}
+	hpke.RecvENC(out[:0], ciphertext[:len(ciphertext)-internal.MACSize])
 
 	// Verify the MAC. This establishes authentication for the previous operations in their
 	// entirety, since the sender and receiver's protocol states must be identical in order for the
@@ -267,5 +241,5 @@ func Decrypt(
 	}
 
 	// Return the authenticated plaintext.
-	return plaintext, nil
+	return ret, nil
 }

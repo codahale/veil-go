@@ -17,7 +17,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	plaintext, err := Decrypt(newDst(), dR, qR, qS, ciphertext, sizes)
+	plaintext, err := Decrypt(nil, dR, qR, qS, ciphertext)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestWrongPrivateKey(t *testing.T) {
 
 	dX := ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0x69}, internal.UniformBytestringSize))
 
-	if _, err := Decrypt(newDst(), dX, qR, qS, ciphertext, sizes); err == nil {
+	if _, err := Decrypt(nil, dX, qR, qS, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -50,7 +50,7 @@ func TestWrongPublicKey(t *testing.T) {
 
 	qX := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x69}, internal.UniformBytestringSize))
 
-	if _, err := Decrypt(newDst(), dR, qX, qS, ciphertext, sizes); err == nil {
+	if _, err := Decrypt(nil, dR, qX, qS, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -65,7 +65,7 @@ func TestWrongSenderKey(t *testing.T) {
 
 	qX := ristretto255.NewElement().FromUniformBytes(bytes.Repeat([]byte{0x69}, internal.UniformBytestringSize))
 
-	if _, err := Decrypt(newDst(), dR, qR, qX, ciphertext, sizes); err == nil {
+	if _, err := Decrypt(nil, dR, qR, qX, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -80,7 +80,7 @@ func TestBadEphemeralKey(t *testing.T) {
 
 	ciphertext[0] ^= 1
 
-	if _, err := Decrypt(newDst(), dR, qR, qS, ciphertext, sizes); err == nil {
+	if _, err := Decrypt(nil, dR, qR, qS, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -95,7 +95,7 @@ func TestBadCiphertext(t *testing.T) {
 
 	ciphertext[internal.ElementSize+5] ^= 1
 
-	if _, err := Decrypt(newDst(), dR, qR, qS, ciphertext, sizes); err == nil {
+	if _, err := Decrypt(nil, dR, qR, qS, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -110,7 +110,7 @@ func TestBadMAC(t *testing.T) {
 
 	ciphertext[len(ciphertext)-4] ^= 1
 
-	if _, err := Decrypt(newDst(), dR, qR, qS, ciphertext, sizes); err == nil {
+	if _, err := Decrypt(nil, dR, qR, qS, ciphertext); err == nil {
 		t.Fatal("should not have decrypted")
 	}
 }
@@ -127,17 +127,8 @@ func BenchmarkDecrypt(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	dst := newDst()
-
 	for i := 0; i < b.N; i++ {
-		_, _ = Decrypt(dst, dR, qR, qS, ciphertext, sizes)
-	}
-}
-
-func newDst() [][]byte {
-	return [][]byte{
-		make([]byte, 0, len(message[0])),
-		make([]byte, 0, len(message[1])),
+		_, _ = Decrypt(nil, dR, qR, qS, ciphertext)
 	}
 }
 
@@ -148,6 +139,5 @@ var (
 	dR = ristretto255.NewScalar().FromUniformBytes(bytes.Repeat([]byte{0x22}, internal.UniformBytestringSize))
 	qR = ristretto255.NewElement().ScalarBaseMult(dR)
 
-	message = [][]byte{[]byte("hello this is dog"), []byte("ok then")}
-	sizes   = []int{len(message[0]), len(message[1])}
+	message = []byte("hello this is dog")
 )
