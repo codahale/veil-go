@@ -12,7 +12,7 @@
 //  AD(Q_s)
 //
 // The data encryption key, the length of the encrypted headers (plus padding), and the ephemeral
-// public key are encoded into a fixed-length header and copies of it are encrypted with veil.atkem
+// public key are encoded into a fixed-length header and copies of it are encrypted with veil.hpke
 // for each recipient. Optional random padding is added to the end, and the resulting block H is
 // written:
 //
@@ -29,7 +29,7 @@
 // Finally, a Schnorr signature S of the entire ciphertext (headers, padding, and DEM ciphertext) is
 // created with d_e and written.
 //
-// The resulting ciphertext then contains, in order: the veil.atkem-encrypted headers, random
+// The resulting ciphertext then contains, in order: the veil.hpke-encrypted headers, random
 // padding, message ciphertext, and a Schnorr signature of the headers, padding, and ciphertext.
 //
 // Decryption
@@ -118,7 +118,7 @@ import (
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal"
-	"github.com/codahale/veil/pkg/veil/internal/atkem"
+	"github.com/codahale/veil/pkg/veil/internal/hpke"
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	"github.com/codahale/veil/pkg/veil/internal/sigio"
@@ -167,7 +167,7 @@ func Encrypt(
 
 	// Encrypt, and write copies of the header for each recipient.
 	for _, qR := range qRs {
-		encHeader, err = atkem.Encrypt(encHeader[:0], dS, qS, qR, nil, header)
+		encHeader, err = hpke.Encrypt(encHeader[:0], dS, qS, qR, header)
 		if err != nil {
 			return written, err
 		}
@@ -249,7 +249,7 @@ func Decrypt(dst io.Writer, src io.Reader, dR *ristretto255.Scalar, qR, qS *rist
 		headerRead += encryptedHeaderSize
 
 		// Try to decrypt the header.
-		plaintext, err := atkem.Decrypt(encHeader[:0], dR, qR, qS, nil, encHeader)
+		plaintext, err := hpke.Decrypt(encHeader[:0], dR, qR, qS, encHeader)
 		if err != nil {
 			// If we can't decrypt it, try the next one.
 			continue
@@ -306,5 +306,5 @@ func initProtocol(qS *ristretto255.Element) *protocol.Protocol {
 const (
 	dekSize             = 32
 	headerSize          = dekSize + 8 + internal.ElementSize
-	encryptedHeaderSize = headerSize + atkem.Overhead
+	encryptedHeaderSize = headerSize + hpke.Overhead
 )

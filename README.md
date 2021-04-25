@@ -82,20 +82,19 @@ key `friends`, which is in turn used to derive the private key `alice`.
 Full details and documentation for all the Veil protocols can be found in the
 [`pkg/veil/internal`](https://github.com/codahale/veil/tree/main/pkg/veil/internal) directory.
 
-#### `veil.atkem`
+#### `veil.hpke`
 
-`veil.atkem` implements an authenticated `C(1e, 2s, ECC DH)` tagged key encapsulation mechanism with
+`veil.hpke` implements an authenticated `C(1e, 2s, ECC DH)` key encapsulation mechanism with
 ristretto255 and STROBE. It provides authentication, sender forward security (i.e. if the sender's
 private key is compromised, the messages they sent remain confidential), as well as the novel
 property of sending no values in cleartext: the ephemeral public key is encrypted with the static
-shared secret before sending. In addition, it includes a tag input which is used as authenticated 
-data.
+shared secret before sending.
 
 #### `veil.mres`
 
 `veil.mres` implements the multi-recipient encryption system for encrypted Veil messages.
 
-Messages begin with a set of `veil.atkem`-encrypted headers containing copies of the data encryption
+Messages begin with a set of `veil.hpke`-encrypted headers containing copies of the data encryption
 key, the length of the encrypted headers, and an ephemeral verification key. Next, the message is
 encrypted with STROBE using the data encryption key. Finally, a `veil.schnorr` signature of the
 entire ciphertext created with the ephemeral signing key is appended.
