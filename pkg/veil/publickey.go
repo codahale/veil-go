@@ -33,7 +33,7 @@ func (pk *PublicKey) Derive(subKeyID string) *PublicKey {
 // key for the contents of src, otherwise ErrInvalidSignature.
 func (pk *PublicKey) Verify(src io.Reader, sig *Signature) error {
 	// Write the message contents to the veil.schnorr STROBE protocol.
-	verifier := schnorr.NewVerifier()
+	verifier := schnorr.NewVerifier(io.Discard)
 	if _, err := io.Copy(verifier, src); err != nil {
 		return err
 	}

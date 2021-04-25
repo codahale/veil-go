@@ -93,11 +93,11 @@ type Signer struct {
 }
 
 // NewSigner returns a Signer instance with the signer's key pair.
-func NewSigner() *Signer {
+func NewSigner(dst io.Writer) *Signer {
 	// Initialize a new protocol.
 	schnorr := protocol.New("veil.schnorr")
 
-	return &Signer{schnorr: schnorr, Writer: schnorr.SendCLRStream(io.Discard)}
+	return &Signer{schnorr: schnorr, Writer: schnorr.SendCLRStream(dst)}
 }
 
 // Sign uses the given key pair to construct a Schnorr signature of the previously written data.
@@ -150,11 +150,11 @@ type Verifier struct {
 }
 
 // NewVerifier returns a new Verifier instance.
-func NewVerifier() *Verifier {
+func NewVerifier(dst io.Writer) *Verifier {
 	// Initialize a new protocol.
 	schnorr := protocol.New("veil.schnorr")
 
-	return &Verifier{schnorr: schnorr, Writer: schnorr.RecvCLRStream(io.Discard)}
+	return &Verifier{schnorr: schnorr, Writer: schnorr.RecvCLRStream(dst)}
 }
 
 // Verify uses the given public key to verify the signature of the previously read data.
