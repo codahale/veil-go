@@ -11,9 +11,9 @@
 //  INIT('veil.wots.public-key', level=256)
 //  AD(LE_32(256))
 //  AD(LE_32(8))
-//  AD(pk_0)
+//  KEY(pk_0)
 //  …
-//  AD(pk_n)
+//  KEY(pk_n)
 //  PRF(32)
 //
 // Signing And Verifying
@@ -99,7 +99,7 @@ func NewSigner(dst io.Writer) (*Signer, error) {
 	h.MetaAD(protocol.LittleEndianU32(w))
 
 	for i := 0; i < len(privateKey); i += n {
-		h.AD(block(privateKey[i:i+n], 1<<w))
+		h.KEY(block(privateKey[i:i+n], 1<<w))
 	}
 
 	h.PRF(publicKey)
@@ -173,7 +173,7 @@ func (v *Verifier) Verify(sig []byte) bool {
 	h.MetaAD(protocol.LittleEndianU32(w))
 
 	for i, v := range d {
-		h.AD(block(sig[i*n:i*n+n], (1<<w)-int(v)))
+		h.KEY(block(sig[i*n:i*n+n], (1<<w)-int(v)))
 	}
 
 	// Re-create the public key from the re-created private key.
