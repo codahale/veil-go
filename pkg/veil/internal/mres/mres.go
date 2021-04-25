@@ -138,19 +138,15 @@ func Encrypt(
 	// Initialize the protocol.
 	mres := initProtocol(qS)
 
-	// Generate a DEK.
-	dek := make([]byte, dekSize)
-	if _, err := rand.Read(dek); err != nil {
-		return 0, fmt.Errorf("error generating DEK: %w", err)
+	// Generate enough random data for a DEK and an ephemeral private key.
+	r := make([]byte, dekSize+internal.UniformBytestringSize)
+	if _, err := rand.Read(r); err != nil {
+		return 0, fmt.Errorf("error generating random value: %w", err)
 	}
 
-	// Generate an ephemeral signing key.
-	buf := make([]byte, internal.UniformBytestringSize)
-	if _, err := rand.Read(buf); err != nil {
-		return 0, fmt.Errorf("error generating SK: %w", err)
-	}
-
-	dE := ristretto255.NewScalar().FromUniformBytes(buf)
+	// Generate a DEK and an ephemeral key pair.
+	dek := r[:dekSize]
+	dE := ristretto255.NewScalar().FromUniformBytes(r[dekSize:])
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
 	// Create a new Schnorr signer.
