@@ -11,10 +11,10 @@
 //  AD(LE_32(N_dek),  meta=true)
 //  AD(Q_s)
 //
-// The data encryption key, the length of the encrypted headers (plus padding), and the ephemeral
-// public key are encoded into a fixed-length header and copies of it are encrypted with veil.hpke
-// for each recipient. Optional random padding is added to the end, and the resulting block H is
-// written:
+// The data encryption key and the length of the encrypted headers (plus padding) are encoded into a
+// fixed-length header and copies of it are encrypted with veil.hpke for each recipient using d_e
+// and Q_e. Optional random padding is added to the end, and the resulting block
+// H is written:
 //
 //  SEND_CLR(H)
 //
@@ -112,6 +112,13 @@
 // randomly generated for each message and all other forms of sender identity which are transmitted
 // are only binding on public information.
 //
+// Randomness Re-Use
+//
+// The ephemeral key pair, d_e and Q_e, are used multiple times: once for each veil.hpke header and
+// finally once for the end signature. This improves the efficiency of the scheme without reducing
+// its security, per Bellare et al.'s treatment of Randomness Reusing Multi-Recipient Encryption
+// Schemes (http://cseweb.ucsd.edu/~Mihir/papers/bbs.pdf).
+//
 package mres
 
 import (
@@ -119,13 +126,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/hpke"
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 	sigio2 "github.com/codahale/veil/pkg/veil/internal/schnorr/sigio"
 	"github.com/gtank/ristretto255"
-	"io"
 )
 
 // Encrypt reads the contents of src, encrypts them such that all members of qRs will be able to
@@ -155,18 +163,16 @@ func Encrypt(
 	header := make([]byte, dekSize+8, headerSize)
 	encHeader := make([]byte, encryptedHeaderSize)
 
-	// Encode the DEK, the total size of the encrypted headers, and the ephemeral public key as a
-	// header.
+	// Encode the DEK and the total size of the encrypted headers as a header.
 	copy(header, dek)
 	binary.LittleEndian.PutUint64(header[dekSize:], encryptedHeaderSize*uint64(len(qRs))+uint64(padding))
-	header = qE.Encode(header)
 
 	// Ensure all headers are signed and recorded in the protocol.
 	headers := mres.SendCLRStream(signer)
 
 	// Encrypt, and write copies of the header for each recipient.
 	for _, qR := range qRs {
-		encHeader, err = hpke.Encrypt(encHeader[:0], dS, qS, qR, header)
+		encHeader, err = hpke.Encrypt(encHeader[:0], dS, dE, qS, qE, qR, header)
 		if err != nil {
 			return written, err
 		}
@@ -204,7 +210,7 @@ func Encrypt(
 		return written, err
 	}
 
-	// Encrypt and write the signature
+	// Encrypt and write the signature.
 	n, err := dst.Write(mres.SendENC(sig[:0], sig))
 	written += int64(n)
 
@@ -267,16 +273,10 @@ func findHeader(
 		headerRead += encryptedHeaderSize
 
 		// Try to decrypt the header.
-		plaintext, err := hpke.Decrypt(encHeader[:0], dR, qR, qS, encHeader[:])
+		qE, plaintext, err := hpke.Decrypt(encHeader[:0], dR, qR, qS, encHeader[:])
 		if err != nil {
 			// If we can't decrypt it, try the next one.
 			continue
-		}
-
-		// Decode the ephemeral public key.
-		qE := ristretto255.NewElement()
-		if err := qE.Decode(plaintext[dekSize+8:]); err != nil {
-			return nil, nil, internal.ErrInvalidCiphertext
 		}
 
 		// Read the remaining headers and any padding.
@@ -313,6 +313,6 @@ func eofErr(err error) error {
 
 const (
 	dekSize             = 32
-	headerSize          = dekSize + 8 + internal.ElementSize
+	headerSize          = dekSize + 8
 	encryptedHeaderSize = headerSize + hpke.Overhead
 )

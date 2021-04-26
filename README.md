@@ -95,12 +95,12 @@ shared secret before sending.
 `veil.mres` implements the multi-recipient encryption system for encrypted Veil messages.
 
 Messages begin with a set of `veil.hpke`-encrypted headers containing copies of the data encryption
-key, the length of the encrypted headers, and an ephemeral verification key. Next, the message is
-encrypted with STROBE using the data encryption key. Finally, a `veil.schnorr` signature of the
-entire ciphertext created with the ephemeral signing key is appended.
+key and the length of the encrypted headers. Next, the message is encrypted with STROBE using the
+data encryption key. Finally, a `veil.schnorr` signature of the entire ciphertext created with an 
+ephemeral private key is appended.
 
-To decrypt, readers search for a decryptable header, recover the DEK, the verification key, and
-message length, decrypt the message, and finally verify the signature.
+To decrypt, readers search for a decryptable header, recover the DEK, the ephemeral public key, and
+headers length, decrypt the message, and finally verify the signature.
 
 This provides strong confidentiality and authenticity guarantees while still providing repudiability
 (no recipient can prove a message's contents and origin without revealing their private key) and

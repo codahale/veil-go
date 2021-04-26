@@ -4,8 +4,8 @@
 //
 // Encryption
 //
-// Encryption is as follows, given the sender's key pair, d_s and Q_s, the receiver's public key,
-// Q_r, a plaintext message P, and MAC size N_mac:
+// Encryption is as follows, given the sender's key pair, d_s and Q_s, an ephemeral key pair, d_e
+// and Q_e, the receiver's public key, Q_r, a plaintext message P, and MAC size N_mac:
 //
 //  INIT('veil.hpke', level=256)
 //  AD(LE_U32(N_mac), meta=true)
@@ -13,23 +13,11 @@
 //  AD(Q_s)
 //  ZZ_s = Q_r^d_s
 //  KEY(ZZ_s)
-//
-// The protocol's state is then cloned, the clone is keyed with 64 bytes of random data, the
-// sender's private key, and the message, and finally an ephemeral scalar is derived from PRF output:
-//
-//  KEY(rand(64))
-//  KEY(d_s)
-//  KEY(P)
-//  PRF(64) -> d_e
-//
-// The clone's state is discarded, and d_e is returned to the parent:
-//
-//  Q_e = G^d_e
 //  SEND_ENC(Q_e) -> E
 //  ZZ_e = Q_r^d_e
 //  KEY(ZZ_e)
 //
-// This is effectively an authenticated ECDH KEM, but instead of returning PRF output for use in a
+// This is effectively an authenticated ECDH KEM, but instead of returning KDF output for use in a
 // DEM, we use the keyed protocol to directly encrypt the ciphertext and create a MAC:
 //
 //  SEND_ENC(P)     -> C
@@ -54,7 +42,8 @@
 //  RECV_ENC(C) -> P
 //  RECV_MAC(M)
 //
-// If the RECV_MAC call is successful, the plaintext message P is returned.
+// If the RECV_MAC call is successful, the ephemeral public key E and the plaintext message P are
+// returned.
 //
 // IND-CCA2 Security
 //
@@ -101,16 +90,17 @@
 // the forger. Because this type of forgery is possible, veil.hpke ciphertexts are therefore
 // repudiable.
 //
-// Ephemeral Key Hedging
+// Randomness Re-Use
 //
-// In deriving the ephemeral scalar from a cloned context, veil.hpke uses Aranha et al.'s hedging
-// technique (https://eprint.iacr.org/2019/956.pdf) to mitigate against both catastrophic randomness
-// failures and differential fault attacks against purely deterministic PKE schemes.
+// The ephemeral key pair, d_e and Q_e, are generated outside of this construction and can be used
+// multiple times for a single message.
+// This improves the efficiency of the scheme without reducing
+// its security, per Bellare et al.'s treatment of Randomness Reusing Multi-Recipient Encryption
+// Schemes (http://cseweb.ucsd.edu/~Mihir/papers/bbs.pdf).
+//
 package hpke
 
 import (
-	"crypto/rand"
-
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
 	"github.com/gtank/ristretto255"
@@ -121,7 +111,9 @@ const Overhead = internal.ElementSize + internal.MACSize
 
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
-func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, plaintext []byte) ([]byte, error) {
+func Encrypt(
+	dst []byte, dS, dE *ristretto255.Scalar, qS, qE, qR *ristretto255.Element, plaintext []byte,
+) ([]byte, error) {
 	var buf [internal.UniformBytestringSize]byte
 
 	ret, out := internal.SliceForAppend(dst, len(plaintext)+Overhead)
@@ -145,29 +137,6 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 	// Key the protocol with the static shared secret.
 	hpke.KEY(zzS.Encode(buf[:0]))
 
-	// Clone the protocol.
-	clone := hpke.Clone()
-
-	// Generate a random nonce.
-	if _, err := rand.Read(buf[:]); err != nil {
-		return nil, err
-	}
-
-	// Key the clone with the nonce. This hedges against differential attacks against purely
-	// deterministic PKE algorithms.
-	clone.KEY(buf[:internal.UniformBytestringSize])
-
-	// Key the clone with the sender's private key. This hedges against randomness failures.
-	clone.KEY(dS.Encode(buf[:0]))
-
-	// Key the clone with the plaintext. This hedges against the reuse of ephemeral values across
-	// multiple messages.
-	clone.KEY(plaintext)
-
-	// Derive an ephemeral key pair from the clone.
-	dE := clone.PRFScalar()
-	qE := ristretto255.NewElement().ScalarBaseMult(dE)
-
 	// Encrypt the ephemeral public key.
 	out = hpke.SendENC(out[:0], qE.Encode(buf[:0]))
 
@@ -190,7 +159,9 @@ func Encrypt(dst []byte, dS *ristretto255.Scalar, qS, qR *ristretto255.Element, 
 
 // Decrypt decrypts the ciphertext iff it was encrypted by the owner of qS for the owner of qR and
 // no bit of the ciphertext has been modified.
-func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext []byte) ([]byte, error) {
+func Decrypt(
+	dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext []byte,
+) (*ristretto255.Element, []byte, error) {
 	var buf [internal.ElementSize]byte
 
 	ret, out := internal.SliceForAppend(dst, len(ciphertext)-Overhead)
@@ -218,7 +189,7 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 	// authenticated.
 	qE := ristretto255.NewElement()
 	if err := qE.Decode(hpke.RecvENC(buf[:0], ciphertext[:internal.ElementSize])); err != nil {
-		return nil, internal.ErrInvalidCiphertext
+		return nil, nil, internal.ErrInvalidCiphertext
 	}
 
 	// Calculate the ephemeral shared secret between the recipient's private key and the ephemeral
@@ -237,9 +208,9 @@ func Decrypt(dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, 
 	// entirety, since the sender and receiver's protocol states must be identical in order for the
 	// MACs to agree.
 	if err := hpke.RecvMAC(ciphertext[len(ciphertext)-internal.MACSize:]); err != nil {
-		return nil, internal.ErrInvalidCiphertext
+		return nil, nil, internal.ErrInvalidCiphertext
 	}
 
-	// Return the authenticated plaintext.
-	return ret, nil
+	// Return the ephemeral public key and the authenticated plaintext.
+	return qE, ret, nil
 }
