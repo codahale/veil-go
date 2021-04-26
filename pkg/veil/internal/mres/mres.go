@@ -214,62 +214,15 @@ func Encrypt(
 
 // Decrypt reads the contents of src, decrypts them iff the owner of qS encrypted them for
 // decryption by dR, and writes the decrypted contents to dst.
-//nolint:gocognit // This gets worse if split up into functions.
 func Decrypt(dst io.Writer, src io.Reader, dR *ristretto255.Scalar, qR, qS *ristretto255.Element) (int64, error) {
 	mres := initProtocol(qS)
 
 	// Create a new Schnorr verifier.
 	verifier := schnorr.NewVerifier(io.Discard)
 
-	// Pass the headers through the protocol and the verifier.
-	headers := mres.RecvCLRStream(verifier)
-
-	var (
-		dek        []byte
-		headerRead int64
-		headerLen  int64
-
-		encHeader = make([]byte, encryptedHeaderSize)
-		qE        = ristretto255.NewElement()
-	)
-
-	// Iterate through the possible headers, attempting to decrypt each of them.
-	for {
-		// Read a possible header. If we hit the end of the file, we didn't find a header we could
-		// decrypt, so the ciphertext is invalid.
-		_, err := io.ReadFull(src, encHeader)
-		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
-			return 0, internal.ErrInvalidCiphertext
-		} else if err != nil {
-			return 0, err
-		}
-
-		// Record the encrypted headers in the STROBE protocol and the Schnorr verifier.
-		_, _ = headers.Write(encHeader)
-		headerRead += encryptedHeaderSize
-
-		// Try to decrypt the header.
-		plaintext, err := hpke.Decrypt(encHeader[:0], dR, qR, qS, encHeader)
-		if err != nil {
-			// If we can't decrypt it, try the next one.
-			continue
-		}
-
-		// If we can decrypt the header, recover the DEK and the length of the headers.
-		dek = plaintext[:dekSize]
-		headerLen = int64(binary.LittleEndian.Uint64(plaintext[dekSize:]))
-
-		// Decode the ephemeral public key.
-		if err := qE.Decode(plaintext[dekSize+8:]); err != nil {
-			return 0, internal.ErrInvalidCiphertext
-		}
-
-		// Break out to decrypt the full message.
-		break
-	}
-
-	// Read the remaining headers and any padding.
-	if _, err := io.CopyN(headers, src, headerLen-headerRead); err != nil {
+	// Find a decryptable header and pass the headers through the protocol and the verifier.
+	dek, qE, err := findHeader(mres.RecvCLRStream(verifier), src, dR, qR, qS)
+	if err != nil {
 		return 0, err
 	}
 
@@ -293,6 +246,51 @@ func Decrypt(dst io.Writer, src io.Reader, dR *ristretto255.Scalar, qR, qS *rist
 	return pn, nil
 }
 
+func findHeader(
+	dst io.Writer, src io.Reader, dR *ristretto255.Scalar, qR, qS *ristretto255.Element,
+) ([]byte, *ristretto255.Element, error) {
+	var (
+		headerRead int64
+		encHeader  [encryptedHeaderSize]byte
+	)
+
+	// Iterate through the possible headers, attempting to decrypt each of them.
+	for {
+		// Read a possible header. If we hit the end of the file, we didn't find a header we could
+		// decrypt, so the ciphertext is invalid.
+		_, err := io.ReadFull(src, encHeader[:])
+		if err != nil {
+			return nil, nil, eofErr(err)
+		}
+
+		// Record the encrypted headers in the STROBE protocol and the Schnorr verifier.
+		_, _ = dst.Write(encHeader[:])
+		headerRead += encryptedHeaderSize
+
+		// Try to decrypt the header.
+		plaintext, err := hpke.Decrypt(encHeader[:0], dR, qR, qS, encHeader[:])
+		if err != nil {
+			// If we can't decrypt it, try the next one.
+			continue
+		}
+
+		// Decode the ephemeral public key.
+		qE := ristretto255.NewElement()
+		if err := qE.Decode(plaintext[dekSize+8:]); err != nil {
+			return nil, nil, internal.ErrInvalidCiphertext
+		}
+
+		// Read the remaining headers and any padding.
+		headerLen := int64(binary.LittleEndian.Uint64(plaintext[dekSize:]))
+		if _, err := io.CopyN(dst, src, headerLen-headerRead); err != nil {
+			return nil, nil, err
+		}
+
+		// Return the authenticated DEK and the ephemeral public key.
+		return plaintext[:dekSize], qE, nil
+	}
+}
+
 func initProtocol(qS *ristretto255.Element) *protocol.Protocol {
 	// Initialize a new protocol.
 	mres := protocol.New("veil.mres")
@@ -304,6 +302,14 @@ func initProtocol(qS *ristretto255.Element) *protocol.Protocol {
 	mres.AD(qS.Encode(nil))
 
 	return mres
+}
+
+func eofErr(err error) error {
+	if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
+		return internal.ErrInvalidCiphertext
+	}
+
+	return err
 }
 
 const (
