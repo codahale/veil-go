@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/alecthomas/kong"
@@ -84,7 +83,7 @@ func askPassphrase(prompt string) ([]byte, error) {
 	return term.ReadPassword(int(os.Stdin.Fd()))
 }
 
-func openOutput(path string) (io.WriteCloser, error) {
+func openOutput(path string) (*os.File, error) {
 	if path == "-" {
 		return os.Stdin, nil
 	}
@@ -92,7 +91,7 @@ func openOutput(path string) (io.WriteCloser, error) {
 	return os.Create(path)
 }
 
-func openInput(path string) (io.ReadSeekCloser, error) {
+func openInput(path string) (*os.File, error) {
 	if path == "-" {
 		return os.Stdin, nil
 	}

@@ -47,6 +47,7 @@ func (cmd *decryptCmd) Run(_ *kong.Context) error {
 	_, err = sk.PrivateKey(cmd.KeyID).Decrypt(dst, src, sender)
 	if err != nil {
 		// Delete any partial output if decryption fails.
+		_ = dst.Truncate(0)
 		_ = dst.Close()
 		_ = os.Remove(cmd.Plaintext)
 	}
