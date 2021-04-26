@@ -119,14 +119,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
-
 	"github.com/codahale/veil/pkg/veil/internal"
 	"github.com/codahale/veil/pkg/veil/internal/hpke"
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
-	"github.com/codahale/veil/pkg/veil/internal/sigio"
+	sigio2 "github.com/codahale/veil/pkg/veil/internal/schnorr/sigio"
 	"github.com/gtank/ristretto255"
+	"io"
 )
 
 // Encrypt reads the contents of src, encrypts them such that all members of qRs will be able to
@@ -230,7 +229,7 @@ func Decrypt(dst io.Writer, src io.Reader, dR *ristretto255.Scalar, qR, qS *rist
 	mres.KEY(dek)
 
 	// Detach the signature from the end of the ciphertext.
-	sigr := sigio.NewReader(src, schnorr.SignatureSize)
+	sigr := sigio2.NewReader(src)
 
 	// Decrypt the message ciphertext and write it to dst.
 	pn, err := io.Copy(io.MultiWriter(mres.RecvENCStream(dst), verifier), sigr)

@@ -6,14 +6,15 @@ import (
 	"testing"
 
 	"github.com/codahale/gubbins/assert"
+	"github.com/codahale/veil/pkg/veil/internal/schnorr"
 )
 
 func TestNewReader(t *testing.T) {
 	t.Parallel()
 
-	sig := bytes.Repeat([]byte{0xf0}, 32)
+	sig := bytes.Repeat([]byte{0xf0}, schnorr.SignatureSize)
 	src := append([]byte("well cool then explain this"), sig...)
-	tr := NewReader(bytes.NewReader(src), 32)
+	tr := NewReader(bytes.NewReader(src))
 	dst := bytes.NewBuffer(nil)
 
 	n, err := io.Copy(dst, tr)
