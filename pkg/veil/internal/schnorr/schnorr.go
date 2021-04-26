@@ -1,5 +1,7 @@
 // Package schnorr provides the underlying STROBE protocol for Veil's Schnorr signatures.
 //
+// Signing A Message
+//
 // Signing is as follows, given a message in blocks M_0…M_n, a private scalar d, and a public
 // element Q:
 //
@@ -10,6 +12,9 @@
 //  …
 //  SEND_CLR(M_n, more=true)
 //  AD(Q)
+//
+// (The signer's public key is included after the message to allow for veil.mres to search for
+// headers without having to buffer them.)
 //
 // The protocol's state is then cloned, the clone is keyed with 64 bytes of random data and the
 // signer's private key, an ephemeral scalar is derived from PRF output:
@@ -26,6 +31,8 @@
 //  s = d_s*c + r
 //
 // The resulting signature consists of the two scalars, c and s.
+//
+// Verifying A Signature
 //
 // To verify, veil.schnorr is run with associated data D, message in blocks M_0…M_n, a public
 // element Q:

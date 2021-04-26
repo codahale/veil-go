@@ -98,12 +98,13 @@
 // attacker can present forged messages which appear to be from a sender to other, honest
 // recipients.
 //
-// veil.mres eliminates this attack by using an ephemeral key pair to sign the entire ciphertext and
-// including only the public key in the KEM ciphertext. Re-using the KEM ciphertexts with a new
+// veil.mres eliminates this attack by using the ephemeral key pair to sign the entire ciphertext
+// and including only the public key in the KEM ciphertext. Re-using the KEM ciphertexts with a new
 // message requires forging a new signature for a SUF-CMA-secure scheme. The use of an authenticated
-// KEM serves to authenticate both the verification key and the message: only the possessor of the
-// sender's private key can calculate the static shared secret used to encrypt the ephemeral public
-// key, and the recipient can only forge KEM ciphertexts with themselves as the intended recipient.
+// KEM serves to authenticate the ephemeral public key and thus the message: only the possessor of
+// the sender's private key can calculate the static shared secret used to encrypt the ephemeral
+// public key, and the recipient can only forge KEM ciphertexts with themselves as the intended
+// recipient.
 //
 // Repudiability
 //
