@@ -13,8 +13,8 @@
 //  SEND_CLR(M_n, more=true)
 //  AD(Q)
 //
-// (The signer's public key is included after the message to allow for veil.mres to search for
-// headers without having to buffer them.)
+// (The signer's public key is included after the message to allow veil.mres to search for a header
+// without having to buffer the results.)
 //
 // The protocol's state is then cloned, the clone is keyed with 64 bytes of random data and the
 // signer's private key, an ephemeral scalar is derived from PRF output:
