@@ -137,7 +137,6 @@ func (p *Protocol) SendENCStream(dst io.Writer) io.Writer {
 
 	// Return a writer.
 	return &callbackWriter{
-		buf: make([]byte, 1024),
 		callback: func(dst, b []byte) []byte {
 			return p.moreSendENC(dst, b)
 		},
@@ -150,7 +149,6 @@ func (p *Protocol) RecvENCStream(dst io.Writer) io.Writer {
 
 	// Return a writer.
 	return &callbackWriter{
-		buf: make([]byte, 1024),
 		callback: func(dst, b []byte) []byte {
 			return p.moreRecvENC(dst, b)
 		},
