@@ -60,7 +60,7 @@ func (pk *PrivateKey) Encrypt(
 // N.B.: Because Veil messages are streamed, it is possible that this may write some decrypted data
 // to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
 // output written to dst should be discarded, as it cannot be ascertained to be authentic.
-func (pk *PrivateKey) Decrypt(dst io.Writer, src io.ReadSeeker, sender *PublicKey) (int64, error) {
+func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, sender *PublicKey) (int64, error) {
 	return mres.Decrypt(dst, src, pk.d, pk.q, sender.q)
 }
 
