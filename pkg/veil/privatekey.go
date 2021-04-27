@@ -52,7 +52,14 @@ func (pk *PrivateKey) Encrypt(
 		return 0, err
 	}
 
-	return mres.Encrypt(dst, bufio.NewReader(src), pk.d, pk.q, qRs, padding)
+	out := bufio.NewWriter(dst)
+
+	n, err := mres.Encrypt(dst, bufio.NewReader(src), pk.d, pk.q, qRs, padding)
+	if err != nil {
+		return n, err
+	}
+
+	return n, out.Flush()
 }
 
 // Decrypt decrypts the data in src if originally encrypted by the given public key. Returns the
@@ -62,7 +69,14 @@ func (pk *PrivateKey) Encrypt(
 // to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
 // output written to dst should be discarded, as it cannot be ascertained to be authentic.
 func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, sender *PublicKey) (int64, error) {
-	return mres.Decrypt(dst, bufio.NewReader(src), pk.d, pk.q, sender.q)
+	out := bufio.NewWriter(dst)
+
+	n, err := mres.Decrypt(dst, bufio.NewReader(src), pk.d, pk.q, sender.q)
+	if err != nil {
+		return n, err
+	}
+
+	return n, out.Flush()
 }
 
 // Derive derives a PrivateKey from the receiver with the given sub-key ID.
