@@ -4,17 +4,27 @@
 // Encryption
 //
 // Encrypting a message begins as follows, given the sender's key pair, d_s and Q_s, a plaintext
-// message in blocks P_0…P_n, a list of recipient public keys, Q_r0..Q_rm, a randomly generated data
-// encryption key, K_dek, an ephemeral key pair, d_e and Q_e, and a DEK size N_dek:
+// message in blocks P_0…P_n, a list of recipient public keys, Q_r0..Q_rm, and a DEK size N_dek:
 //
 //  INIT('veil.mres', level=256)
 //  AD(LE_32(N_dek),  meta=true)
 //  AD(Q_s)
 //
-// The data encryption key and the length of the encrypted headers (plus padding) are encoded into a
-// fixed-length header and copies of it are encrypted with veil.hpke for each recipient using d_e
-// and Q_e. Optional random padding is added to the end, and the resulting block
-// H is written:
+// The protocol context is cloned and keyed with the sender's private key and a random nonce and used
+// to derive a data encryption key, K_dek, and an ephemeral private key, d_e:
+//
+//  KEY(d_s)
+//  KEY(96)
+//  PRF(32) -> K_dek
+//  PRF(64) -> d_e
+//
+// The ephemeral public key is computed and the cloned context is discarded:
+//
+//  Q_e = G^d_e
+//
+// The data encryption key and the message offset are encoded into a fixed-length header and copies
+// of it are encrypted with veil.hpke for each recipient using d_e and Q_e. Optional random padding
+// is added to the end, and the resulting block H is written:
 //
 //  SEND_CLR(H)
 //
@@ -45,7 +55,7 @@
 //
 // The recipient reads through the ciphertext in header-sized blocks, looking for one which is
 // decryptable given their key pair and the sender's public key. Having found one, they recover the
-// data encryption key K_dek, the length of the encrypted headers, and the ephemeral public key Q_e.
+// data encryption key K_dek, the message offset, and the ephemeral public key Q_e.
 // They then read the remainder of the block of encrypted headers and padding H:
 //
 //  RECV_CLR(H)
@@ -120,6 +130,13 @@
 // its security, per Bellare et al.'s treatment of Randomness Reusing Multi-Recipient Encryption
 // Schemes (http://cseweb.ucsd.edu/~Mihir/papers/bbs.pdf).
 //
+// Ephemeral Scalar Hedging
+//
+// In deriving the DEK and ephemeral scalar from a cloned context, veil.mres uses Aranha et al.'s "hedged
+// signature" technique (https://eprint.iacr.org/2019/956.pdf) to mitigate against both catastrophic
+// randomness failures and differential fault attacks against purely deterministic signature
+// schemes.
+//
 package mres
 
 import (
@@ -146,15 +163,23 @@ func Encrypt(
 	// Initialize the protocol.
 	mres := initProtocol(qS)
 
-	// Generate enough random data for a DEK and an ephemeral private key.
-	r := make([]byte, dekSize+internal.UniformBytestringSize)
-	if _, err := rand.Read(r); err != nil {
+	// Clone the protocol.
+	clone := mres.Clone()
+
+	// Key the clone with the sender's private key.
+	clone.KEY(dS.Encode(nil))
+
+	// Key the clone with a random key.
+	if err := clone.KEYRand(dekSize + internal.UniformBytestringSize); err != nil {
 		return 0, fmt.Errorf("error generating random value: %w", err)
 	}
 
-	// Generate a DEK and an ephemeral key pair.
-	dek := r[:dekSize]
-	dE := ristretto255.NewScalar().FromUniformBytes(r[dekSize:])
+	// Generate a DEK with the clone.
+	dek := make([]byte, dekSize)
+	clone.PRF(dek)
+
+	// Generate an ephemeral key pair with the clone.
+	dE := clone.PRFScalar()
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
 	// Create a new Schnorr signer.
@@ -164,9 +189,12 @@ func Encrypt(
 	header := make([]byte, dekSize+8, headerSize)
 	encHeader := make([]byte, encryptedHeaderSize)
 
-	// Encode the DEK and the total size of the encrypted headers as a header.
+	// Add a copy of the DEK to the header.
 	copy(header, dek)
-	binary.LittleEndian.PutUint64(header[dekSize:], encryptedHeaderSize*uint64(len(qRs))+uint64(padding))
+
+	// Add the message offset to the header.
+	messageOffset := encryptedHeaderSize*uint64(len(qRs)) + uint64(padding)
+	binary.LittleEndian.PutUint64(header[dekSize:], messageOffset)
 
 	// Ensure all headers are signed and recorded in the protocol.
 	headers := mres.SendCLRStream(signer)
@@ -281,8 +309,8 @@ func findHeader(
 		}
 
 		// Read the remaining headers and any padding.
-		headerLen := int64(binary.LittleEndian.Uint64(plaintext[dekSize:]))
-		if _, err := io.CopyN(dst, src, headerLen-headerRead); err != nil {
+		messageOffset := int64(binary.LittleEndian.Uint64(plaintext[dekSize:]))
+		if _, err := io.CopyN(dst, src, messageOffset-headerRead); err != nil {
 			return nil, nil, err
 		}
 

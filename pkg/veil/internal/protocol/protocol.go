@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"io"
 
@@ -41,6 +42,19 @@ func (p *Protocol) KEY(key []byte) {
 	if err := p.s.KEY(k, false); err != nil {
 		panic(err)
 	}
+}
+
+func (p *Protocol) KEYRand(n int) error {
+	k := make([]byte, n)
+	if _, err := rand.Read(k); err != nil {
+		return err
+	}
+
+	if err := p.s.KEY(k, false); err != nil {
+		panic(err)
+	}
+
+	return nil
 }
 
 func (p *Protocol) Ratchet() {

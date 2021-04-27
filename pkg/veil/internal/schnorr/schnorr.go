@@ -79,7 +79,6 @@
 package schnorr
 
 import (
-	"crypto/rand"
 	"io"
 
 	"github.com/codahale/veil/pkg/veil/internal"
@@ -117,14 +116,11 @@ func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) ([]byte,
 	// Clone the protocol.
 	clone := sn.schnorr.Clone()
 
-	// Generate a random nonce.
-	if _, err := rand.Read(buf[:internal.UniformBytestringSize]); err != nil {
+	// Key the clone with a random key. This hedges against differential attacks against purely
+	// deterministic signature algorithms.
+	if err := clone.KEYRand(internal.UniformBytestringSize); err != nil {
 		return nil, err
 	}
-
-	// Key the clone with the nonce. This hedges against differential attacks against purely
-	// deterministic signature algorithms.
-	clone.KEY(buf[:internal.UniformBytestringSize])
 
 	// Key the clone with the sender's private key. This hedges against randomness failures. The
 	// protocol's state is already dependent on the message, making the reuse of ephemeral values
