@@ -165,7 +165,7 @@ func hashCounter(pbenc *protocol.Protocol, ctr *uint64, ctrBuf, dst, left, right
 	pbenc.AD(right)
 
 	// Extract a new block.
-	pbenc.PRF(dst)
+	pbenc.PRF(dst[:0], n)
 }
 
 const (

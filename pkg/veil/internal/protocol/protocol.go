@@ -65,18 +65,20 @@ func (p *Protocol) Ratchet() {
 	}
 }
 
-func (p *Protocol) PRF(b []byte) {
-	if err := p.s.PRF(b, false); err != nil {
+func (p *Protocol) PRF(dst []byte, n int) []byte {
+	ret, out := internal.SliceForAppend(dst, n)
+
+	if err := p.s.PRF(out, false); err != nil {
 		panic(err)
 	}
+
+	return ret
 }
 
 func (p *Protocol) PRFScalar() *ristretto255.Scalar {
 	var buf [internal.UniformBytestringSize]byte
 
-	p.PRF(buf[:])
-
-	return ristretto255.NewScalar().FromUniformBytes(buf[:])
+	return ristretto255.NewScalar().FromUniformBytes(p.PRF(buf[:0], internal.UniformBytestringSize))
 }
 
 func (p *Protocol) SendENC(dst, plaintext []byte) []byte {

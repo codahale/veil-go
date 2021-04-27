@@ -175,8 +175,7 @@ func Encrypt(
 	}
 
 	// Generate a DEK with the clone.
-	dek := make([]byte, dekSize)
-	clone.PRF(dek)
+	dek := clone.PRF(nil, dekSize)
 
 	// Generate an ephemeral key pair with the clone.
 	dE := clone.PRFScalar()
