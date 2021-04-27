@@ -52,9 +52,10 @@ func (pk *PrivateKey) Encrypt(
 		return 0, err
 	}
 
+	in := bufio.NewReader(src)
 	out := bufio.NewWriter(dst)
 
-	n, err := mres.Encrypt(dst, bufio.NewReader(src), pk.d, pk.q, qRs, padding)
+	n, err := mres.Encrypt(out, in, pk.d, pk.q, qRs, padding)
 	if err != nil {
 		return n, err
 	}
@@ -69,9 +70,10 @@ func (pk *PrivateKey) Encrypt(
 // to dst before it can discover that the ciphertext is invalid. If Decrypt returns an error, all
 // output written to dst should be discarded, as it cannot be ascertained to be authentic.
 func (pk *PrivateKey) Decrypt(dst io.Writer, src io.Reader, sender *PublicKey) (int64, error) {
+	in := bufio.NewReader(src)
 	out := bufio.NewWriter(dst)
 
-	n, err := mres.Decrypt(dst, bufio.NewReader(src), pk.d, pk.q, sender.q)
+	n, err := mres.Decrypt(out, in, pk.d, pk.q, sender.q)
 	if err != nil {
 		return n, err
 	}
