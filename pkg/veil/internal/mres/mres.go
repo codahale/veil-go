@@ -181,22 +181,13 @@ func Encrypt(
 	dE := clone.PRFScalar()
 	qE := ristretto255.NewElement().ScalarBaseMult(dE)
 
-	// Create a new Schnorr signer.
+	// Create a new Schnorr signer and ensure all headers are signed and hashed.
 	signer := schnorr.NewSigner(dst)
-
-	// Allocate buffers for the headers.
-	header := make([]byte, dekSize+8, headerSize)
-	encHeader := make([]byte, encryptedHeaderSize)
-
-	// Add a copy of the DEK to the header.
-	copy(header, dek)
-
-	// Add the message offset to the header.
-	messageOffset := encryptedHeaderSize*uint64(len(qRs)) + uint64(padding)
-	binary.LittleEndian.PutUint64(header[dekSize:], messageOffset)
-
-	// Ensure all headers are signed and recorded in the protocol.
 	headers := mres.SendCLRStream(signer)
+
+	// Encode header and allocate buffer for header ciphertexts.
+	header := encodeHeader(dek, encryptedHeaderSize*uint64(len(qRs))+uint64(padding))
+	encHeader := make([]byte, encryptedHeaderSize)
 
 	// Encrypt, and write copies of the header for each recipient.
 	for _, qR := range qRs {
@@ -337,6 +328,15 @@ func eofErr(err error) error {
 	}
 
 	return err
+}
+
+func encodeHeader(dek []byte, messageOffset uint64) []byte {
+	header := make([]byte, dekSize+8, headerSize)
+	copy(header, dek)
+
+	binary.LittleEndian.PutUint64(header[dekSize:], messageOffset)
+
+	return header
 }
 
 const (
