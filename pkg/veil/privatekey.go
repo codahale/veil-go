@@ -1,6 +1,7 @@
 package veil
 
 import (
+	"bufio"
 	"crypto/rand"
 	"io"
 
@@ -83,7 +84,7 @@ func (pk *PrivateKey) Derive(subKeyID string) *PrivateKey {
 func (pk *PrivateKey) Sign(src io.Reader) (*Signature, error) {
 	// Write the message contents to the veil.schnorr STROBE protocol.
 	signer := schnorr.NewSigner(io.Discard)
-	if _, err := io.Copy(signer, src); err != nil {
+	if _, err := io.Copy(signer, bufio.NewReader(src)); err != nil {
 		return nil, err
 	}
 
