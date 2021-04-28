@@ -111,9 +111,7 @@ const Overhead = internal.ElementSize + internal.MACSize
 
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
-func Encrypt(
-	dst []byte, dS, dE *ristretto255.Scalar, qS, qE, qR *ristretto255.Element, plaintext []byte,
-) ([]byte, error) {
+func Encrypt(dst []byte, dS, dE *ristretto255.Scalar, qS, qE, qR *ristretto255.Element, plaintext []byte) []byte {
 	var buf [internal.UniformBytestringSize]byte
 
 	ret, out := internal.SliceForAppend(dst, len(plaintext)+Overhead)
@@ -154,7 +152,7 @@ func Encrypt(
 	_ = hpke.SendMAC(out)
 
 	// Return the encrypted ephemeral public key, the encrypted message, and the MAC.
-	return ret, nil
+	return ret
 }
 
 // Decrypt decrypts the ciphertext iff it was encrypted by the owner of qS for the owner of qR and

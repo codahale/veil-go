@@ -191,11 +191,7 @@ func Encrypt(
 
 	// Encrypt, and write copies of the header for each recipient.
 	for _, qR := range qRs {
-		encHeader, err = hpke.Encrypt(encHeader[:0], dS, dE, qS, qE, qR, header)
-		if err != nil {
-			return written, err
-		}
-
+		encHeader = hpke.Encrypt(encHeader[:0], dS, dE, qS, qE, qR, header)
 		n, err := headers.Write(encHeader)
 		written += int64(n)
 
