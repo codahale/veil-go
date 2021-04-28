@@ -187,7 +187,7 @@ func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
 	Rp := ristretto255.NewElement().Add(S, Qc)
 
 	// Add the signer's public key to the protocol.
-	vr.schnorr.AD(q.Encode(nil))
+	vr.schnorr.AD(q.Encode(buf[:0]))
 
 	// Hash the ephemeral public key.
 	vr.schnorr.AD(Rp.Encode(buf[:0]))
