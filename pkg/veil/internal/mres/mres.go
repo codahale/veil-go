@@ -150,7 +150,7 @@ import (
 	"github.com/codahale/veil/pkg/veil/internal/hpke"
 	"github.com/codahale/veil/pkg/veil/internal/protocol"
 	"github.com/codahale/veil/pkg/veil/internal/schnorr"
-	sigio2 "github.com/codahale/veil/pkg/veil/internal/schnorr/sigio"
+	"github.com/codahale/veil/pkg/veil/internal/schnorr/sigio"
 	"github.com/gtank/ristretto255"
 )
 
@@ -250,7 +250,7 @@ func Decrypt(dst io.Writer, src io.Reader, dR *ristretto255.Scalar, qR, qS *rist
 	mres.KEY(dek)
 
 	// Detach the signature from the end of the ciphertext.
-	sigr := sigio2.NewReader(src)
+	sigr := sigio.NewReader(src)
 
 	// Decrypt the message ciphertext and write it to dst.
 	pn, err := io.Copy(io.MultiWriter(mres.RecvENCStream(dst), verifier), sigr)
