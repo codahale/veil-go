@@ -88,7 +88,7 @@ import (
 
 const (
 	// SignatureSize is the length of a signature in bytes.
-	SignatureSize = internal.ElementSize + internal.ScalarSize
+	SignatureSize = 2 * internal.ScalarSize
 )
 
 // Signer is an io.Writer which adds written data to a STROBE protocol for signing.
