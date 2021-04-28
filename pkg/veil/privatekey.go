@@ -29,8 +29,7 @@ func (pk *PrivateKey) PublicKey() *PublicKey {
 func (pk *PrivateKey) Encrypt(
 	dst io.Writer, src io.Reader, recipients []*PublicKey, fakes, padding int,
 ) (int64, error) {
-	var buf [internal.UniformBytestringSize]byte
-
+	buf := make([]byte, internal.UniformBytestringSize)
 	qRs := make([]*ristretto255.Element, len(recipients)+fakes)
 
 	// Copy recipients.
@@ -40,11 +39,11 @@ func (pk *PrivateKey) Encrypt(
 
 	// Add fakes.
 	for i := len(recipients); i < len(qRs); i++ {
-		if _, err := rand.Read(buf[:]); err != nil {
+		if _, err := rand.Read(buf); err != nil {
 			return 0, err
 		}
 
-		qRs[i] = ristretto255.NewElement().FromUniformBytes(buf[:])
+		qRs[i] = ristretto255.NewElement().FromUniformBytes(buf)
 	}
 
 	// Shuffle the recipients to disguise any ordering information.

@@ -76,7 +76,7 @@ func (p *Protocol) PRF(dst []byte, n int) []byte {
 }
 
 func (p *Protocol) PRFScalar() *ristretto255.Scalar {
-	var buf [internal.UniformBytestringSize]byte
+	buf := make([]byte, internal.UniformBytestringSize)
 
 	return ristretto255.NewScalar().FromUniformBytes(p.PRF(buf[:0], internal.UniformBytestringSize))
 }
@@ -222,11 +222,11 @@ func (p *Protocol) moreRecvCLR(data []byte) {
 
 // LittleEndianU32 returns n as a 32-bit little endian bit string.
 func LittleEndianU32(n int) []byte {
-	var b [4]byte
+	b := make([]byte, 4)
 
-	binary.LittleEndian.PutUint32(b[:], uint32(n))
+	binary.LittleEndian.PutUint32(b, uint32(n))
 
-	return b[:]
+	return b
 }
 
 type callbackWriter struct {

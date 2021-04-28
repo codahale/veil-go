@@ -108,7 +108,7 @@ func NewSigner(dst io.Writer) *Signer {
 
 // Sign uses the given key pair to construct a Schnorr signature of the previously written data.
 func (sn *Signer) Sign(d *ristretto255.Scalar, q *ristretto255.Element) ([]byte, error) {
-	var buf [SignatureSize]byte
+	buf := make([]byte, SignatureSize)
 
 	// Add the signer's public key to the protocol.
 	sn.schnorr.AD(q.Encode(nil))
@@ -162,7 +162,7 @@ func NewVerifier(dst io.Writer) *Verifier {
 
 // Verify uses the given public key to verify the signature of the previously read data.
 func (vr *Verifier) Verify(q *ristretto255.Element, sig []byte) bool {
-	var buf [internal.ElementSize]byte
+	buf := make([]byte, internal.ElementSize)
 
 	// Check signature length.
 	if len(sig) != SignatureSize {

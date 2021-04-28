@@ -112,8 +112,7 @@ const Overhead = internal.ElementSize + internal.MACSize
 // Encrypt encrypts the plaintext such that the owner of qR will be able to decrypt it knowing that
 // only the owner of qS could have encrypted it.
 func Encrypt(dst []byte, dS, dE *ristretto255.Scalar, qS, qE, qR *ristretto255.Element, plaintext []byte) []byte {
-	var buf [internal.UniformBytestringSize]byte
-
+	buf := make([]byte, internal.ElementSize)
 	ret, out := internal.SliceForAppend(dst, len(plaintext)+Overhead)
 
 	// Initialize the protocol.
@@ -160,8 +159,7 @@ func Encrypt(dst []byte, dS, dE *ristretto255.Scalar, qS, qE, qR *ristretto255.E
 func Decrypt(
 	dst []byte, dR *ristretto255.Scalar, qR, qS *ristretto255.Element, ciphertext []byte,
 ) (*ristretto255.Element, []byte, error) {
-	var buf [internal.ElementSize]byte
-
+	buf := make([]byte, internal.ElementSize)
 	ret, out := internal.SliceForAppend(dst, len(ciphertext)-Overhead)
 
 	// Initialize the protocol.

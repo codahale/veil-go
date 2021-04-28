@@ -269,26 +269,24 @@ func Decrypt(dst io.Writer, src io.Reader, dR *ristretto255.Scalar, qR, qS *rist
 func findHeader(
 	dst io.Writer, src io.Reader, dR *ristretto255.Scalar, qR, qS *ristretto255.Element,
 ) ([]byte, *ristretto255.Element, error) {
-	var (
-		headerOffset int64
-		encHeader    [encryptedHeaderSize]byte
-	)
+	headerOffset := int64(0)
+	encHeader := make([]byte, encryptedHeaderSize)
 
 	// Iterate through the possible headers, attempting to decrypt each of them.
 	for {
 		// Read a possible header. If we hit the end of the file, we didn't find a header we could
 		// decrypt, so the ciphertext is invalid.
-		_, err := io.ReadFull(src, encHeader[:])
+		_, err := io.ReadFull(src, encHeader)
 		if err != nil {
 			return nil, nil, invalidCiphertextIfEOF(err)
 		}
 
 		// Record the encrypted headers in the STROBE protocol and the Schnorr verifier.
-		_, _ = dst.Write(encHeader[:])
+		_, _ = dst.Write(encHeader)
 		headerOffset += encryptedHeaderSize
 
 		// Try to decrypt the header.
-		qE, plaintext, err := hpke.Decrypt(encHeader[:0], dR, qR, qS, encHeader[:])
+		qE, plaintext, err := hpke.Decrypt(encHeader[:0], dR, qR, qS, encHeader)
 		if err != nil {
 			// If we can't decrypt it, try the next one.
 			continue
